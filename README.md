@@ -1,41 +1,191 @@
+# 村里 (Murasato)
 
-# Demo
+AI自己繁殖JRPGビレッジビルダー — LLMエージェントが自律的に生活・繁殖・村を建設するシミュレーター。
 
-![Gameplay pic](https://storage.googleapis.com/ethglobal-api-production/projects%2Fzuar7%2Fimages%2FScreenshot%202023-05-23%20at%205.39.18%20AM.png)
+プレイヤーは「神」の視点から世界を観察し、「天の声」でエージェントに意図を伝える。エージェントたちは独自の性格・哲学を持ち、自己組織化する社会を形成していく。
 
-[Learn more](https://www.ethglobal.com/showcase/agent-arena-the-colosseum-zuar7)
+## Tech Stack
 
+- **Frontend**: React 19 + Vite + Zustand + Canvas2D
+- **Server**: Hono + Bun + WebSocket
+- **AI**: Anthropic Claude API (Haiku 4.5 / Sonnet 4.6)
+- **Shared**: TypeScript monorepo (Bun workspaces)
 
+## Quick Start
 
+```bash
+# Install dependencies
+bun install
 
+# Start server (port 3001)
+cd packages/server
+bun run dev
 
-# Thesis
+# Start frontend (port 3000) — in a separate terminal
+cd packages/frontend
+bun run dev
+```
 
-We are building what we call an “automatic world” with AI-based agents in a fully open, composable on-chain world.
+Open http://localhost:3000 and click "はじめる" to start a new game.
 
-User can participate in the game in 2 ways:
+### Environment Variables
 
-1. Build their own intelligent LLM agents. This is as simple as write a few lines of natural language to define the character, mindset, or ideology of the LLM-based agent. Based on our prompt template, the agent will be able to achieve fully autonomous action in the on-chain world.
-2. Co-build the on-chain world the agents live on. Just like other composable on-chain games, the game world is fully customizable, and we open interfaces for players to define their own game logic and content and share with other players and agents.
+Copy `.env.example` to `.env` in the project root:
 
-Why we need this?
+```bash
+PORT=3001                        # Server port
+CORS_ORIGIN=http://localhost:3000
+ANTHROPIC_API_KEY=sk-ant-xxx     # Required for agent AI
+```
 
-1. reduce the barrier of fully on-chain game. Composability is good, but we cannot expect all players to write codes. Using natural language as the main interface allows literally everyone to participate in the game.
-2. new game mechanism and emergent experience. As the Generative Agents paper ([https://arxiv.org/abs/2304.03442](https://arxiv.org/abs/2304.03442)) has shown, LLM-based generative agents are able to collectively generate very interesting behavior, and the competition & collaboration in a multi-human, multi-agent world can be fascinating.
-3. More autonomous and normal autonomous world. A successful autonomous world depends on the constant input of all human participants and is hard to bootstrap. But you can let your LLM agents do your work and constantly contributing to the game, thus the quantity of content can be easily bootstrapped.
-4. Cultural layer on top of the mathematic logic. For the first time in human history, we can perform subtle, natural language-based thinking with machines. All previous games are based on some formal logic (I attack you, you reduce 1 health), and LLM allows us to simulate more subtle game logic (what will be the conversation between a Buddhist dad and a Christian son). This unlocks the potential of a cultural layer on top of the physical logic.
+Without `ANTHROPIC_API_KEY`, agents will use fallback daily plans instead of LLM-generated decisions.
 
-# Running Guide
+## Project Structure
 
-1. Setup OpenAI API key
+```
+packages/
+├── shared/          Types & constants shared between server and frontend
+│   └── src/
+│       ├── types.ts       All type definitions (~330 lines)
+│       └── constants.ts   Game constants
+│
+├── server/          Hono + Bun game server
+│   └── src/
+│       ├── index.ts           Entry point (HTTP + WebSocket)
+│       ├── agent/             LLM integration & agent AI
+│       │   ├── llmClient.ts       Claude API wrapper (cache, rate limit, cost tracking)
+│       │   ├── decisionEngine.ts  3-tier decision: instinct → daily plan → LLM
+│       │   ├── prompts.ts         Japanese prompt templates
+│       │   ├── memory.ts          In-memory 3-tier memory (working/episodic/longterm)
+│       │   └── lifecycle.ts       Birth, aging, reproduction, death, skill growth
+│       ├── world/             World simulation
+│       │   ├── simulation.ts      Main tick loop (12 phases per tick)
+│       │   ├── map.ts             Perlin noise terrain generation
+│       │   ├── pathfinding.ts     A* pathfinding
+│       │   ├── resources.ts       Resource gathering & regeneration
+│       │   └── building.ts        Construction system
+│       ├── social/            Social systems
+│       │   ├── governance.ts      Village founding, elections, laws
+│       │   ├── relationships.ts   Sentiment, trust, familiarity
+│       │   ├── conversation.ts    LLM-generated agent dialogue
+│       │   ├── culture.ts         Cultural evolution (traditions, stories, taboos)
+│       │   └── diplomacy.ts       Inter-village relations, trade, war/peace
+│       ├── services/          Runtime services
+│       │   ├── tickService.ts     Simulation loop & WebSocket broadcast
+│       │   ├── wsManager.ts       WebSocket connection management
+│       │   ├── statsService.ts    World statistics computation
+│       │   └── saveService.ts     JSON save/load
+│       ├── routes/            REST API endpoints
+│       │   ├── game.ts            Game CRUD, save/load, stats, chronicle
+│       │   ├── world.ts           Map chunks, village data
+│       │   ├── agent.ts           Agent details
+│       │   └── player.ts          Player intentions
+│       ├── handlers/
+│       │   └── wsHandler.ts       WebSocket message handling
+│       ├── player/
+│       │   └── chronicle.ts       LLM-generated world history narrative
+│       ├── art/
+│       │   └── spriteGenerator.ts Procedural sprite generation pipeline
+│       └── db/
+│           ├── schema.ts          Drizzle ORM schema (future DB persistence)
+│           └── index.ts           DB connection placeholder
+│
+└── frontend/        React + Vite UI
+    └── src/
+        ├── App.tsx                Main app (title screen + game view)
+        ├── components/
+        │   ├── world/
+        │   │   ├── WorldCanvas.tsx     Canvas2D map renderer
+        │   │   ├── TileRenderer.ts     Tile drawing
+        │   │   ├── AgentSprite.ts      Agent rendering
+        │   │   └── BuildingSprite.ts   Building rendering
+        │   └── ui/
+        │       ├── DashboardPanel.tsx   Statistics dashboard
+        │       ├── AgentInspector.tsx    Agent status panel
+        │       ├── VillagePanel.tsx      Village list
+        │       ├── IntentionPanel.tsx    Player "voice of god" input
+        │       ├── TimelinePanel.tsx     Event chronicle
+        │       ├── DialogueBox.tsx       JRPG-style text box
+        │       ├── SpeedControl.tsx      Playback speed
+        │       └── Minimap.tsx           World overview
+        ├── hooks/
+        │   ├── useWorldState.ts    WebSocket state sync
+        │   ├── useViewport.ts      Camera & viewport
+        │   └── useAgentFocus.ts    Agent tracking
+        ├── store/
+        │   ├── gameStore.ts        Zustand: simulation state
+        │   └── uiStore.ts          Zustand: UI state
+        └── services/
+            ├── api.ts              REST API client
+            └── wsClient.ts         WebSocket client
+```
 
-- Get your key [here](https://platform.openai.com/account/api-keys).
-- Set your local environmental variable by typing in terminal: `export OPENAI_API_KEY=<your secret key>`.
-- Currently, cost is quite low. ~30 rounds of game cost less than $0.1.
+## Game Systems
 
-2. Create a folder named `logs` in the root directory. (otherwise the code will throw an error)
-3. Run the `ExplorerAgent.py` file. Feel free to change world_size, change the agent principles, and play with other parameters.
+### Agents
 
-**Warning**
+- **Personality** (immutable): 5 axes — openness, agreeableness, conscientiousness, courage, ambition
+- **Philosophy** (evolves): governance preference, economic ideology, values, worldview
+- **Skills** (grow through use): farming, building, crafting, leadership, combat, diplomacy, teaching, healing
+- **Needs**: hunger (decays 1/tick), energy (decays 2/tick), social (decays 0.5/tick)
+- **Lifecycle**: child → adult (age 200) → elder → death (lifespan 800–1500 ticks)
 
-Currently, the LLM agent is very dumb, so you will see it is performing not as expected. We are working hard to change this.
+### Decision Engine (3 tiers)
+
+| Priority | Method | Trigger |
+|----------|--------|---------|
+| P2 Instinct | Rule-based | hunger < 20 → eat, energy < 15 → sleep |
+| P1 Daily Plan | LLM (1/day) | Generates 24-slot schedule |
+| P0 Fallback | Exploration | When no plan applies |
+
+### Villages
+
+- **Founding**: 3+ agents near each other for 20+ ticks → LLM names the village
+- **Governance**: Elections every 50 ticks; laws proposed and voted by residents
+- **Culture**: Traditions, oral stories, taboos — evolve over time and spread between villages
+
+### Diplomacy
+
+- Village relations: friendly ↔ neutral ↔ hostile ↔ war (tension-based auto-transitions)
+- Trade agreements based on resource surplus/deficit analysis
+- Alliances formed through shared governance philosophy
+
+### Player Interaction
+
+- **Voice of God**: Send intentions to agents, villages, or the whole world
+- **Strength levels**: whisper / suggestion / decree
+- Intentions are injected into agent LLM prompts during decision-making
+
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/v1/game` | Create new game |
+| GET | `/api/v1/game/:id` | Get game state |
+| POST | `/api/v1/game/:id/start` | Start simulation |
+| POST | `/api/v1/game/:id/pause` | Pause simulation |
+| POST | `/api/v1/game/:id/speed` | Set simulation speed |
+| POST | `/api/v1/game/:id/save` | Save game to file |
+| POST | `/api/v1/game/load` | Load game from file |
+| GET | `/api/v1/game/:id/stats` | Get world statistics |
+| GET | `/api/v1/game/:id/chronicle` | Generate world chronicle |
+| GET | `/api/v1/world/:id/chunks` | Get visible map chunks |
+| GET | `/api/v1/agent/:gameId/:agentId` | Get agent details |
+| POST | `/api/v1/player/:id/intention` | Send player intention |
+| WS | `/ws?gameId=xxx` | Real-time game updates |
+
+## WebSocket Messages
+
+Server broadcasts: `tick`, `agents_update`, `chunk_update`, `event`, `dialogue`, `village_update`, `stats_update`
+
+Client sends: `subscribe_chunks`, `unsubscribe_chunks`
+
+## Architecture Notes
+
+- **All game state is in-memory** — no database required for basic operation. DB schema (`db/schema.ts`) exists for future PostgreSQL persistence.
+- **LLM costs are managed** via model selection (Haiku for routine, Sonnet for important decisions), LRU caching, and rate limiting.
+- **World updates are chunk-based** — frontend subscribes to visible 16×16 tile chunks only.
+
+## License
+
+MIT

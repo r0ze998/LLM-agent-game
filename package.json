@@ -1,0 +1,9 @@
+{
+  "name": "murasato",
+  "private": true,
+  "workspaces": [
+    "packages/shared",
+    "packages/server",
+    "packages/frontend"
+  ]
+}

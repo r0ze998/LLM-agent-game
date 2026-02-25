@@ -1,7 +1,24 @@
-# custom stuff 
+# custom stuff
 .idea/
 .DS_Store
 logs/*
+
+# Node.js
+node_modules/
+frontend/dist/
+frontend/node_modules/
+blockchain/node_modules/
+blockchain/artifacts/
+blockchain/cache/
+blockchain/typechain-types/
+
+# Database
+*.sqlite3
+*.db
+
+# Environment
+.env.local
+backend/conf/local.env
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
