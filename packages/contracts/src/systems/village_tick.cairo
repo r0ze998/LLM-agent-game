@@ -1,5 +1,7 @@
 // ============================================================
 //  systems/village_tick.cairo — Lazy evaluation tick processor
+//  Aggregates ALL 4 layers: buildings, techs, covenants,
+//  inventions, institutions. Applies unit upkeep & building decay.
 // ============================================================
 
 use autonomous_world::types::{EffectType, ResourceType};
@@ -22,9 +24,17 @@ pub mod village_tick {
         Building, BuildingDef, BuildingDefEffect, BuildQueue, BuildingCounter, BuildQueueCounter,
     };
     use autonomous_world::models::technology::{ResearchedTech, TechDef, TechDefEffect, ResearchQueue};
-    use autonomous_world::models::military::{GarrisonUnit, TrainQueue, TrainQueueCounter};
+    use autonomous_world::models::military::{GarrisonUnit, UnitDef, TrainQueue, TrainQueueCounter};
+    use autonomous_world::models::covenant::{Covenant, CovenantClause, CovenantCounter};
+    use autonomous_world::models::invention::{
+        Invention, InventionEffect, InventionKnowledge, InventionCounter,
+    };
+    use autonomous_world::models::institution::{
+        Institution, InstitutionEffect, InstitutionMembership, InstitutionCounter,
+    };
     use autonomous_world::models::config::{PhysicsConfig, GameConfig, GameCounter};
     use autonomous_world::systems::physics::physics::InternalImpl as PhysicsInternal;
+    use autonomous_world::systems::covenant::covenant_sys::InternalImpl as CovenantInternal;
 
     const FOOD_PER_POP_PER_TICK: u128 = 500;
     const POP_GROWTH_BASE_RATE: u128 = 20;
@@ -63,7 +73,7 @@ pub mod village_tick {
 
             let config: PhysicsConfig = world.read_model(0_u8);
 
-            // ── 1. Aggregate building effects ──
+            // ── Accumulator variables ──
             let mut total_food_prod: i128 = 0;
             let mut total_wood_prod: i128 = 0;
             let mut total_stone_prod: i128 = 0;
@@ -79,7 +89,13 @@ pub mod village_tick {
             let mut total_storage_stone: i128 = 0;
             let mut total_storage_iron: i128 = 0;
             let mut total_storage_gold: i128 = 0;
+            let mut total_attack_bonus: i128 = 0;
+            let mut total_defense_bonus: i128 = 0;
+            let mut total_trade_income: i128 = 0;
 
+            // ══════════════════════════════════════════════════════
+            //  Layer 0a: Aggregate building effects
+            // ══════════════════════════════════════════════════════
             let building_counter: BuildingCounter = world.read_model(village_id);
             let mut b: u32 = 0;
             while b < building_counter.count {
@@ -89,27 +105,37 @@ pub mod village_tick {
                     let mut e: u8 = 0;
                     while e < bdef.effect_count {
                         let eff: BuildingDefEffect = world.read_model((building.def_id, e));
-                        let clamped = PhysicsInternal::clamp_effect(
-                            @config, eff.effect_type, eff.value,
-                        );
+                        let clamped = PhysicsInternal::clamp_effect(@config, eff.effect_type, eff.value);
                         InternalImpl::accumulate_effect(
-                            ref total_food_prod, ref total_wood_prod,
-                            ref total_stone_prod, ref total_iron_prod,
-                            ref total_gold_prod, ref total_housing,
+                            ref total_food_prod, ref total_wood_prod, ref total_stone_prod,
+                            ref total_iron_prod, ref total_gold_prod, ref total_housing,
                             ref total_research, ref total_culture,
                             ref total_food_consumption_mod, ref total_pop_growth_mod,
                             ref total_storage_food, ref total_storage_wood,
                             ref total_storage_stone, ref total_storage_iron,
-                            ref total_storage_gold,
+                            ref total_storage_gold, ref total_attack_bonus,
+                            ref total_defense_bonus, ref total_trade_income,
                             eff.effect_type, eff.target_resource, clamped,
                         );
                         e += 1;
                     };
+
+                    // ── Building HP decay ──
+                    let mut bld = building;
+                    if bld.hp > config.decay_hp_per_tick {
+                        bld.hp -= config.decay_hp_per_tick;
+                    } else {
+                        bld.hp = 0;
+                        bld.active = false;
+                    }
+                    world.write_model(@bld);
                 }
                 b += 1;
             };
 
-            // ── 2. Aggregate researched tech effects ──
+            // ══════════════════════════════════════════════════════
+            //  Layer 0b: Aggregate researched tech effects
+            // ══════════════════════════════════════════════════════
             let mut t: u32 = 0;
             while t < 100 {
                 let rtech: ResearchedTech = world.read_model((village_id, t));
@@ -118,18 +144,16 @@ pub mod village_tick {
                     let mut e: u8 = 0;
                     while e < tdef.effect_count {
                         let eff: TechDefEffect = world.read_model((t, e));
-                        let clamped = PhysicsInternal::clamp_effect(
-                            @config, eff.effect_type, eff.value,
-                        );
+                        let clamped = PhysicsInternal::clamp_effect(@config, eff.effect_type, eff.value);
                         InternalImpl::accumulate_effect(
-                            ref total_food_prod, ref total_wood_prod,
-                            ref total_stone_prod, ref total_iron_prod,
-                            ref total_gold_prod, ref total_housing,
+                            ref total_food_prod, ref total_wood_prod, ref total_stone_prod,
+                            ref total_iron_prod, ref total_gold_prod, ref total_housing,
                             ref total_research, ref total_culture,
                             ref total_food_consumption_mod, ref total_pop_growth_mod,
                             ref total_storage_food, ref total_storage_wood,
                             ref total_storage_stone, ref total_storage_iron,
-                            ref total_storage_gold,
+                            ref total_storage_gold, ref total_attack_bonus,
+                            ref total_defense_bonus, ref total_trade_income,
                             eff.effect_type, eff.target_resource, clamped,
                         );
                         e += 1;
@@ -138,51 +162,157 @@ pub mod village_tick {
                 t += 1;
             };
 
-            // ── 3. Apply resource production / consumption ──
+            // ══════════════════════════════════════════════════════
+            //  Layer 1: Aggregate active covenant effects
+            // ══════════════════════════════════════════════════════
+            let cov_counter: CovenantCounter = world.read_model(0_u8);
+            let mut c: u32 = 1;
+            while c <= cov_counter.count {
+                let covenant: Covenant = world.read_model(c);
+                if !covenant.repealed && covenant.relevance > 0
+                    && covenant.village_id == village_id {
+                    let mut ci: u8 = 0;
+                    while ci < covenant.clause_count {
+                        let clause: CovenantClause = world.read_model((c, ci));
+                        let effects = CovenantInternal::clause_to_effects(
+                            clause.clause_type, clause.param_a, clause.param_b,
+                        );
+                        let mut j: u32 = 0;
+                        while j < effects.len() {
+                            let (etype, evalue) = *effects.at(j);
+                            let clamped = PhysicsInternal::clamp_effect(@config, etype, evalue);
+                            InternalImpl::accumulate_effect_simple(
+                                ref total_food_prod, ref total_wood_prod, ref total_stone_prod,
+                                ref total_iron_prod, ref total_gold_prod, ref total_housing,
+                                ref total_research, ref total_culture,
+                                ref total_food_consumption_mod, ref total_pop_growth_mod,
+                                ref total_attack_bonus, ref total_defense_bonus,
+                                ref total_trade_income,
+                                etype, clamped,
+                            );
+                            j += 1;
+                        };
+                        ci += 1;
+                    };
+                }
+                c += 1;
+            };
+
+            // ══════════════════════════════════════════════════════
+            //  Layer 2: Aggregate known invention effects
+            //  (only inventions this village knows about, via InventionKnowledge)
+            // ══════════════════════════════════════════════════════
+            let inv_counter: InventionCounter = world.read_model(0_u8);
+            let mut inv: u32 = 1;
+            while inv <= inv_counter.count {
+                let knowledge: InventionKnowledge = world.read_model((inv, village_id));
+                if knowledge.known {
+                    let invention: Invention = world.read_model(inv);
+                    if invention.relevance > 0 {
+                        let mut ei: u8 = 0;
+                        while ei < invention.effect_count {
+                            let eff: InventionEffect = world.read_model((inv, ei));
+                            let clamped = PhysicsInternal::clamp_effect(@config, eff.effect_type, eff.value);
+                            InternalImpl::accumulate_effect_simple(
+                                ref total_food_prod, ref total_wood_prod, ref total_stone_prod,
+                                ref total_iron_prod, ref total_gold_prod, ref total_housing,
+                                ref total_research, ref total_culture,
+                                ref total_food_consumption_mod, ref total_pop_growth_mod,
+                                ref total_attack_bonus, ref total_defense_bonus,
+                                ref total_trade_income,
+                                eff.effect_type, clamped,
+                            );
+                            ei += 1;
+                        };
+                    }
+                }
+                inv += 1;
+            };
+
+            // ══════════════════════════════════════════════════════
+            //  Layer 3: Aggregate institution member effects
+            // ══════════════════════════════════════════════════════
+            let inst_counter: InstitutionCounter = world.read_model(0_u8);
+            let mut inst: u32 = 1;
+            while inst <= inst_counter.count {
+                let membership: InstitutionMembership = world.read_model((inst, village_id));
+                if membership.is_member {
+                    let institution: Institution = world.read_model(inst);
+                    if institution.relevance > 0 {
+                        let mut ei: u8 = 0;
+                        while ei < institution.effect_count {
+                            let eff: InstitutionEffect = world.read_model((inst, ei));
+                            let clamped = PhysicsInternal::clamp_effect(@config, eff.effect_type, eff.value);
+                            InternalImpl::accumulate_effect_simple(
+                                ref total_food_prod, ref total_wood_prod, ref total_stone_prod,
+                                ref total_iron_prod, ref total_gold_prod, ref total_housing,
+                                ref total_research, ref total_culture,
+                                ref total_food_consumption_mod, ref total_pop_growth_mod,
+                                ref total_attack_bonus, ref total_defense_bonus,
+                                ref total_trade_income,
+                                eff.effect_type, clamped,
+                            );
+                            ei += 1;
+                        };
+                    }
+                }
+                inst += 1;
+            };
+
+            // ══════════════════════════════════════════════════════
+            //  Unit upkeep deduction
+            // ══════════════════════════════════════════════════════
+            let mut unit_food_upkeep: i128 = 0;
+            let mut unit_gold_upkeep: i128 = 0;
+            let mut uid: u32 = 0;
+            while uid < 100 {
+                let garrison: GarrisonUnit = world.read_model((village_id, uid));
+                if garrison.count > 0 {
+                    let udef: UnitDef = world.read_model(uid);
+                    if udef.hp > 0 {
+                        let cnt: i128 = garrison.count.into();
+                        unit_food_upkeep += udef.upkeep_food.try_into().unwrap() * cnt;
+                        unit_gold_upkeep += udef.upkeep_gold.try_into().unwrap() * cnt;
+                    }
+                }
+                uid += 1;
+            };
+
+            // ══════════════════════════════════════════════════════
+            //  Apply resource production / consumption
+            // ══════════════════════════════════════════════════════
             let pop: u128 = village.population.into();
             let base_food_consumption: i128 = (pop * FOOD_PER_POP_PER_TICK).try_into().unwrap();
             let food_mod_adjusted = base_food_consumption
                 + (base_food_consumption * total_food_consumption_mod / 1000);
-            let net_food: i128 = total_food_prod * elapsed_i - food_mod_adjusted * elapsed_i;
+            // Net food = production - pop consumption - unit upkeep + trade income (food portion)
+            let net_food: i128 = total_food_prod * elapsed_i
+                - food_mod_adjusted * elapsed_i
+                - unit_food_upkeep * elapsed_i;
 
-            let storage_food = InternalImpl::u128_max(
-                BASE_STORAGE, InternalImpl::safe_add_u128(BASE_STORAGE, total_storage_food),
-            );
-            let storage_wood = InternalImpl::u128_max(
-                BASE_STORAGE, InternalImpl::safe_add_u128(BASE_STORAGE, total_storage_wood),
-            );
-            let storage_stone = InternalImpl::u128_max(
-                BASE_STORAGE, InternalImpl::safe_add_u128(BASE_STORAGE, total_storage_stone),
-            );
-            let storage_iron = InternalImpl::u128_max(
-                BASE_STORAGE, InternalImpl::safe_add_u128(BASE_STORAGE, total_storage_iron),
-            );
-            let storage_gold = InternalImpl::u128_max(
-                BASE_STORAGE, InternalImpl::safe_add_u128(BASE_STORAGE, total_storage_gold),
-            );
+            let storage_food = InternalImpl::u128_max(BASE_STORAGE, InternalImpl::safe_add_u128(BASE_STORAGE, total_storage_food));
+            let storage_wood = InternalImpl::u128_max(BASE_STORAGE, InternalImpl::safe_add_u128(BASE_STORAGE, total_storage_wood));
+            let storage_stone = InternalImpl::u128_max(BASE_STORAGE, InternalImpl::safe_add_u128(BASE_STORAGE, total_storage_stone));
+            let storage_iron = InternalImpl::u128_max(BASE_STORAGE, InternalImpl::safe_add_u128(BASE_STORAGE, total_storage_iron));
+            let storage_gold = InternalImpl::u128_max(BASE_STORAGE, InternalImpl::safe_add_u128(BASE_STORAGE, total_storage_gold));
 
             village.food = InternalImpl::apply_delta_clamped(village.food, net_food, storage_food);
-            village.wood = InternalImpl::apply_delta_clamped(
-                village.wood, total_wood_prod * elapsed_i, storage_wood,
-            );
-            village.stone = InternalImpl::apply_delta_clamped(
-                village.stone, total_stone_prod * elapsed_i, storage_stone,
-            );
-            village.iron = InternalImpl::apply_delta_clamped(
-                village.iron, total_iron_prod * elapsed_i, storage_iron,
-            );
-            village.gold = InternalImpl::apply_delta_clamped(
-                village.gold, total_gold_prod * elapsed_i, storage_gold,
-            );
+            village.wood = InternalImpl::apply_delta_clamped(village.wood, total_wood_prod * elapsed_i, storage_wood);
+            village.stone = InternalImpl::apply_delta_clamped(village.stone, total_stone_prod * elapsed_i, storage_stone);
+            village.iron = InternalImpl::apply_delta_clamped(village.iron, total_iron_prod * elapsed_i, storage_iron);
+            // Gold: production + trade income - unit upkeep
+            let net_gold: i128 = (total_gold_prod + total_trade_income) * elapsed_i
+                - unit_gold_upkeep * elapsed_i;
+            village.gold = InternalImpl::apply_delta_clamped(village.gold, net_gold, storage_gold);
+
             village.storage_food = storage_food;
             village.storage_wood = storage_wood;
             village.storage_stone = storage_stone;
             village.storage_iron = storage_iron;
             village.storage_gold = storage_gold;
 
-            // ── 4. Population ──
-            let housing: u32 = BASE_HOUSING_CAPACITY
-                + InternalImpl::i128_to_u32_clamped(total_housing);
+            // ── Population ──
+            let housing: u32 = BASE_HOUSING_CAPACITY + InternalImpl::i128_to_u32_clamped(total_housing);
             village.housing_capacity = housing;
 
             let mut pop_delta: i32 = 0;
@@ -190,56 +320,30 @@ pub mod village_tick {
             if is_starving {
                 let loss = pop * POP_STARVATION_RATE / 1000;
                 let loss_per_elapsed = loss * elapsed;
-                let actual_loss = if loss_per_elapsed == 0 && elapsed > 0 {
-                    1_u128
-                } else {
-                    loss_per_elapsed
-                };
-                let loss32: u32 = if actual_loss > 0xFFFFFFFF_u128 {
-                    0xFFFFFFFF_u32
-                } else {
-                    actual_loss.try_into().unwrap()
-                };
-                if village.population > loss32 {
-                    village.population -= loss32;
-                } else {
-                    village.population = 1;
-                }
+                let actual_loss = if loss_per_elapsed == 0 && elapsed > 0 { 1_u128 } else { loss_per_elapsed };
+                let loss32: u32 = if actual_loss > 0xFFFFFFFF_u128 { 0xFFFFFFFF_u32 } else { actual_loss.try_into().unwrap() };
+                if village.population > loss32 { village.population -= loss32; } else { village.population = 1; }
                 pop_delta = -(loss32.try_into().unwrap());
             } else if village.population < housing {
-                let growth_rate: u128 = POP_GROWTH_BASE_RATE
-                    + InternalImpl::i128_to_u128_clamped(total_pop_growth_mod);
+                let growth_rate: u128 = POP_GROWTH_BASE_RATE + InternalImpl::i128_to_u128_clamped(total_pop_growth_mod);
                 let growth = pop * growth_rate * elapsed / 1000;
-                let growth32: u32 = if growth > 0xFFFFFFFF_u128 {
-                    0xFFFFFFFF_u32
-                } else if growth == 0 && elapsed > 0 {
-                    1_u32
-                } else {
-                    growth.try_into().unwrap()
-                };
+                let growth32: u32 = if growth > 0xFFFFFFFF_u128 { 0xFFFFFFFF_u32 } else if growth == 0 && elapsed > 0 { 1_u32 } else { growth.try_into().unwrap() };
                 let new_pop = village.population + growth32;
                 village.population = if new_pop > housing { housing } else { new_pop };
                 pop_delta = growth32.try_into().unwrap();
             }
 
-            // ── 5. Research points ──
+            // ── Research points ──
             let base_rp: u128 = pop * POP_RESEARCH_CONTRIBUTION;
-            let rp_gain: i128 = (base_rp * elapsed).try_into().unwrap()
-                + total_research * elapsed_i;
-            village.research_points = InternalImpl::apply_delta_clamped(
-                village.research_points, rp_gain, 0xFFFFFFFFFFFFFFFF_u128,
-            );
+            let rp_gain: i128 = (base_rp * elapsed).try_into().unwrap() + total_research * elapsed_i;
+            village.research_points = InternalImpl::apply_delta_clamped(village.research_points, rp_gain, 0xFFFFFFFFFFFFFFFF_u128);
 
-            // ── 6. Culture points ──
+            // ── Culture points ──
             let culture_gain: i128 = total_culture * elapsed_i;
-            village.culture_points = InternalImpl::apply_delta_clamped(
-                village.culture_points, culture_gain, 0xFFFFFFFFFFFFFFFF_u128,
-            );
-            village.total_culture_points = InternalImpl::apply_delta_clamped(
-                village.total_culture_points, culture_gain, 0xFFFFFFFFFFFFFFFF_u128,
-            );
+            village.culture_points = InternalImpl::apply_delta_clamped(village.culture_points, culture_gain, 0xFFFFFFFFFFFFFFFF_u128);
+            village.total_culture_points = InternalImpl::apply_delta_clamped(village.total_culture_points, culture_gain, 0xFFFFFFFFFFFFFFFF_u128);
 
-            // ── 7. Process build queue ──
+            // ── Process build queue ──
             let bq_counter: BuildQueueCounter = world.read_model(village_id);
             let mut qi: u8 = 0;
             while qi < bq_counter.count {
@@ -249,15 +353,10 @@ pub mod village_tick {
                     let new_id = bc.count;
                     let bdef: BuildingDef = world.read_model(bq.def_id);
                     world.write_model(@Building {
-                        village_id,
-                        building_id: new_id,
-                        def_id: bq.def_id,
-                        pos_x: bq.pos_x,
-                        pos_y: bq.pos_y,
-                        hp: bdef.max_hp,
-                        max_hp: bdef.max_hp,
-                        built_at_tick: current_tick,
-                        active: true,
+                        village_id, building_id: new_id, def_id: bq.def_id,
+                        pos_x: bq.pos_x, pos_y: bq.pos_y,
+                        hp: bdef.max_hp, max_hp: bdef.max_hp,
+                        built_at_tick: current_tick, active: true,
                     });
                     bc.count += 1;
                     world.write_model(@bc);
@@ -267,27 +366,20 @@ pub mod village_tick {
                 qi += 1;
             };
 
-            // ── 8. Process research queue ──
+            // ── Process research queue ──
             let rq: ResearchQueue = world.read_model(village_id);
             if rq.active && current_tick >= rq.completes_at_tick {
-                world.write_model(@ResearchedTech {
-                    village_id, tech_id: rq.tech_id, researched_at_tick: current_tick,
-                });
-                world.write_model(@ResearchQueue {
-                    village_id, tech_id: 0, started_at_tick: 0,
-                    completes_at_tick: 0, active: false,
-                });
+                world.write_model(@ResearchedTech { village_id, tech_id: rq.tech_id, researched_at_tick: current_tick });
+                world.write_model(@ResearchQueue { village_id, tech_id: 0, started_at_tick: 0, completes_at_tick: 0, active: false });
             }
 
-            // ── 9. Process train queue ──
+            // ── Process train queue ──
             let tq_counter: TrainQueueCounter = world.read_model(village_id);
             let mut ti: u8 = 0;
             while ti < tq_counter.count {
                 let mut tq: TrainQueue = world.read_model((village_id, ti));
                 if tq.active && current_tick >= tq.completes_at_tick {
-                    let mut garrison: GarrisonUnit = world.read_model(
-                        (village_id, tq.unit_def_id),
-                    );
+                    let mut garrison: GarrisonUnit = world.read_model((village_id, tq.unit_def_id));
                     garrison.count += tq.count;
                     garrison.village_id = village_id;
                     garrison.unit_def_id = tq.unit_def_id;
@@ -298,48 +390,30 @@ pub mod village_tick {
                 ti += 1;
             };
 
-            // ── 10. Update score ──
+            // ── Update score ──
             village.score = InternalImpl::compute_score(@village);
             village.last_tick = current_tick;
             world.write_model(@village);
 
-            world.emit_event(@VillageTicked {
-                village_id, tick: current_tick, food_delta: net_food, population_delta: pop_delta,
-            });
+            world.emit_event(@VillageTicked { village_id, tick: current_tick, food_delta: net_food, population_delta: pop_delta });
         }
 
         fn create_village(ref self: ContractState, owner: ContractAddress) -> u32 {
             let mut world = self.world(@"aw");
-
             let game_config: GameConfig = world.read_model(0_u8);
             assert!(game_config.initialized, "Game not initialized");
-
             let mut counter: GameCounter = world.read_model(0_u8);
             counter.village_count += 1;
             let vid = counter.village_count;
             world.write_model(@counter);
-
             world.write_model(@Village {
-                village_id: vid,
-                owner,
-                food: 100_000,
-                wood: 50_000,
-                stone: 30_000,
-                iron: 0,
-                gold: 0,
-                storage_food: BASE_STORAGE,
-                storage_wood: BASE_STORAGE,
-                storage_stone: BASE_STORAGE,
-                storage_iron: BASE_STORAGE,
-                storage_gold: BASE_STORAGE,
-                population: 10,
-                housing_capacity: BASE_HOUSING_CAPACITY,
-                research_points: 0,
-                culture_points: 0,
-                total_culture_points: 0,
-                score: 0,
-                founded_at_tick: game_config.current_tick,
-                last_tick: game_config.current_tick,
+                village_id: vid, owner,
+                food: 100_000, wood: 50_000, stone: 30_000, iron: 0, gold: 0,
+                storage_food: BASE_STORAGE, storage_wood: BASE_STORAGE,
+                storage_stone: BASE_STORAGE, storage_iron: BASE_STORAGE, storage_gold: BASE_STORAGE,
+                population: 10, housing_capacity: BASE_HOUSING_CAPACITY,
+                research_points: 0, culture_points: 0, total_culture_points: 0, score: 0,
+                founded_at_tick: game_config.current_tick, last_tick: game_config.current_tick,
             });
             vid
         }
@@ -347,15 +421,15 @@ pub mod village_tick {
 
     #[generate_trait]
     impl InternalImpl of InternalTrait {
+        /// Accumulate effect with full resource targeting (for building/tech effects).
         fn accumulate_effect(
-            ref food_prod: i128, ref wood_prod: i128,
-            ref stone_prod: i128, ref iron_prod: i128,
-            ref gold_prod: i128, ref housing: i128,
+            ref food_prod: i128, ref wood_prod: i128, ref stone_prod: i128,
+            ref iron_prod: i128, ref gold_prod: i128, ref housing: i128,
             ref research: i128, ref culture: i128,
             ref food_consumption_mod: i128, ref pop_growth_mod: i128,
             ref storage_food: i128, ref storage_wood: i128,
-            ref storage_stone: i128, ref storage_iron: i128,
-            ref storage_gold: i128,
+            ref storage_stone: i128, ref storage_iron: i128, ref storage_gold: i128,
+            ref attack_bonus: i128, ref defense_bonus: i128, ref trade_income: i128,
             effect_type: EffectType, target_resource: ResourceType, value: i128,
         ) {
             match effect_type {
@@ -382,6 +456,33 @@ pub mod village_tick {
                 EffectType::CulturePoints => { culture += value; },
                 EffectType::PopulationGrowth => { pop_growth_mod += value; },
                 EffectType::FoodConsumptionMod => { food_consumption_mod += value; },
+                EffectType::AttackBonus => { attack_bonus += value; },
+                EffectType::DefenseBonus => { defense_bonus += value; },
+                EffectType::TradeIncome => { trade_income += value; },
+                _ => {},
+            }
+        }
+
+        /// Simplified accumulator for Layer 1-3 effects (no resource targeting).
+        fn accumulate_effect_simple(
+            ref food_prod: i128, ref wood_prod: i128, ref stone_prod: i128,
+            ref iron_prod: i128, ref gold_prod: i128, ref housing: i128,
+            ref research: i128, ref culture: i128,
+            ref food_consumption_mod: i128, ref pop_growth_mod: i128,
+            ref attack_bonus: i128, ref defense_bonus: i128, ref trade_income: i128,
+            effect_type: EffectType, value: i128,
+        ) {
+            match effect_type {
+                EffectType::ResourceProduction => { food_prod += value; },
+                EffectType::Housing => { housing += value; },
+                EffectType::ResearchPoints => { research += value; },
+                EffectType::CulturePoints => { culture += value; },
+                EffectType::PopulationGrowth => { pop_growth_mod += value; },
+                EffectType::FoodConsumptionMod => { food_consumption_mod += value; },
+                EffectType::AttackBonus => { attack_bonus += value; },
+                EffectType::DefenseBonus => { defense_bonus += value; },
+                EffectType::TradeIncome => { trade_income += value; },
+                EffectType::BuildSpeed => {},
                 _ => {},
             }
         }
@@ -398,32 +499,17 @@ pub mod village_tick {
         }
 
         fn safe_add_u128(base: u128, delta: i128) -> u128 {
-            if delta >= 0 {
-                base + delta.try_into().unwrap()
-            } else {
-                let abs_d: u128 = (-delta).try_into().unwrap();
-                if abs_d >= base { 0 } else { base - abs_d }
-            }
+            if delta >= 0 { base + delta.try_into().unwrap() }
+            else { let abs_d: u128 = (-delta).try_into().unwrap(); if abs_d >= base { 0 } else { base - abs_d } }
         }
 
-        fn u128_max(a: u128, b: u128) -> u128 {
-            if a > b { a } else { b }
-        }
+        fn u128_max(a: u128, b: u128) -> u128 { if a > b { a } else { b } }
 
         fn i128_to_u32_clamped(v: i128) -> u32 {
-            if v <= 0 {
-                0
-            } else if v > 0xFFFFFFFF {
-                0xFFFFFFFF_u32
-            } else {
-                let u: u128 = v.try_into().unwrap();
-                u.try_into().unwrap()
-            }
+            if v <= 0 { 0 } else if v > 0xFFFFFFFF { 0xFFFFFFFF_u32 } else { let u: u128 = v.try_into().unwrap(); u.try_into().unwrap() }
         }
 
-        fn i128_to_u128_clamped(v: i128) -> u128 {
-            if v <= 0 { 0 } else { v.try_into().unwrap() }
-        }
+        fn i128_to_u128_clamped(v: i128) -> u128 { if v <= 0 { 0 } else { v.try_into().unwrap() } }
 
         fn compute_score(village: @Village) -> u32 {
             let pop: u32 = *village.population;

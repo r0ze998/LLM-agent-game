@@ -22,4 +22,5 @@ pub mod systems {
     pub mod invention;
     pub mod institution;
     pub mod victory;
+    pub mod setup;
 }

@@ -26,7 +26,9 @@ pub mod commands {
     use autonomous_world::models::technology::{TechDef, ResearchQueue, ResearchedTech};
     use autonomous_world::models::military::{UnitDef, TrainQueue, TrainQueueCounter};
     use autonomous_world::models::diplomacy::DiplomaticRelation;
+    use autonomous_world::models::covenant::{Covenant, CovenantClause, CovenantCounter};
     use autonomous_world::models::config::GameConfig;
+    use autonomous_world::types::ClauseType;
 
     #[abi(embed_v0)]
     impl CommandsImpl of ICommands<ContractState> {
@@ -49,6 +51,9 @@ pub mod commands {
                 let rtech: ResearchedTech = world.read_model((village_id, bdef.requires_tech_id));
                 assert!(rtech.researched_at_tick > 0, "Missing prerequisite tech");
             }
+
+            // ── Check building_ban from active covenants ──
+            InternalImpl::assert_not_banned(ref world, village_id, building_def_id);
 
             let mut v = village;
             assert!(v.food >= bdef.cost_food, "Not enough food");
@@ -223,6 +228,31 @@ pub mod commands {
             if owner != zero {
                 assert!(owner == caller, "Not village owner");
             }
+        }
+
+        /// Check if a building_def_id is banned by any active covenant on this village.
+        fn assert_not_banned(
+            ref world: dojo::world::WorldStorage, village_id: u32, building_def_id: u32,
+        ) {
+            let counter: CovenantCounter = world.read_model(0_u8);
+            let mut cid: u32 = 1;
+            while cid <= counter.count {
+                let cov: Covenant = world.read_model(cid);
+                // Only check covenants that apply to this village and are active
+                if !cov.repealed && cov.relevance > 0 && cov.village_id == village_id {
+                    let mut ci: u8 = 0;
+                    while ci < cov.clause_count {
+                        let clause: CovenantClause = world.read_model((cid, ci));
+                        if clause.clause_type == ClauseType::BuildingBan {
+                            // param_a holds the banned building def_id
+                            let banned_id: u32 = clause.param_a.try_into().unwrap();
+                            assert!(banned_id != building_def_id, "Building banned by covenant");
+                        }
+                        ci += 1;
+                    };
+                }
+                cid += 1;
+            };
         }
     }
 }

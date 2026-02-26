@@ -11,12 +11,13 @@ pub struct Institution {
     pub founder_address: ContractAddress,
     pub name_hash: felt252,
     pub founded_at_tick: u64,
-    pub relevance: u128,            // ×1000 (starts at 1000)
+    pub relevance: u128,
     pub member_count: u32,
     pub effect_count: u8,
+    pub requirement_count: u8,
 }
 
-/// Effect slot for an institution — applies to all members.
+/// Effect slot for an institution.
 #[dojo::model]
 #[derive(Drop, Serde)]
 pub struct InstitutionEffect {
@@ -25,10 +26,23 @@ pub struct InstitutionEffect {
     #[key]
     pub effect_index: u8,
     pub effect_type: EffectType,
-    pub value: i128,                // ×1000
+    pub value: i128,
 }
 
-/// Membership: which villages belong to which institutions.
+/// Join requirement for an institution.
+/// req_type: 0=min_population, 1=has_tech, 2=has_building, 3=min_culture
+#[dojo::model]
+#[derive(Drop, Serde)]
+pub struct JoinRequirement {
+    #[key]
+    pub institution_id: u32,
+    #[key]
+    pub req_index: u8,
+    pub req_type: u8,
+    pub param: u32,         // population threshold, tech_id, building_def_id, or culture ×1000
+}
+
+/// Membership tracking.
 #[dojo::model]
 #[derive(Drop, Serde)]
 pub struct InstitutionMembership {
@@ -45,7 +59,7 @@ pub struct InstitutionMembership {
 #[derive(Drop, Serde)]
 pub struct InstitutionCounter {
     #[key]
-    pub id: u8,                     // always 0
+    pub id: u8,
     pub count: u32,
 }
 
