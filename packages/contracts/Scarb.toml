@@ -1,0 +1,14 @@
+[package]
+name = "autonomous_world"
+version = "0.1.0"
+cairo-version = "=2.10.1"
+edition = "2024_07"
+
+[dependencies]
+dojo = { git = "https://github.com/dojoengine/dojo", tag = "v1.5.0" }
+starknet = "2.10.1"
+
+[[target.starknet-contract]]
+sierra = true
+casm = true
+build-external-contracts = ["dojo::world::world_contract::world"]

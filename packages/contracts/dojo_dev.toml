@@ -1,0 +1,28 @@
+[world]
+name = "Autonomous World"
+seed = "autonomous_world"
+
+[namespace]
+default = "aw"
+mappings = { "physics" = "aw", "village_tick" = "aw", "commands" = "aw", "combat" = "aw", "covenant_sys" = "aw", "invention_sys" = "aw", "institution_sys" = "aw", "victory" = "aw", "Village" = "aw", "Building" = "aw", "BuildingDef" = "aw", "BuildQueue" = "aw", "Technology" = "aw", "TechDef" = "aw", "ResearchQueue" = "aw", "GarrisonUnit" = "aw", "UnitDef" = "aw", "TrainQueue" = "aw", "Covenant" = "aw", "CovenantClause" = "aw", "Invention" = "aw", "InventionEffect" = "aw", "InventionKnowledge" = "aw", "Institution" = "aw", "InstitutionEffect" = "aw", "InstitutionMembership" = "aw", "DiplomaticRelation" = "aw", "PhysicsConfig" = "aw", "GameConfig" = "aw", "GameCounter" = "aw" }
+
+[env]
+rpc_url = "http://localhost:5050/"
+account_address = "0x127fd5f1fe78a71f8bcd1fec63e3fe2f0486b6ecd5c86a0466c3a21fa5cfcec"
+private_key = "0xc5b2fcab997346f3ea1c00b002ecf6f382c5f9c9659a3894eb783c5320f912"
+
+[writers]
+"aw" = ["aw-physics", "aw-village_tick", "aw-commands", "aw-combat", "aw-covenant_sys", "aw-invention_sys", "aw-institution_sys", "aw-victory"]
+
+[owners]
+"aw" = ["aw-physics", "aw-village_tick", "aw-commands", "aw-combat", "aw-covenant_sys", "aw-invention_sys", "aw-institution_sys", "aw-victory"]
+
+[init_call_args]
+"aw-physics" = []
+"aw-village_tick" = []
+"aw-commands" = []
+"aw-combat" = []
+"aw-covenant_sys" = []
+"aw-invention_sys" = []
+"aw-institution_sys" = []
+"aw-victory" = []
