@@ -20,6 +20,7 @@ export interface AgentSpriteData {
   isMoving: boolean;
   status: string;
   currentAction: string | null;
+  isBlueprint: boolean;
 }
 
 export function createAgentSpriteData(agent: AgentState): AgentSpriteData {
@@ -35,6 +36,7 @@ export function createAgentSpriteData(agent: AgentState): AgentSpriteData {
     isMoving: false,
     status: agent.identity.status,
     currentAction: agent.currentAction,
+    isBlueprint: !!agent.identity.blueprintId,
   };
 }
 
@@ -85,6 +87,20 @@ export function drawAgent(
   const screenY = (sprite.y - cameraY) * zoom;
   const w = AGENT_WIDTH * zoom;
   const h = AGENT_HEIGHT * zoom;
+
+  // Blueprint aura (pulsing purple glow)
+  if (sprite.isBlueprint && sprite.status !== 'dead') {
+    const pulse = 0.3 + Math.sin(Date.now() * 0.003) * 0.15;
+    const auraSize = 6 * zoom;
+    ctx.save();
+    ctx.shadowColor = '#a855f7';
+    ctx.shadowBlur = 8 * zoom;
+    ctx.fillStyle = `rgba(168, 85, 247, ${pulse})`;
+    ctx.beginPath();
+    ctx.ellipse(screenX + w / 2, screenY + h / 2, w / 2 + auraSize, h / 2 + auraSize, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
 
   // Selection highlight
   if (isSelected) {

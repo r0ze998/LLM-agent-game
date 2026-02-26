@@ -52,15 +52,27 @@ export interface DailyPlanContext {
   availableActions: string[];
   intentions: PlayerIntention[];
   tick: number;
+  soulText?: string;
+  behaviorRules?: string[];
+  backstory?: string;
 }
 
 export function buildDailyPlanPrompt(ctx: DailyPlanContext): { system: string; user: string } {
-  const { agent, memories, relationships, agentNames, village, nearbyAgents, availableActions, intentions, tick } = ctx;
+  const { agent, memories, relationships, agentNames, village, nearbyAgents, availableActions, intentions, tick, soulText, behaviorRules, backstory } = ctx;
   const { identity, needs } = agent;
 
-  const system = `あなたはJRPGの世界に生きるキャラクター「${identity.name}」です。
-あなたは自分の性格と信念に基づいて、今日一日の計画を立ててください。
-返答は必ず以下のJSON形式のみで返してください。マークダウンのコードブロックは使わないでください。
+  let systemParts = [`あなたはJRPGの世界に生きるキャラクター「${identity.name}」です。
+あなたは自分の性格と信念に基づいて、今日一日の計画を立ててください。`];
+
+  if (soulText) {
+    systemParts.push(`\n=== あなたの魂 ===\n${soulText}`);
+  }
+
+  if (behaviorRules && behaviorRules.length > 0) {
+    systemParts.push(`\n=== 行動規則（必ず従うこと） ===\n${behaviorRules.map((r, i) => `${i + 1}. ${r}`).join('\n')}`);
+  }
+
+  systemParts.push(`\n返答は必ず以下のJSON形式のみで返してください。マークダウンのコードブロックは使わないでください。
 
 {
   "innerThought": "今の気持ちや考え（1-2文）",
@@ -74,20 +86,27 @@ export function buildDailyPlanPrompt(ctx: DailyPlanContext): { system: string; u
   "philosophyShift": null
 }
 
-行動名の選択肢: ${availableActions.join(', ')}`;
+行動名の選択肢: ${availableActions.join(', ')}`);
+
+  const system = systemParts.join('\n');
 
   const intentionText = intentions.length > 0
     ? intentions.map(i => `[${i.strength}] ${i.message}`).join('\n')
     : 'なし';
 
-  const user = `=== ${identity.name}の朝 (tick ${tick}) ===
+  let userParts = [`=== ${identity.name}の朝 (tick ${tick}) ===
 
 【基本情報】
 名前: ${identity.name} / 世代: ${identity.generation} / 年齢: ${identity.age} / 状態: ${identity.status}
 性格: ${describePersonality(identity.personality)}
 信条: ${describePhilosophy(identity.philosophy)}
-所属: ${village ? village.name : '無所属（放浪中）'}
+所属: ${village ? village.name : '無所属（放浪中）'}`];
 
+  if (backstory) {
+    userParts.push(`\n【魂の記憶（前世）】\n${backstory}`);
+  }
+
+  userParts.push(`
 【身体状態】
 空腹: ${needs.hunger}/100 / 体力: ${needs.energy}/100 / 社交欲: ${needs.social}/100
 
@@ -103,7 +122,9 @@ ${formatRelationships(relationships, agentNames)}
 【天の声（プレイヤーの意図）】
 ${intentionText}
 
-今日の24スロット分の計画をJSON形式で立ててください。`;
+今日の24スロット分の計画をJSON形式で立ててください。`);
+
+  const user = userParts.join('\n');
 
   return { system, user };
 }
@@ -162,30 +183,50 @@ sentimentChangeのキーは "${agent1.identity.id}" と "${agent2.identity.id}" 
 export interface ReflectionContext {
   agent: AgentState;
   recentMemories: Memory[];
+  soulText?: string;
+  behaviorRules?: string[];
+  backstory?: string;
 }
 
 export function buildReflectionPrompt(ctx: ReflectionContext): { system: string; user: string } {
-  const { agent, recentMemories } = ctx;
+  const { agent, recentMemories, soulText, behaviorRules, backstory } = ctx;
 
-  const system = `あなたはJRPGの世界に生きる「${agent.identity.name}」です。
-最近の出来事を振り返り、自分の考えや信念を更新してください。
-返答は必ず以下のJSON形式のみで返してください。
+  let systemParts = [`あなたはJRPGの世界に生きる「${agent.identity.name}」です。
+最近の出来事を振り返り、自分の考えや信念を更新してください。`];
+
+  if (soulText) {
+    systemParts.push(`\n=== あなたの魂 ===\n${soulText}`);
+  }
+  if (behaviorRules && behaviorRules.length > 0) {
+    systemParts.push(`\n=== 行動規則 ===\n${behaviorRules.map((r, i) => `${i + 1}. ${r}`).join('\n')}`);
+  }
+
+  systemParts.push(`\n返答は必ず以下のJSON形式のみで返してください。
 
 {
   "reflection": "振り返りの文章（2-3文）",
   "beliefChange": null または { "governance"?: "新しい統治観", "economics"?: "新しい経済観", "values"?: ["新しい価値観"], "worldview"?: "新しい世界観" },
   "newInsight": null または "新しい洞察（1文）"
-}`;
+}`);
 
-  const user = `=== ${agent.identity.name}の振り返り ===
+  const system = systemParts.join('\n');
+
+  let userParts = [`=== ${agent.identity.name}の振り返り ===
 
 性格: ${describePersonality(agent.identity.personality)}
-現在の信条: ${describePhilosophy(agent.identity.philosophy)}
+現在の信条: ${describePhilosophy(agent.identity.philosophy)}`];
 
+  if (backstory) {
+    userParts.push(`\n【魂の記憶（前世）】\n${backstory}`);
+  }
+
+  userParts.push(`
 【最近の出来事】
 ${formatMemories(recentMemories, 20)}
 
-これらの経験を踏まえて、振り返りをJSON形式で返してください。`;
+これらの経験を踏まえて、振り返りをJSON形式で返してください。`);
+
+  const user = userParts.join('\n');
 
   return { system, user };
 }

@@ -95,6 +95,9 @@ export interface DecisionContext {
   nearbyAgents: { id: string; name: string; distance: number }[];
   intentions: PlayerIntention[];
   tick: number;
+  soulText?: string;
+  behaviorRules?: string[];
+  backstory?: string;
 }
 
 export async function generateDailyPlan(ctx: DecisionContext): Promise<DailyPlan> {
@@ -110,6 +113,9 @@ export async function generateDailyPlan(ctx: DecisionContext): Promise<DailyPlan
     availableActions: AVAILABLE_ACTIONS,
     intentions: ctx.intentions,
     tick: ctx.tick,
+    soulText: ctx.soulText,
+    behaviorRules: ctx.behaviorRules,
+    backstory: ctx.backstory,
   };
 
   const { system, user } = buildDailyPlanPrompt(promptCtx);

@@ -12,6 +12,7 @@ import { VillagePanel } from './components/ui/VillagePanel.tsx';
 import { TimelinePanel } from './components/ui/TimelinePanel.tsx';
 import { Minimap } from './components/ui/Minimap.tsx';
 import { DashboardPanel } from './components/ui/DashboardPanel.tsx';
+import { AgentDeployer } from './components/ui/AgentDeployer.tsx';
 import { TICKS_PER_DAY, TICKS_PER_YEAR } from '@murasato/shared';
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
   const toggleIntention = useUIStore((s) => s.toggleIntentionPanel);
   const toggleTimeline = useUIStore((s) => s.toggleTimeline);
   const toggleDashboard = useUIStore((s) => s.toggleDashboard);
+  const toggleDeployer = useUIStore((s) => s.toggleAgentDeployer);
 
   useWorldState(game?.id ?? null);
 
@@ -114,6 +116,7 @@ export default function App() {
           <span style={{ color: '#666' }}>tick: {tick}</span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
+          <HeaderButton onClick={toggleDeployer}>召喚</HeaderButton>
           <HeaderButton onClick={toggleIntention}>天の声</HeaderButton>
           <HeaderButton onClick={toggleTimeline}>年代記</HeaderButton>
           <HeaderButton onClick={toggleDashboard}>統計</HeaderButton>
@@ -128,6 +131,7 @@ export default function App() {
       <IntentionPanel />
       <DialogueBox />
       <DashboardPanel />
+      <AgentDeployer />
       <SpeedControl />
     </div>
   );

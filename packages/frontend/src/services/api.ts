@@ -1,4 +1,4 @@
-import type { ApiResponse, GameState, AgentState, Chunk, Village, PlayerIntention, IntentionType, IntentionStrength } from '@murasato/shared';
+import type { ApiResponse, GameState, AgentState, AgentBlueprint, DeployedBlueprintMeta, Chunk, Village, PlayerIntention, IntentionType, IntentionStrength } from '@murasato/shared';
 
 const BASE_URL = '/api/v1';
 
@@ -58,4 +58,17 @@ export const api = {
 
   getIntentions: (gameId: string) =>
     request<PlayerIntention[]>(`/player/${gameId}/intentions`),
+
+  // Blueprint
+  deployBlueprint: (gameId: string, blueprint: AgentBlueprint) =>
+    request<{ agent: AgentState; meta: DeployedBlueprintMeta }>(`/blueprint/${gameId}/deploy`, {
+      method: 'POST',
+      body: JSON.stringify(blueprint),
+    }),
+
+  getBlueprints: (gameId: string) =>
+    request<DeployedBlueprintMeta[]>(`/blueprint/${gameId}`),
+
+  recallBlueprint: (gameId: string, blueprintId: string) =>
+    request<{ recalled: true; agentName: string }>(`/blueprint/${gameId}/${blueprintId}`, { method: 'DELETE' }),
 };

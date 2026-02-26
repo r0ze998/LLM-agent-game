@@ -8,6 +8,7 @@ interface UIStore {
   showTimeline: boolean;
   showMinimap: boolean;
   showDashboard: boolean;
+  showAgentDeployer: boolean;
   speed: number;
   isPaused: boolean;
 
@@ -18,6 +19,7 @@ interface UIStore {
   toggleTimeline: () => void;
   toggleMinimap: () => void;
   toggleDashboard: () => void;
+  toggleAgentDeployer: () => void;
   setSpeed: (speed: number) => void;
   setIsPaused: (paused: boolean) => void;
 }
@@ -30,6 +32,7 @@ export const useUIStore = create<UIStore>((set) => ({
   showTimeline: false,
   showMinimap: true,
   showDashboard: false,
+  showAgentDeployer: false,
   speed: 1,
   isPaused: true,
 
@@ -40,6 +43,7 @@ export const useUIStore = create<UIStore>((set) => ({
   toggleTimeline: () => set((s) => ({ showTimeline: !s.showTimeline })),
   toggleMinimap: () => set((s) => ({ showMinimap: !s.showMinimap })),
   toggleDashboard: () => set((s) => ({ showDashboard: !s.showDashboard })),
+  toggleAgentDeployer: () => set((s) => ({ showAgentDeployer: !s.showAgentDeployer })),
   setSpeed: (speed) => set({ speed, isPaused: speed === 0 }),
   setIsPaused: (isPaused) => set({ isPaused }),
 }));

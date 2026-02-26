@@ -5,6 +5,7 @@ import { gameRouter } from './routes/game.ts';
 import { worldRouter } from './routes/world.ts';
 import { agentRouter } from './routes/agent.ts';
 import { playerRouter } from './routes/player.ts';
+import { blueprintRouter } from './routes/blueprint.ts';
 import { onOpen, onClose, onMessage } from './handlers/wsHandler.ts';
 import { wsManager, type WSData } from './services/wsManager.ts';
 import { costTracker } from './agent/llmClient.ts';
@@ -38,6 +39,7 @@ v1.route('/game', gameRouter);
 v1.route('/world', worldRouter);
 v1.route('/agent', agentRouter);
 v1.route('/player', playerRouter);
+v1.route('/blueprint', blueprintRouter);
 app.route('/api/v1', v1);
 
 // --- Bun.serve with WebSocket ---

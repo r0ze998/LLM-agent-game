@@ -18,6 +18,7 @@ export interface AgentIdentity {
   age: number;
   lifespan: number;
   status: AgentLifeStatus;
+  blueprintId?: string;
 }
 
 export type AgentLifeStatus = 'child' | 'adult' | 'elder' | 'dead';
@@ -323,6 +324,29 @@ export interface SaveData {
   trades: TradeAgreement[];
   mapSeed: number;
   tick: number;
+  blueprints?: DeployedBlueprintMeta[];
+}
+
+// === Agent Blueprint (OpenClaw-style summoning) ===
+
+export interface AgentBlueprint {
+  soul: string;
+  name?: string;
+  rules?: string[];
+  backstory?: string;
+  personality?: Partial<PersonalityAxes>;
+  philosophy?: Partial<Philosophy>;
+  skills?: Partial<SkillMap>;
+  spawnPosition?: Position;
+}
+
+export interface DeployedBlueprintMeta {
+  blueprintId: string;
+  agentId: string;
+  soul: string;
+  rules: string[];
+  backstory: string | null;
+  deployedAtTick: number;
 }
 
 // === API Response Types ===

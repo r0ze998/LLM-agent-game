@@ -1,5 +1,5 @@
 import type {
-  AgentState, GameEvent, GameEventType, Position, Relationship,
+  AgentState, DeployedBlueprintMeta, GameEvent, GameEventType, Position, Relationship,
   Village, PlayerIntention, ResourceType, StructureType,
 } from '@murasato/shared';
 import {
@@ -31,6 +31,7 @@ export interface WorldState {
   relationships: Map<string, Relationship[]>; // keyed by agentId
   intentions: PlayerIntention[];
   diplomacy: DiplomacyManager;
+  blueprints: Map<string, DeployedBlueprintMeta>;
   tick: number;
 
   get livingAgents(): AgentState[];
@@ -46,6 +47,7 @@ export function createWorldState(gameId: string, map: WorldMap): WorldState {
     relationships: new Map(),
     intentions: [],
     diplomacy: new DiplomacyManager(),
+    blueprints: new Map(),
     tick: 0,
 
     get livingAgents() {
@@ -133,7 +135,15 @@ export async function tick(world: WorldState): Promise<TickResult> {
       const rel21 = getRelationship(world, opp.agent2.identity.id, opp.agent1.identity.id);
       const sharedVillage = opp.agent1.villageId != null && opp.agent1.villageId === opp.agent2.villageId;
 
-      const result = await genConversation(opp.agent1, opp.agent2, rel12, rel21, opp.situation, sharedVillage);
+      // Build soul contexts for blueprint agents
+      const bp1 = opp.agent1.identity.blueprintId ? world.blueprints.get(opp.agent1.identity.blueprintId) : undefined;
+      const bp2 = opp.agent2.identity.blueprintId ? world.blueprints.get(opp.agent2.identity.blueprintId) : undefined;
+      const soulContexts = (bp1 || bp2) ? {
+        a1: bp1 ? { soul: bp1.soul, rules: bp1.rules.length > 0 ? bp1.rules : undefined } : undefined,
+        a2: bp2 ? { soul: bp2.soul, rules: bp2.rules.length > 0 ? bp2.rules : undefined } : undefined,
+      } : undefined;
+
+      const result = await genConversation(opp.agent1, opp.agent2, rel12, rel21, opp.situation, sharedVillage, soulContexts);
       applyConversationResults(result, opp.agent1, opp.agent2, world.relationships, world.tick, world.gameId);
       events.push(createConversationEvent(world.gameId, opp.agent1, opp.agent2, result, world.tick));
 
@@ -441,6 +451,19 @@ function buildDecisionContext(world: WorldState, agent: AgentState): DecisionCon
     (i.target.type === 'village' && i.target.id === agent.villageId),
   );
 
+  // Look up blueprint soul/rules/backstory
+  let soulText: string | undefined;
+  let behaviorRules: string[] | undefined;
+  let backstory: string | undefined;
+  if (agent.identity.blueprintId) {
+    const bp = world.blueprints.get(agent.identity.blueprintId);
+    if (bp) {
+      soulText = bp.soul;
+      behaviorRules = bp.rules.length > 0 ? bp.rules : undefined;
+      backstory = bp.backstory ?? undefined;
+    }
+  }
+
   return {
     agent,
     memories: new MemoryManager(agent.identity.id, world.gameId),
@@ -450,6 +473,9 @@ function buildDecisionContext(world: WorldState, agent: AgentState): DecisionCon
     nearbyAgents,
     intentions: relevantIntentions,
     tick: world.tick,
+    soulText,
+    behaviorRules,
+    backstory,
   };
 }
 

@@ -31,6 +31,7 @@ export function serializeWorld(world: WorldState, gameState: GameState): SaveDat
     trades: world.diplomacy.getTrades(),
     mapSeed: world.map.seed,
     tick: world.tick,
+    blueprints: [...world.blueprints.values()],
   };
 }
 
@@ -66,6 +67,13 @@ export function deserializeWorld(save: SaveData): WorldState {
 
   // Restore intentions
   world.intentions = save.intentions;
+
+  // Restore blueprints
+  if (save.blueprints) {
+    for (const bp of save.blueprints) {
+      world.blueprints.set(bp.blueprintId, bp);
+    }
+  }
 
   // Restore diplomacy
   for (const rel of save.diplomacy) {

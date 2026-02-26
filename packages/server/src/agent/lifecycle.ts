@@ -1,10 +1,11 @@
-import type { AgentState, PersonalityAxes, Philosophy, SkillMap, SkillType } from '@murasato/shared';
+import type { AgentState, AgentBlueprint, DeployedBlueprintMeta, PersonalityAxes, Philosophy, SkillMap, SkillType, Position } from '@murasato/shared';
 import {
   DEFAULT_LIFESPAN_MIN, DEFAULT_LIFESPAN_MAX, MATURITY_AGE,
   ELDER_AGE_RATIO, PERSONALITY_MUTATION_RANGE, PERSONALITY_MIN, PERSONALITY_MAX,
 } from '@murasato/shared';
-import { callLLM } from './llmClient.ts';
+import { callLLM, extractJSON } from './llmClient.ts';
 import { buildNamePrompt } from './prompts.ts';
+import { MemoryManager } from './memory.ts';
 
 function generateId(): string {
   return `agent_${crypto.randomUUID()}`;
@@ -81,6 +82,128 @@ export function createGenesisAgent(index: number, x: number, y: number): Omit<Ag
     villageId: null,
     inventory: { food: 10, wood: 5 },
   };
+}
+
+// --- Derive attributes from soul text via LLM ---
+
+interface DerivedAttributes {
+  name: string;
+  personality: PersonalityAxes;
+  philosophy: Philosophy;
+  skills: SkillMap;
+}
+
+export async function deriveBlueprintAttributes(soul: string): Promise<DerivedAttributes> {
+  const system = `あなたはJRPGキャラクターの魂テキストから属性を抽出するAIです。
+与えられた魂の描写から、キャラクターの名前・性格・信条・スキルをJSON形式で返してください。
+返答は必ず以下のJSON形式のみで返してください。マークダウンのコードブロックは使わないでください。
+
+{
+  "name": "カタカナの名前（2-4文字）",
+  "personality": {
+    "openness": 0-100,
+    "agreeableness": 0-100,
+    "conscientiousness": 0-100,
+    "courage": 0-100,
+    "ambition": 0-100
+  },
+  "philosophy": {
+    "governance": "democratic|meritocratic|authoritarian|anarchist|theocratic",
+    "economics": "collectivist|market|gift_economy|feudal",
+    "values": ["価値観1", "価値観2", "価値観3"],
+    "worldview": "世界観を一文で"
+  },
+  "skills": {
+    "farming": 1-30, "building": 1-30, "crafting": 1-30, "leadership": 1-30,
+    "combat": 1-30, "diplomacy": 1-30, "teaching": 1-30, "healing": 1-30
+  }
+}
+
+魂の描写に基づいて、最も適切な値を設定してください。`;
+
+  const user = `=== 魂の描写 ===\n${soul}`;
+
+  try {
+    const raw = await callLLM({ system, userMessage: user, importance: 'routine', maxTokens: 512 });
+    return extractJSON<DerivedAttributes>(raw);
+  } catch {
+    // Fallback: random attributes with a generic name
+    return {
+      name: `召喚${Math.floor(Math.random() * 1000)}`,
+      personality: randomPersonality(),
+      philosophy: randomPhilosophy(),
+      skills: randomSkills(),
+    };
+  }
+}
+
+// --- Create blueprint agent (OpenClaw-style summoning) ---
+
+export async function createBlueprintAgent(
+  gameId: string,
+  blueprint: AgentBlueprint,
+  spawnPos: Position,
+  tick: number,
+): Promise<{ agent: AgentState; meta: DeployedBlueprintMeta }> {
+  const blueprintId = `bp_${crypto.randomUUID()}`;
+
+  // Derive attributes from soul text
+  const derived = await deriveBlueprintAttributes(blueprint.soul);
+
+  // User overrides take precedence
+  const personality: PersonalityAxes = {
+    ...derived.personality,
+    ...(blueprint.personality ?? {}),
+  };
+  const philosophy: Philosophy = {
+    ...derived.philosophy,
+    ...(blueprint.philosophy ?? {}),
+  };
+  const skills: SkillMap = {
+    ...derived.skills,
+    ...(blueprint.skills ?? {}),
+  } as SkillMap;
+  const name = blueprint.name ?? derived.name;
+
+  const agentId = generateId();
+
+  const agent: AgentState = {
+    identity: {
+      id: agentId,
+      name,
+      generation: 0,
+      parentIds: [],
+      personality,
+      philosophy,
+      skills,
+      age: MATURITY_AGE,
+      lifespan: randomRange(DEFAULT_LIFESPAN_MIN, DEFAULT_LIFESPAN_MAX),
+      status: 'adult',
+      blueprintId,
+    },
+    needs: { hunger: 80, energy: 100, social: 50 },
+    position: spawnPos,
+    currentAction: null,
+    villageId: null,
+    inventory: { food: 10, wood: 5 },
+  };
+
+  // Store backstory as longterm memory
+  if (blueprint.backstory) {
+    const mem = new MemoryManager(agentId, gameId);
+    mem.addMemory(blueprint.backstory, 0.9, tick, 'longterm', ['backstory', 'blueprint']);
+  }
+
+  const meta: DeployedBlueprintMeta = {
+    blueprintId,
+    agentId,
+    soul: blueprint.soul,
+    rules: blueprint.rules ?? [],
+    backstory: blueprint.backstory ?? null,
+    deployedAtTick: tick,
+  };
+
+  return { agent, meta };
 }
 
 // --- Create child agent ---
