@@ -3,6 +3,10 @@
 .DS_Store
 logs/*
 
+# Save data (runtime)
+saves/
+packages/server/saves/
+
 # Node.js
 node_modules/
 frontend/dist/

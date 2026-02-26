@@ -6,6 +6,7 @@
  */
 
 import { Account, RpcProvider, CallData, type Call, shortString } from "starknet";
+import type { ManifestContracts } from "./dojo/manifestParser.ts";
 
 // ── Types matching on-chain enums ──
 
@@ -101,8 +102,10 @@ function toFixed1000Signed(val: number): string {
 
 export class DojoTxService {
   private account: Account;
+  private provider: RpcProvider;
   private worldAddress: string;
   private namespace: string;
+  private manifestContracts: ManifestContracts | null = null;
 
   constructor(
     rpcUrl: string,
@@ -110,11 +113,18 @@ export class DojoTxService {
     privateKey: string,
     worldAddress: string,
     namespace = "aw",
+    manifestContracts?: ManifestContracts,
   ) {
-    const provider = new RpcProvider({ nodeUrl: rpcUrl });
-    this.account = new Account(provider, accountAddress, privateKey);
+    this.provider = new RpcProvider({ nodeUrl: rpcUrl });
+    this.account = new Account(this.provider, accountAddress, privateKey);
     this.worldAddress = worldAddress;
     this.namespace = namespace;
+    this.manifestContracts = manifestContracts ?? null;
+  }
+
+  /** マニフェストベースのコントラクトアドレスを設定 */
+  setManifestContracts(contracts: ManifestContracts): void {
+    this.manifestContracts = contracts;
   }
 
   // ── Village ──
@@ -309,6 +319,38 @@ export class DojoTxService {
     return this.execute("physics", "initialize_physics", []);
   }
 
+  // ── Setup ──
+
+  async submitSetupRegisterAll(): Promise<string> {
+    return this.execute("setup", "register_all", []);
+  }
+
+  // ── Lifecycle / Decay ──
+
+  async submitCovenantDecay(): Promise<string> {
+    return this.execute("covenant_sys", "decay_covenants", []);
+  }
+
+  async submitInventionDecay(): Promise<string> {
+    return this.execute("invention_sys", "decay_invention", []);
+  }
+
+  async submitInstitutionLifecycle(): Promise<string> {
+    return this.execute("institution_sys", "process_lifecycle", []);
+  }
+
+  // ── Victory ──
+
+  async submitVictoryCheck(): Promise<string> {
+    return this.execute("victory", "check_victory", []);
+  }
+
+  // ── Tx confirmation ──
+
+  async waitForTx(txHash: string): Promise<void> {
+    await this.provider.waitForTransaction(txHash);
+  }
+
   // ── Internal ──
 
   private async execute(
@@ -334,17 +376,21 @@ export class DojoTxService {
 
   /**
    * Get system contract address.
-   * In Dojo, system addresses are derived from world + namespace + system name.
-   * For now, these should be read from manifest.json after `sozo migrate`.
+   * Priority: manifest → environment variable fallback.
    */
   private getSystemAddress(system: string): string {
-    // TODO: Read from Dojo manifest after deployment
-    // For dev, these are set via environment or manifest parsing
+    // 1. マニフェストから取得
+    if (this.manifestContracts) {
+      const addr = this.manifestContracts[system as keyof ManifestContracts];
+      if (addr) return addr;
+    }
+
+    // 2. 環境変数フォールバック
     const envKey = `DOJO_SYSTEM_${system.toUpperCase()}`;
     const addr = process.env[envKey];
     if (!addr) {
       throw new Error(
-        `System address not found for ${system}. Set ${envKey} env var.`,
+        `System address not found for ${system}. Set ${envKey} or provide manifest.`,
       );
     }
     return addr;

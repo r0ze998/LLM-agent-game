@@ -2,6 +2,8 @@ import type { ServerWebSocket } from 'bun';
 import type { WSClientMessage } from '@murasato/shared';
 import { wsManager, type WSData } from '../services/wsManager.ts';
 import { tickService } from '../services/tickService.ts';
+import { processCommand } from '../engine/commandProcessor.ts';
+import { buildWorld4XRef } from '../world/simulation.ts';
 
 export function onOpen(ws: ServerWebSocket<WSData>) {
   wsManager.add(ws);
@@ -55,6 +57,29 @@ export async function onMessage(ws: ServerWebSocket<WSData>, raw: string | Buffe
               ...msg.intention,
             });
           }
+        }
+        break;
+      }
+
+      case 'player_command': {
+        const world = tickService.getWorld(msg.gameId);
+        if (world) {
+          const worldRef = buildWorld4XRef(world);
+          const result = processCommand(msg.command, msg.playerId, worldRef);
+          wsManager.send(ws, { type: 'command_result', result } as any);
+
+          // Broadcast combat results
+          if (result.data?.combatResult) {
+            wsManager.broadcastToGame(msg.gameId, { type: 'battle_result', result: result.data.combatResult } as any);
+          }
+
+          // Broadcast updated village state
+          const vs = world.villageStates4X.get((msg.command as any).villageId);
+          if (vs) {
+            wsManager.broadcastToGame(msg.gameId, { type: 'village_4x_update', state: vs } as any);
+          }
+        } else {
+          wsManager.send(ws, { type: 'error', message: `Game ${msg.gameId} not found` });
         }
         break;
       }

@@ -5,9 +5,9 @@ import { useUIStore } from '../../store/uiStore.ts';
 import { useViewport } from '../../hooks/useViewport.ts';
 import { useAgentFocus } from '../../hooks/useAgentFocus.ts';
 import { wsClient } from '../../services/wsClient.ts';
-import { getTileColor, getElevationShade } from './TileRenderer.ts';
+import { drawTilePattern } from './TileRenderer.ts';
 import { createAgentSpriteData, updateAgentSpriteData, drawAgent, type AgentSpriteData } from './AgentSprite.ts';
-import { drawBuilding } from './BuildingSprite.ts';
+import { drawBuildingFromId } from './BuildingSprite.ts';
 import { applyTimeOverlay } from './WeatherEffects.ts';
 
 export function WorldCanvas() {
@@ -16,7 +16,7 @@ export function WorldCanvas() {
   const animFrameRef = useRef<number>(0);
   const prevChunks = useRef<string[]>([]);
 
-  const { viewport, handlers, getVisibleChunks, centerOn } = useViewport();
+  const { viewport, pan, handlers, getVisibleChunks, centerOn } = useViewport();
   const chunks = useGameStore((s) => s.chunks);
   const agents = useGameStore((s) => s.agents);
   const game = useGameStore((s) => s.game);
@@ -37,11 +37,13 @@ export function WorldCanvas() {
   }, [agents, centerOn]);
 
   // Subscribe to visible chunks
-  const subscribeVisibleChunks = useCallback(() => {
+  const subscribeVisibleChunksRef = useRef(() => {});
+  subscribeVisibleChunksRef.current = () => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || canvas.width === 0 || canvas.height === 0) return;
 
     const visibleChunks = getVisibleChunks(canvas.width, canvas.height);
+    if (visibleChunks.length === 0) return;
     const keys = visibleChunks.map(c => `${c.cx},${c.cy}`);
     const prevKeys = prevChunks.current;
 
@@ -54,32 +56,33 @@ export function WorldCanvas() {
     if (toUnsubscribe.length > 0) wsClient.unsubscribeChunks(toUnsubscribe);
 
     prevChunks.current = keys;
-  }, [getVisibleChunks]);
+  };
 
   useEffect(() => {
-    subscribeVisibleChunks();
-  }, [viewport, subscribeVisibleChunks]);
+    subscribeVisibleChunksRef.current();
+  }, [viewport, getVisibleChunks]);
 
   // Re-subscribe when WS reconnects
   useEffect(() => {
     const unsub = wsClient.onConnect(() => {
       prevChunks.current = [];
-      subscribeVisibleChunks();
+      // Delay slightly to ensure canvas is sized
+      setTimeout(() => subscribeVisibleChunksRef.current(), 100);
     });
     return unsub;
-  }, [subscribeVisibleChunks]);
+  }, []);
 
-  // Update agent sprites from state
+  // Sync agent sprites with state (create/remove only)
+  // Smooth interpolation is handled in the render loop below
+  const agentsRef = useRef(agents);
+  agentsRef.current = agents;
+
   useEffect(() => {
     for (const [id, agent] of agents) {
-      let sprite = agentSprites.current.get(id);
-      if (!sprite) {
-        sprite = createAgentSpriteData(agent);
-        agentSprites.current.set(id, sprite);
+      if (!agentSprites.current.has(id)) {
+        agentSprites.current.set(id, createAgentSpriteData(agent));
       }
-      updateAgentSpriteData(sprite, agent, 16);
     }
-
     // Remove dead sprites
     for (const id of agentSprites.current.keys()) {
       if (!agents.has(id)) {
@@ -125,6 +128,9 @@ export function WorldCanvas() {
       const { width, height } = canvas;
       const { x: camX, y: camY, zoom } = viewport;
 
+      // Pixel-art crisp scaling
+      ctx.imageSmoothingEnabled = false;
+
       // Clear
       ctx.fillStyle = '#1a1a2e';
       ctx.fillRect(0, 0, width, height);
@@ -153,23 +159,31 @@ export function WorldCanvas() {
           const tile = chunk.tiles[localY]?.[localX];
           if (!tile) continue;
 
-          const baseColor = getTileColor(tile);
-          const color = getElevationShade(baseColor, tile.elevation);
-
           const screenX = halfW + (tx * TILE_SIZE - camX) * zoom;
           const screenY = halfH + (ty * TILE_SIZE - camY) * zoom;
           const size = Math.ceil(TILE_SIZE * zoom) + 1;
 
-          ctx.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
-          ctx.fillRect(screenX, screenY, size, size);
+          // FRLG-style tile pattern
+          drawTilePattern(ctx, tile, tx, ty, screenX, screenY, size);
 
-          // Grid lines at high zoom
-          if (zoom >= 3) {
+          // Draw building on top if this tile has a structure
+          if (tile.structureId) {
+            drawBuildingFromId(ctx, tile.structureId, screenX, screenY, size);
+          }
+
+          // Grid lines at very high zoom
+          if (zoom >= 5) {
             ctx.strokeStyle = 'rgba(0,0,0,0.1)';
             ctx.lineWidth = 0.5;
             ctx.strokeRect(screenX, screenY, size, size);
           }
         }
+      }
+
+      // Update agent sprite interpolation every frame for smooth movement
+      for (const [id, sprite] of agentSprites.current) {
+        const agent = agentsRef.current.get(id);
+        if (agent) updateAgentSpriteData(sprite, agent, 16);
       }
 
       // Draw agents
@@ -198,7 +212,7 @@ export function WorldCanvas() {
 
     animFrameRef.current = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animFrameRef.current);
-  }, [viewport, chunks, agents, selectedAgentId, game]);
+  }, [viewport, chunks, selectedAgentId, game]);
 
   // Resize canvas
   useEffect(() => {
@@ -208,6 +222,8 @@ export function WorldCanvas() {
     const resize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+      // Re-subscribe chunks after canvas gets a real size
+      subscribeVisibleChunksRef.current();
     };
 
     resize();
@@ -215,30 +231,30 @@ export function WorldCanvas() {
     return () => window.removeEventListener('resize', resize);
   }, []);
 
-  // Keyboard controls
+  // Keyboard controls — use pan() directly (not mouse events)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const PAN_SPEED = 32;
       switch (e.key) {
         case 'ArrowUp':
-        case 'w': handlers.onMouseMove({ clientX: 0, clientY: PAN_SPEED, ...{} } as any); break;
+        case 'w': pan(0, PAN_SPEED); break;
         case 'ArrowDown':
-        case 's': handlers.onMouseMove({ clientX: 0, clientY: -PAN_SPEED, ...{} } as any); break;
+        case 's': pan(0, -PAN_SPEED); break;
         case 'ArrowLeft':
-        case 'a': handlers.onMouseMove({ clientX: PAN_SPEED, clientY: 0, ...{} } as any); break;
+        case 'a': pan(PAN_SPEED, 0); break;
         case 'ArrowRight':
-        case 'd': handlers.onMouseMove({ clientX: -PAN_SPEED, clientY: 0, ...{} } as any); break;
+        case 'd': pan(-PAN_SPEED, 0); break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handlers]);
+  }, [pan]);
 
   return (
     <canvas
       ref={canvasRef}
-      style={{ display: 'block', cursor: 'grab' }}
+      style={{ display: 'block', cursor: 'grab', imageRendering: 'pixelated' }}
       onClick={handleClick}
       onMouseDown={handlers.onMouseDown}
       onMouseMove={handlers.onMouseMove}

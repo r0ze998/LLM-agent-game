@@ -1,6 +1,21 @@
-import type { Tile, ResourceType, AgentState } from '@murasato/shared';
+import type { Tile, ResourceType, AgentState, Position } from '@murasato/shared';
+import type { ResourceType4X } from '@murasato/shared';
 import { GATHER_BASE_AMOUNT, RESOURCE_REGEN_INTERVAL, EAT_RESTORE, BASE_FOOD_PER_FARM_TICK } from '@murasato/shared';
 import type { WorldMap } from './map.ts';
+
+/** Map old 7 resource types to new 5 resource types */
+export function mapTo4XResource(resource: ResourceType): ResourceType4X | null {
+  switch (resource) {
+    case 'food': return 'food';
+    case 'wood': return 'wood';
+    case 'stone': return 'stone';
+    case 'ore': return 'iron';
+    case 'herbs':
+    case 'clay':
+    case 'fiber':
+      return null; // deprecated, no 4X equivalent
+  }
+}
 
 // --- Gather resources from a tile ---
 
@@ -71,4 +86,42 @@ export function regenerateResources(map: WorldMap, tick: number): void {
       }
     }
   }
+}
+
+// --- Find nearby tile with a specific resource ---
+
+export function findNearbyResource(
+  map: WorldMap,
+  from: Position,
+  resource: ResourceType,
+  radius: number,
+): Position | null {
+  let best: Position | null = null;
+  let bestAmount = 0;
+  let bestDist = Infinity;
+
+  const minX = Math.max(0, from.x - radius);
+  const maxX = Math.min(map.size - 1, from.x + radius);
+  const minY = Math.max(0, from.y - radius);
+  const maxY = Math.min(map.size - 1, from.y + radius);
+
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      const dist = Math.abs(x - from.x) + Math.abs(y - from.y);
+      if (dist === 0 || dist > radius) continue;
+
+      const tile = map.tiles[y][x];
+      const amount = tile.resources[resource] ?? 0;
+      if (amount <= 0) continue;
+
+      // Prefer closer tiles; break ties by amount
+      if (dist < bestDist || (dist === bestDist && amount > bestAmount)) {
+        best = { x, y };
+        bestAmount = amount;
+        bestDist = dist;
+      }
+    }
+  }
+
+  return best;
 }

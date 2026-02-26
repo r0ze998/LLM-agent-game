@@ -5,19 +5,29 @@ import { generateMap, findSpawnPositions, getChunk } from '../world/map.ts';
 import { createGenesisAgent } from '../agent/lifecycle.ts';
 import { wsManager } from './wsManager.ts';
 import { computeWorldStats } from './statsService.ts';
+import { eventStore } from './eventStore.ts';
+import type { DojoBridge } from './dojo/dojoBridge.ts';
 
 class TickService {
   private worlds = new Map<string, WorldState>();
   private timers = new Map<string, ReturnType<typeof setInterval>>();
   private speeds = new Map<string, number>(); // multiplier
+  private ticking = new Set<string>(); // prevent overlapping ticks
+  private _dojoBridge?: DojoBridge;
+
+  /** DojoBridge をセット（index.ts から起動時に呼ばれる） */
+  setDojoBridge(bridge: DojoBridge): void {
+    this._dojoBridge = bridge;
+  }
 
   getWorld(gameId: string): WorldState | undefined {
     return this.worlds.get(gameId);
   }
 
-  createGame(gameId: string, config: GameConfig): WorldState {
+  createGame(gameId: string, config: GameConfig, dojoBridge?: DojoBridge): WorldState {
+    const bridge = dojoBridge ?? this._dojoBridge;
     const map = generateMap(config.seed, config.mapSize);
-    const world = createWorldState(gameId, map);
+    const world = createWorldState(gameId, map, bridge);
 
     // Spawn initial agents
     const spawnPositions = findSpawnPositions(map, config.initialAgents);
@@ -40,8 +50,14 @@ class TickService {
     const interval = DEFAULT_TICK_INTERVAL_MS / speedMultiplier;
 
     const timer = setInterval(async () => {
+      // Prevent overlapping ticks when LLM calls are slow
+      if (this.ticking.has(gameId)) return;
+      this.ticking.add(gameId);
       try {
         const result = await tick(world);
+
+        // Accumulate events in store
+        eventStore.push(gameId, result.events);
 
         // Broadcast tick
         const dayOfYear = result.tick % TICKS_PER_YEAR;
@@ -82,6 +98,27 @@ class TickService {
           wsManager.broadcastChunkUpdate(gameId, chunkKey, { type: 'chunk_update', chunk });
         }
 
+        // Broadcast village updates (founding, governance changes, etc.)
+        for (const village of world.villages.values()) {
+          wsManager.broadcastToGame(gameId, { type: 'village_update', village });
+        }
+
+        // Broadcast 4X village state updates (serialize Set → Array)
+        for (const vs of world.villageStates4X.values()) {
+          const serialized = { ...vs, researchedTechs: [...vs.researchedTechs] };
+          wsManager.broadcastToGame(gameId, { type: 'village_4x_update', state: serialized } as any);
+        }
+
+        // Broadcast 4X-specific events
+        for (const event of result.events) {
+          if (event.data?.victory) {
+            wsManager.broadcastToGame(gameId, { type: 'victory', event: event.data.victory } as any);
+          }
+          if (event.data?.combatResult) {
+            wsManager.broadcastToGame(gameId, { type: 'battle_result', result: event.data.combatResult } as any);
+          }
+        }
+
         // Broadcast stats every 10 ticks
         if (result.tick % 10 === 0) {
           const stats = computeWorldStats(world);
@@ -89,6 +126,8 @@ class TickService {
         }
       } catch (err) {
         console.error(`Tick error for game ${gameId}:`, err);
+      } finally {
+        this.ticking.delete(gameId);
       }
     }, interval);
 
@@ -106,10 +145,11 @@ class TickService {
 
   setSpeed(gameId: string, multiplier: number): boolean {
     if (!this.worlds.has(gameId)) return false;
-    const wasRunning = this.timers.has(gameId);
-    if (wasRunning) this.pause(gameId);
-    if (multiplier > 0 && wasRunning) this.start(gameId, multiplier);
+    // Always stop the current timer first
+    if (this.timers.has(gameId)) this.pause(gameId);
     this.speeds.set(gameId, multiplier);
+    // Restart with new speed if > 0
+    if (multiplier > 0) this.start(gameId, multiplier);
     return true;
   }
 
@@ -125,6 +165,16 @@ class TickService {
     this.pause(gameId);
     this.worlds.delete(gameId);
     this.speeds.delete(gameId);
+    eventStore.clear(gameId);
+  }
+
+  listGames(): { gameId: string; tick: number; running: boolean; events: number }[] {
+    return [...this.worlds.entries()].map(([gameId, world]) => ({
+      gameId,
+      tick: world.tick,
+      running: this.timers.has(gameId),
+      events: eventStore.count(gameId),
+    }));
   }
 }
 

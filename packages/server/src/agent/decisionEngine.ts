@@ -23,6 +23,8 @@ export type AgentAction =
 const AVAILABLE_ACTIONS = [
   'move', 'gather', 'eat', 'sleep', 'build', 'farm',
   'craft', 'socialize', 'explore', 'rest', 'teach', 'heal',
+  // 4X-aware actions — エージェントが村の戦略状態に応じて選択
+  'gather_iron', 'defend', 'patrol',
 ];
 
 // --- P2: Instinct (rule-based) ---
@@ -80,6 +82,9 @@ function parseAction(actionStr: string, target?: string): AgentAction {
   if (action === 'explore') return { type: 'explore' };
   if (action === 'teach') return { type: 'teach', targetId: target ?? '' };
   if (action === 'heal') return { type: 'heal', targetId: target ?? '' };
+  // 4X-aware actions map to existing action types
+  if (action === 'gather_iron') return { type: 'gather', resource: 'ore' };
+  if (action === 'defend' || action === 'patrol') return { type: 'explore' };
 
   return { type: 'rest' };
 }
@@ -98,6 +103,14 @@ export interface DecisionContext {
   soulText?: string;
   behaviorRules?: string[];
   backstory?: string;
+  // 4X Strategy context (if agent belongs to a village with 4X state)
+  villageStrategy?: {
+    resources: Record<string, number>;
+    population: number;
+    militaryStrength: number;
+    atWar: boolean;
+    researchedTechs: string[];
+  };
 }
 
 export async function generateDailyPlan(ctx: DecisionContext): Promise<DailyPlan> {
@@ -116,21 +129,22 @@ export async function generateDailyPlan(ctx: DecisionContext): Promise<DailyPlan
     soulText: ctx.soulText,
     behaviorRules: ctx.behaviorRules,
     backstory: ctx.backstory,
+    villageStrategy: ctx.villageStrategy,
   };
 
   const { system, user } = buildDailyPlanPrompt(promptCtx);
 
-  const raw = await callLLM({
-    system,
-    userMessage: user,
-    importance: 'routine',
-    cacheKey: `plan_${ctx.agent.identity.id}_day${Math.floor(ctx.tick / TICKS_PER_DAY)}`,
-  });
-
   try {
+    const raw = await callLLM({
+      system,
+      userMessage: user,
+      importance: 'routine',
+      cacheKey: `plan_${ctx.agent.identity.id}_day${Math.floor(ctx.tick / TICKS_PER_DAY)}`,
+      maxTokens: 2048,
+    });
     return extractJSON<DailyPlan>(raw);
-  } catch {
-    console.warn(`Failed to parse daily plan for ${ctx.agent.identity.name}, using fallback`);
+  } catch (err) {
+    console.warn(`LLM unavailable for ${ctx.agent.identity.name}, using rule-based plan`, (err as Error).message?.slice(0, 120));
     return createFallbackPlan(ctx.agent);
   }
 }
@@ -138,21 +152,98 @@ export async function generateDailyPlan(ctx: DecisionContext): Promise<DailyPlan
 function createFallbackPlan(agent: AgentState): DailyPlan {
   const schedule = Array.from({ length: 24 }, (_, i) => {
     let action: string;
-    if (i < 6) action = 'sleep';
-    else if (i < 8) action = 'eat';
-    else if (i < 12) action = 'gather';
-    else if (i < 14) action = 'eat';
-    else if (i < 18) action = 'explore';
-    else if (i < 20) action = 'socialize';
-    else action = 'rest';
-    return { slot: i, action, reason: 'fallback plan' };
+    let target: string | undefined;
+
+    if (i < 5) {
+      action = 'sleep';
+    } else if (i === 5 || i === 12 || i === 19) {
+      // 食事タイム: 食料があれば食べる、なければ採集
+      action = (agent.inventory.food ?? 0) > 0 ? 'eat' : 'gather';
+      if (action === 'gather') target = 'food';
+    } else if (i >= 6 && i < 12) {
+      // 午前: メイン労働 — スキルに応じて分岐
+      action = pickWorkAction(agent);
+      target = pickWorkTarget(agent, action);
+    } else if (i >= 13 && i < 17) {
+      // 午後前半: 探索 + 資源収集
+      action = i % 2 === 0 ? 'explore' : 'gather';
+      if (action === 'gather') target = pickGatherTarget(agent);
+    } else if (i >= 17 && i < 19) {
+      // 夕方: 社交
+      action = 'socialize';
+    } else {
+      // 夜: 休憩
+      action = 'rest';
+    }
+
+    return { slot: i, action, target, reason: 'rule-based' };
   });
 
   return {
-    innerThought: '今日も一日頑張ろう。',
+    innerThought: '今日もやるべきことをやろう。',
     schedule,
     socialIntentions: [],
   };
+}
+
+function pickWorkAction(agent: AgentState): string {
+  const skills = agent.identity.skills;
+  // Find highest skill
+  let bestSkill = 'farming';
+  let bestLevel = 0;
+  for (const [skill, level] of Object.entries(skills)) {
+    if (level > bestLevel) {
+      bestLevel = level;
+      bestSkill = skill;
+    }
+  }
+
+  const skillToAction: Record<string, string> = {
+    farming: 'farm',
+    building: 'build',
+    crafting: 'craft',
+    healing: 'gather',   // gather herbs
+    teaching: 'teach',
+    leadership: 'socialize',
+    combat: 'explore',
+    diplomacy: 'socialize',
+  };
+
+  const action = skillToAction[bestSkill] ?? 'gather';
+
+  // If building but no materials, gather instead
+  if (action === 'build') {
+    const hasWood = (agent.inventory.wood ?? 0) >= 5;
+    const hasStone = (agent.inventory.stone ?? 0) >= 3;
+    if (!hasWood || !hasStone) return 'gather';
+  }
+
+  // If crafting but no materials, gather instead
+  if (action === 'craft') {
+    const hasWood = (agent.inventory.wood ?? 0) >= 2;
+    const hasStone = (agent.inventory.stone ?? 0) >= 1;
+    if (!hasWood || !hasStone) return 'gather';
+  }
+
+  return action;
+}
+
+function pickWorkTarget(agent: AgentState, action: string): string | undefined {
+  if (action === 'build') return 'house';
+  if (action === 'gather') return pickGatherTarget(agent);
+  if (action === 'craft') return 'tool';
+  return undefined;
+}
+
+function pickGatherTarget(agent: AgentState): string {
+  // Prioritize what the agent lacks most
+  const resources: { type: string; amount: number }[] = [
+    { type: 'food', amount: agent.inventory.food ?? 0 },
+    { type: 'wood', amount: agent.inventory.wood ?? 0 },
+    { type: 'stone', amount: agent.inventory.stone ?? 0 },
+  ];
+  resources.sort((a, b) => a.amount - b.amount);
+  return resources[0].type;
 }
 
 // --- Main decide function ---

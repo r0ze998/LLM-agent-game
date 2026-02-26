@@ -8,6 +8,7 @@ export function VillagePanel() {
 
   return (
     <div style={{
+      animation: 'slideDown 0.2s ease',
       position: 'fixed',
       top: 60,
       left: 16,

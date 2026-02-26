@@ -7,6 +7,7 @@ import { api } from '../../services/api.ts';
 export function AgentDeployer() {
   const show = useUIStore((s) => s.showAgentDeployer);
   const toggle = useUIStore((s) => s.toggleAgentDeployer);
+  const gameMode = useUIStore((s) => s.gameMode);
   const selectAgent = useUIStore((s) => s.selectAgent);
   const game = useGameStore((s) => s.game);
 
@@ -36,7 +37,7 @@ export function AgentDeployer() {
     if (show) loadBlueprints();
   }, [show, loadBlueprints]);
 
-  if (!show || !game) return null;
+  if (gameMode === 'observer' || !show || !game) return null;
 
   const addRule = () => {
     const trimmed = ruleInput.trim();
@@ -94,6 +95,7 @@ export function AgentDeployer() {
 
   return (
     <div style={{
+      animation: 'slideDown 0.2s ease',
       position: 'fixed',
       top: 60,
       right: 16,

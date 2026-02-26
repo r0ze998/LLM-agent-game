@@ -9,6 +9,27 @@
       html, body, #root { width: 100%; height: 100%; overflow: hidden; }
       body { background: #1a1a2e; color: #e0e0e0; font-family: "Hiragino Kaku Gothic ProN", "M PLUS 1p", sans-serif; }
       canvas { image-rendering: pixelated; image-rendering: crisp-edges; }
+      :root {
+        --bg-deep: #0d0d24;
+        --bg-panel: #1a1a3e;
+        --border: #4a6fa5;
+        --accent-blue: #7ab8ff;
+        --accent-purple: #d4a0ff;
+        --text: #e8e8e8;
+        --text-muted: #7a9ec7;
+        --font: 'M PLUS 1p', 'Hiragino Kaku Gothic ProN', monospace;
+      }
+      button { transition: all 0.15s ease; }
+      button:hover { filter: brightness(1.2); }
+      button:active { transform: scale(0.97); }
+      @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+      @keyframes slideDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+      @keyframes slideUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+      @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+      @keyframes glow { 0%,100%{box-shadow:0 0 4px rgba(122,184,255,0.4)} 50%{box-shadow:0 0 14px rgba(122,184,255,0.6)} }
+      ::-webkit-scrollbar{width:4px}
+      ::-webkit-scrollbar-track{background:transparent}
+      ::-webkit-scrollbar-thumb{background:#4a6fa5;border-radius:2px}
     </style>
   </head>
   <body>

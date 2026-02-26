@@ -34,7 +34,7 @@ export function AgentInspector() {
   const p = identity.personality;
 
   return (
-    <div style={panelStyle}>
+    <div style={{ ...panelStyle, animation: 'slideDown 0.2s ease' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
         <span style={{ fontWeight: 'bold', fontSize: 16, color: '#7ab8ff' }}>{identity.name}</span>
@@ -75,6 +75,25 @@ export function AgentInspector() {
           「{identity.philosophy.worldview}」
         </div>
       </Section>
+
+      {/* AI Thought & Plan */}
+      {(agent as any)._cachedPlan && (
+        <Section title="💭 AI思考">
+          <div style={{ fontSize: 12, color: '#d4c4f0', fontStyle: 'italic', marginBottom: 6, lineHeight: 1.5 }}>
+            「{(agent as any)._cachedPlan.innerThought}」
+          </div>
+          <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>今日の計画:</div>
+          {((agent as any)._cachedPlan.schedule as { slot: number; action: string; reason: string }[])
+            .filter((_: any, i: number) => i < 8)
+            .map((s: { slot: number; action: string; reason: string }) => (
+              <div key={s.slot} style={{ fontSize: 11, padding: '1px 0', display: 'flex', gap: 6 }}>
+                <span style={{ color: '#666', minWidth: 20 }}>{s.slot}h</span>
+                <span style={{ color: '#7ab8ff', minWidth: 48 }}>{s.action}</span>
+                <span style={{ color: '#777', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.reason}</span>
+              </div>
+            ))}
+        </Section>
+      )}
 
       {/* Inventory */}
       {Object.keys(inventory).length > 0 && (

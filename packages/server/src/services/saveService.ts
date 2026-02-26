@@ -1,8 +1,14 @@
-import type { SaveData, GameState, AgentState, Village, Structure, Relationship, GameEvent, PlayerIntention, DiplomaticRelation, TradeAgreement } from '@murasato/shared';
+import type { SaveData, GameState, AgentState, Village, Structure, Relationship, GameEvent, GameEventType, PlayerIntention, DiplomaticRelation, TradeAgreement } from '@murasato/shared';
+import type { VillageState4XSerialized } from '@murasato/shared';
 import type { WorldState } from '../world/simulation.ts';
 import { generateMap, findSpawnPositions } from '../world/map.ts';
 import { createWorldState } from '../world/simulation.ts';
 import { DiplomacyManager } from '../social/diplomacy.ts';
+import { eventStore } from './eventStore.ts';
+
+const IMPORTANT_EVENT_TYPES: GameEventType[] = [
+  'birth', 'death', 'founding', 'election', 'war', 'peace', 'alliance',
+];
 
 const SAVE_VERSION = 1;
 
@@ -18,6 +24,15 @@ export function serializeWorld(world: WorldState, gameState: GameState): SaveDat
     relationships.push({ agentId, relations: rels });
   }
 
+  // Serialize 4X village states (Set → Array)
+  const villageStates4X: VillageState4XSerialized[] = [];
+  for (const vs of world.villageStates4X.values()) {
+    villageStates4X.push({
+      ...vs,
+      researchedTechs: [...vs.researchedTechs],
+    });
+  }
+
   return {
     version: SAVE_VERSION,
     gameState,
@@ -25,13 +40,14 @@ export function serializeWorld(world: WorldState, gameState: GameState): SaveDat
     villages,
     structures,
     relationships,
-    events: [], // Events are stored separately (too large for inline save)
+    events: eventStore.getAll(world.gameId).filter(e => IMPORTANT_EVENT_TYPES.includes(e.type)),
     intentions: world.intentions,
     diplomacy: world.diplomacy.getAllRelations(),
     trades: world.diplomacy.getTrades(),
     mapSeed: world.map.seed,
     tick: world.tick,
     blueprints: [...world.blueprints.values()],
+    villageStates4X,
   };
 }
 
@@ -72,6 +88,21 @@ export function deserializeWorld(save: SaveData): WorldState {
   if (save.blueprints) {
     for (const bp of save.blueprints) {
       world.blueprints.set(bp.blueprintId, bp);
+    }
+  }
+
+  // Restore events into EventStore
+  if (save.events && save.events.length > 0) {
+    eventStore.restore(world.gameId, save.events);
+  }
+
+  // Restore 4X village states
+  if ((save as any).villageStates4X) {
+    for (const vsSerialized of (save as any).villageStates4X as VillageState4XSerialized[]) {
+      world.villageStates4X.set(vsSerialized.villageId, {
+        ...vsSerialized,
+        researchedTechs: new Set(vsSerialized.researchedTechs),
+      });
     }
   }
 

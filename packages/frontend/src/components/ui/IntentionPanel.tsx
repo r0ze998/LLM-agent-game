@@ -23,6 +23,7 @@ const panelStyle: React.CSSProperties = {
 export function IntentionPanel() {
   const show = useUIStore((s) => s.showIntentionPanel);
   const toggle = useUIStore((s) => s.toggleIntentionPanel);
+  const gameMode = useUIStore((s) => s.gameMode);
   const game = useGameStore((s) => s.game);
   const selectedAgentId = useUIStore((s) => s.selectedAgentId);
 
@@ -31,7 +32,7 @@ export function IntentionPanel() {
   const [strength, setStrength] = useState<IntentionStrength>('suggestion');
   const [sending, setSending] = useState(false);
 
-  if (!show || !game) return null;
+  if (gameMode === 'observer' || !show || !game) return null;
 
   const handleSend = async () => {
     if (!message.trim()) return;
@@ -52,7 +53,7 @@ export function IntentionPanel() {
   };
 
   return (
-    <div style={panelStyle}>
+    <div style={{ ...panelStyle, animation: 'slideDown 0.2s ease' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
         <span style={{ fontWeight: 'bold', color: '#d4a0ff' }}>天の声</span>
         <button onClick={toggle} style={closeBtn}>✕</button>

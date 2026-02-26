@@ -1,12 +1,19 @@
 import { Hono } from 'hono';
-import type { GameConfig, ApiResponse, GameState, WorldStats, SaveData } from '@murasato/shared';
+import type { GameConfig, ApiResponse, GameState, WorldStats, SaveData, GameEventType } from '@murasato/shared';
 import { INITIAL_AGENTS, MAP_SIZE, MAX_AGENTS, DEFAULT_TICK_INTERVAL_MS, TICKS_PER_YEAR } from '@murasato/shared';
 import { tickService } from '../services/tickService.ts';
+import { eventStore } from '../services/eventStore.ts';
 import { saveToFile, loadFromFile, listSaves } from '../services/saveService.ts';
 import { computeWorldStats } from '../services/statsService.ts';
-import { generateChronicle } from '../player/chronicle.ts';
+import { generateChronicle, generateBiography } from '../player/chronicle.ts';
 
 export const gameRouter = new Hono();
+
+// List active games (must be before /:id routes)
+gameRouter.get('/list/active', (c) => {
+  const games = tickService.listGames();
+  return c.json<ApiResponse<typeof games>>({ ok: true, data: games });
+});
 
 // Create a new game
 gameRouter.post('/', async (c) => {
@@ -134,7 +141,76 @@ gameRouter.get('/:id/chronicle', async (c) => {
   if (!world) return c.json<ApiResponse<never>>({ ok: false, error: 'Game not found' }, 404);
 
   const villages = [...world.villages.values()];
-  // Collect events from the game store (in-memory for now)
-  const chronicle = await generateChronicle([], villages, world.tick);
+  const events = eventStore.getAll(gameId);
+  const chronicle = await generateChronicle(events, villages, world.tick);
   return c.json<ApiResponse<{ chronicle: string }>>({ ok: true, data: { chronicle } });
+});
+
+// --- Event history APIs ---
+
+// Get events (paginated, filterable)
+gameRouter.get('/:id/events', (c) => {
+  const gameId = c.req.param('id');
+  const world = tickService.getWorld(gameId);
+  if (!world) return c.json<ApiResponse<never>>({ ok: false, error: 'Game not found' }, 404);
+
+  const typeParam = c.req.query('type');
+  const agentId = c.req.query('agentId');
+  const fromTick = Number(c.req.query('from') ?? '0');
+  const toTick = Number(c.req.query('to') ?? String(Number.MAX_SAFE_INTEGER));
+  const limit = Math.min(Number(c.req.query('limit') ?? '100'), 500);
+  const offset = Number(c.req.query('offset') ?? '0');
+
+  let events = eventStore.getAll(gameId);
+
+  if (typeParam) {
+    const types = typeParam.split(',') as GameEventType[];
+    events = events.filter(e => types.includes(e.type));
+  }
+  if (agentId) {
+    events = events.filter(e => e.actorIds.includes(agentId));
+  }
+  events = events.filter(e => e.tick >= fromTick && e.tick <= toTick);
+
+  const total = events.length;
+  const page = events.slice(offset, offset + limit);
+
+  return c.json<ApiResponse<{ events: typeof page; total: number; offset: number; limit: number }>>({
+    ok: true,
+    data: { events: page, total, offset, limit },
+  });
+});
+
+// Event summary (counts by type)
+gameRouter.get('/:id/events/summary', (c) => {
+  const gameId = c.req.param('id');
+  const world = tickService.getWorld(gameId);
+  if (!world) return c.json<ApiResponse<never>>({ ok: false, error: 'Game not found' }, 404);
+
+  const events = eventStore.getAll(gameId);
+  const counts: Record<string, number> = {};
+  for (const e of events) {
+    counts[e.type] = (counts[e.type] ?? 0) + 1;
+  }
+
+  return c.json<ApiResponse<{ total: number; byType: typeof counts }>>({
+    ok: true,
+    data: { total: events.length, byType: counts },
+  });
+});
+
+// Agent biography
+gameRouter.get('/:id/agent/:agentId/biography', async (c) => {
+  const gameId = c.req.param('id');
+  const agentId = c.req.param('agentId');
+  const world = tickService.getWorld(gameId);
+  if (!world) return c.json<ApiResponse<never>>({ ok: false, error: 'Game not found' }, 404);
+
+  const agent = world.agents.get(agentId);
+  if (!agent) return c.json<ApiResponse<never>>({ ok: false, error: 'Agent not found' }, 404);
+
+  const events = eventStore.getByAgent(gameId, agentId);
+  const biography = await generateBiography(agent, events);
+
+  return c.json<ApiResponse<{ biography: string }>>({ ok: true, data: { biography } });
 });

@@ -1,24 +1,51 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { DAILY_PLAN_MODEL, SOCIAL_MODEL, IMPORTANT_MODEL, LLM_MAX_RETRIES, LLM_RATE_LIMIT } from '@murasato/shared';
+import { DAILY_PLAN_MODEL, SOCIAL_MODEL, IMPORTANT_MODEL, LLM_MAX_RETRIES } from '@murasato/shared';
 
 const client = new Anthropic();
 
-// --- Rate limiter (token bucket) ---
+// --- Concurrency limiter (semaphore) ---
+// New Anthropic accounts have low concurrent connection limits.
+// Queue requests so at most MAX_CONCURRENT are in-flight at once.
 
-let tokens = LLM_RATE_LIMIT;
+const MAX_CONCURRENT = 2;
+let inFlight = 0;
+const waitQueue: (() => void)[] = [];
+
+function acquireConcurrency(): Promise<void> {
+  if (inFlight < MAX_CONCURRENT) {
+    inFlight++;
+    return Promise.resolve();
+  }
+  return new Promise(resolve => {
+    waitQueue.push(() => { inFlight++; resolve(); });
+  });
+}
+
+function releaseConcurrency() {
+  inFlight--;
+  const next = waitQueue.shift();
+  if (next) next();
+}
+
+// --- Rate limiter (token bucket) ---
+// Override: new Anthropic accounts have low output token limits (10k/min).
+// Limit to ~2 req/sec to avoid bursting through the limit.
+const EFFECTIVE_RATE_LIMIT = 2;
+
+let tokens = EFFECTIVE_RATE_LIMIT;
 let lastRefill = Date.now();
 
 function acquireToken(): Promise<void> {
   const now = Date.now();
   const elapsed = (now - lastRefill) / 1000;
-  tokens = Math.min(LLM_RATE_LIMIT, tokens + elapsed * LLM_RATE_LIMIT);
+  tokens = Math.min(EFFECTIVE_RATE_LIMIT, tokens + elapsed * EFFECTIVE_RATE_LIMIT);
   lastRefill = now;
 
   if (tokens >= 1) {
     tokens -= 1;
     return Promise.resolve();
   }
-  const waitMs = ((1 - tokens) / LLM_RATE_LIMIT) * 1000;
+  const waitMs = ((1 - tokens) / EFFECTIVE_RATE_LIMIT) * 1000;
   return new Promise(resolve => setTimeout(resolve, waitMs));
 }
 
@@ -100,37 +127,47 @@ export async function callLLM(options: LLMCallOptions): Promise<string> {
   }
 
   await acquireToken();
+  await acquireConcurrency();
 
   const model = selectModel(importance);
   let lastError: Error | null = null;
 
-  for (let attempt = 0; attempt < LLM_MAX_RETRIES; attempt++) {
-    try {
-      const response = await client.messages.create({
-        model,
-        max_tokens: maxTokens,
-        system,
-        messages: [{ role: 'user', content: userMessage }],
-      });
+  try {
+    for (let attempt = 0; attempt < LLM_MAX_RETRIES; attempt++) {
+      try {
+        const response = await client.messages.create({
+          model,
+          max_tokens: maxTokens,
+          system,
+          messages: [{ role: 'user', content: userMessage }],
+        });
 
-      costTracker.inputTokens += response.usage.input_tokens;
-      costTracker.outputTokens += response.usage.output_tokens;
-      costTracker.requests += 1;
+        costTracker.inputTokens += response.usage.input_tokens;
+        costTracker.outputTokens += response.usage.output_tokens;
+        costTracker.requests += 1;
 
-      const text = response.content
-        .filter(block => block.type === 'text')
-        .map(block => block.text)
-        .join('');
+        const text = response.content
+          .filter(block => block.type === 'text')
+          .map(block => block.text)
+          .join('');
 
-      if (cacheKey) setCache(cacheKey, text);
-      return text;
-    } catch (err) {
-      lastError = err as Error;
-      console.error(`LLM call attempt ${attempt + 1} failed:`, (err as Error).message);
-      if (attempt < LLM_MAX_RETRIES - 1) {
-        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+        if (cacheKey) setCache(cacheKey, text);
+        return text;
+      } catch (err) {
+        lastError = err as Error;
+        const msg = (err as Error).message ?? '';
+        console.error(`LLM call attempt ${attempt + 1} failed:`, msg.slice(0, 120));
+        // Don't retry on billing/auth errors (400/401/403) - fail fast
+        if (msg.includes('credit balance') || msg.includes('401') || msg.includes('403')) {
+          break;
+        }
+        if (attempt < LLM_MAX_RETRIES - 1) {
+          await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+        }
       }
     }
+  } finally {
+    releaseConcurrency();
   }
 
   throw lastError ?? new Error('LLM call failed after retries');

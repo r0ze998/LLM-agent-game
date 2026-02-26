@@ -70,6 +70,7 @@ export function DialogueBox() {
     <div
       onClick={handleAdvance}
       style={{
+        animation: 'slideUp 0.2s ease',
         position: 'fixed',
         bottom: 24,
         left: '50%',

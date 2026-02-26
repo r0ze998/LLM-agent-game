@@ -1,3 +1,6 @@
+import type { PlayerCommand, CommandResult } from './commands.ts';
+import type { CombatResult, VictoryEvent, VillageState4XSerialized } from './types4x.ts';
+
 // === Geometry ===
 
 export interface Position {
@@ -243,7 +246,8 @@ export interface GameEvent {
 export type WSClientMessage =
   | { type: 'subscribe_chunks'; chunks: { cx: number; cy: number }[] }
   | { type: 'unsubscribe_chunks'; chunks: { cx: number; cy: number }[] }
-  | { type: 'send_intention'; intention: Omit<PlayerIntention, 'id' | 'tick'> };
+  | { type: 'send_intention'; intention: Omit<PlayerIntention, 'id' | 'tick'> }
+  | { type: 'player_command'; gameId: string; playerId: string; command: PlayerCommand };
 
 export type WSServerMessage =
   | { type: 'tick'; tick: number; dayOfYear: number; year: number }
@@ -254,7 +258,12 @@ export type WSServerMessage =
   | { type: 'agent_thought'; agentId: string; thought: string }
   | { type: 'village_update'; village: Village }
   | { type: 'stats_update'; stats: WorldStats }
-  | { type: 'error'; message: string };
+  | { type: 'error'; message: string }
+  | { type: 'command_result'; result: CommandResult }
+  | { type: 'battle_result'; result: CombatResult }
+  | { type: 'tech_researched'; villageId: string; techId: string }
+  | { type: 'victory'; event: VictoryEvent }
+  | { type: 'village_4x_update'; state: VillageState4XSerialized };
 
 export interface DialogueLine {
   speakerId: string;
@@ -325,6 +334,7 @@ export interface SaveData {
   mapSeed: number;
   tick: number;
   blueprints?: DeployedBlueprintMeta[];
+  villageStates4X?: VillageState4XSerialized[];
 }
 
 // === Agent Blueprint (OpenClaw-style summoning) ===

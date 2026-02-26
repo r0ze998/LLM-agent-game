@@ -190,7 +190,7 @@ export function getChunkCount(size: number = MAP_SIZE): number {
 export function findSpawnPositions(map: WorldMap, count: number): Position[] {
   const candidates: Position[] = [];
   const center = Math.floor(map.size / 2);
-  const radius = Math.floor(map.size / 4);
+  const radius = Math.min(6, Math.floor(map.size / 4)); // Tight spawn for social interaction
 
   for (let y = center - radius; y < center + radius; y++) {
     for (let x = center - radius; x < center + radius; x++) {

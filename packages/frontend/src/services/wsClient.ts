@@ -1,4 +1,4 @@
-import type { WSClientMessage, WSServerMessage } from '@murasato/shared';
+import type { WSClientMessage, WSServerMessage, PlayerCommand } from '@murasato/shared';
 
 type MessageHandler = (msg: WSServerMessage) => void;
 type ConnectionHandler = () => void;
@@ -98,6 +98,11 @@ class WSClient {
 
   unsubscribeChunks(chunks: { cx: number; cy: number }[]) {
     this.send({ type: 'unsubscribe_chunks', chunks });
+  }
+
+  sendCommand(playerId: string, command: PlayerCommand) {
+    if (!this.gameId) return;
+    this.send({ type: 'player_command', gameId: this.gameId, playerId, command });
   }
 }
 

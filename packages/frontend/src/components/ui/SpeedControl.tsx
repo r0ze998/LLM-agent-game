@@ -26,11 +26,13 @@ export function SpeedControl() {
       right: 16,
       display: 'flex',
       gap: 2,
-      background: '#1a1a2e',
-      border: '2px solid #4a6fa5',
-      borderRadius: 6,
-      padding: 4,
+      background: 'rgba(26,26,46,0.85)',
+      backdropFilter: 'blur(8px)',
+      border: '2px solid rgba(74,111,165,0.5)',
+      borderRadius: 8,
+      padding: 6,
       zIndex: 80,
+      boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
     }}>
       {SPEED_OPTIONS.map((s) => (
         <button
@@ -39,14 +41,16 @@ export function SpeedControl() {
           style={{
             background: speed === s ? '#4a6fa5' : 'transparent',
             border: 'none',
-            borderRadius: 4,
-            padding: '4px 8px',
+            borderRadius: 6,
+            padding: '5px 10px',
             color: speed === s ? '#fff' : '#7a9ec7',
             cursor: 'pointer',
             fontSize: 12,
             fontFamily: 'monospace',
             fontWeight: speed === s ? 'bold' : 'normal',
             minWidth: 32,
+            ...(speed === s && s !== 0 ? { boxShadow: '0 0 8px rgba(122,184,255,0.4)' } : {}),
+            ...(speed === s && s === 0 ? { animation: 'pulse 1.5s infinite' } : {}),
           }}
         >
           {s === 0 ? '⏸' : `${s}x`}

@@ -68,7 +68,7 @@ export function DashboardPanel() {
   const living = [...agents.values()].filter(a => a.identity.status !== 'dead');
 
   return (
-    <div style={PANEL_STYLE}>
+    <div style={{ ...PANEL_STYLE, animation: 'slideDown 0.2s ease' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <span style={{ fontWeight: 'bold', fontSize: 16, color: '#7ab8ff' }}>社会実験ダッシュボード</span>

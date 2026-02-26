@@ -15,7 +15,8 @@
     "@murasato/shared": "workspace:*",
     "drizzle-orm": "^0.41.0",
     "hono": "^4.7.0",
-    "postgres": "^3.4.5"
+    "postgres": "^3.4.5",
+    "starknet": "^6.23.1"
   },
   "devDependencies": {
     "@types/bun": "^1.3.9",

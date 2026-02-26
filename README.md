@@ -361,7 +361,7 @@ roles: ['parent', 'spouse', 'rival', ...]
 **Server → Client**: `tick`, `agents_update`, `chunk_update`, `event`, `dialogue`, `village_update`, `stats_update`
 
 **Client → Server**: `subscribe_chunks`, `unsubscribe_chunks`
-
+111
 ## On-chain Architecture
 
 全てのゲームルール・状態・検証はStarknetスマートコントラクト上に存在する。LLMエージェントはオフチェーンで思考し、トランザクションを送信するだけ — 改ざん不可能。

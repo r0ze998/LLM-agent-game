@@ -1,6 +1,12 @@
 import type { Structure, StructureType, Position, AgentState, ResourceType } from '@murasato/shared';
-import { BUILD_TICKS } from '@murasato/shared';
+import { BUILD_TICKS, BUILDING_DEFS } from '@murasato/shared';
+import type { BuildingDef } from '@murasato/shared';
 import type { WorldMap } from './map.ts';
+
+/** Look up a building definition by its def ID (for 4X system) */
+export function getBuildingDef(defId: string): BuildingDef | undefined {
+  return BUILDING_DEFS[defId];
+}
 
 function generateId(): string {
   return `str_${crypto.randomUUID()}`;
@@ -62,6 +68,7 @@ export function canBuild(
 
   // Check resources
   const costs = BUILD_COSTS[type];
+  if (!costs) return { ok: false, reason: `不明な建物: ${type}` };
   for (const [resource, amount] of Object.entries(costs)) {
     const available = availableResources[resource as ResourceType] ?? 0;
     if (available < (amount ?? 0)) {

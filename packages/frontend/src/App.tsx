@@ -13,6 +13,7 @@ import { TimelinePanel } from './components/ui/TimelinePanel.tsx';
 import { Minimap } from './components/ui/Minimap.tsx';
 import { DashboardPanel } from './components/ui/DashboardPanel.tsx';
 import { AgentDeployer } from './components/ui/AgentDeployer.tsx';
+import { DemoOverlay } from './components/ui/DemoOverlay.tsx';
 import { TICKS_PER_DAY, TICKS_PER_YEAR } from '@murasato/shared';
 
 type TitlePhase = 'title' | 'create-agent';
@@ -216,9 +217,10 @@ export default function App() {
         top: 0,
         left: 0,
         right: 0,
-        height: 44,
+        height: 48,
         background: 'linear-gradient(180deg, rgba(13,13,36,0.95) 0%, rgba(13,13,36,0.7) 100%)',
-        borderBottom: '1px solid #333',
+        backdropFilter: 'blur(8px)',
+        borderBottom: '1px solid rgba(74,111,165,0.3)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -229,10 +231,10 @@ export default function App() {
         zIndex: 100,
       }}>
         <div style={{ display: 'flex', gap: 16 }}>
-          <span style={{ color: '#7ab8ff', fontWeight: 'bold' }}>村里</span>
+          <span style={{ color: '#7ab8ff', fontWeight: 'bold', textShadow: '0 0 12px rgba(122,184,255,0.4)' }}>村里</span>
           <span>年{year} / {day}日目</span>
           <span>人口: {livingCount}</span>
-          <span style={{ color: '#666' }}>tick: {tick}</span>
+          <span style={{ color: '#666', animation: 'pulse 2s infinite' }}>tick: {tick}</span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {gameMode === 'player' && (
@@ -256,20 +258,24 @@ export default function App() {
       <DashboardPanel />
       <AgentDeployer />
       <SpeedControl />
+      <DemoOverlay />
     </div>
   );
 }
 
 function HeaderButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  const [hovered, setHovered] = useState(false);
   return (
     <button
       onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
-        background: 'transparent',
+        background: hovered ? 'rgba(74,111,165,0.25)' : 'transparent',
         border: '1px solid #4a6fa5',
-        borderRadius: 4,
-        padding: '2px 10px',
-        color: '#7a9ec7',
+        borderRadius: 6,
+        padding: '5px 14px',
+        color: hovered ? '#fff' : '#7a9ec7',
         cursor: 'pointer',
         fontSize: 12,
         fontFamily: 'inherit',

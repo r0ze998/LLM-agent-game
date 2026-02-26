@@ -208,12 +208,30 @@ export async function foundVillage(
 
 // --- Election ---
 
+/** Set of village IDs owned by players (elections are skipped, player = permanent leader) */
+const playerOwnedVillages = new Set<string>();
+
+export function markPlayerOwned(villageId: string): void {
+  playerOwnedVillages.add(villageId);
+}
+
+export function unmarkPlayerOwned(villageId: string): void {
+  playerOwnedVillages.delete(villageId);
+}
+
+export function isPlayerOwned(villageId: string): boolean {
+  return playerOwnedVillages.has(villageId);
+}
+
 export async function runElection(
   gameId: string,
   village: Village,
   agents: Map<string, AgentState>,
   tick: number,
 ): Promise<{ newLeaderId: string; event: GameEvent } | null> {
+  // Player-owned villages: player is permanent leader, skip elections
+  if (playerOwnedVillages.has(village.id)) return null;
+
   if (village.governance.type !== 'democratic' && village.governance.type !== 'meritocratic') return null;
   if (!village.governance.electionIntervalTicks) return null;
   if (!village.governance.lastElectionTick) return null;

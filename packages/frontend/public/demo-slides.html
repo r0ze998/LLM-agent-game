@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>村里 (Murasato) — Starknet Hackathon Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+1p:wght@400;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css">
+<script>
+  var defined = document.querySelector('link[href*="print-pdf"]');
+  if (window.location.search.match(/print-pdf/gi)) {
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.type = 'text/css';
+    link.href = 'https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/css/print/pdf.css';
+    document.getElementsByTagName('head')[0].appendChild(link);
+  }
+</script>
+<style>
+  :root {
+    --bg: #0d0d24;
+    --blue: #7ab8ff;
+    --purple: #d4a0ff;
+    --border: #4a6fa5;
+    --text: #e8e8e8;
+    --muted: #7a9ec7;
+  }
+  .reveal {
+    font-family: 'M PLUS 1p', 'Hiragino Kaku Gothic ProN', monospace;
+    color: var(--text);
+  }
+  .reveal .slides { text-align: left; }
+  .reveal .slides section { background: var(--bg); }
+  .reveal h1, .reveal h2, .reveal h3 {
+    font-family: 'M PLUS 1p', monospace;
+    color: var(--blue);
+    text-transform: none;
+    text-shadow: 0 0 20px rgba(122,184,255,0.3);
+  }
+  .reveal h1 { font-size: 2.8em; font-weight: 800; }
+  .reveal h2 { font-size: 1.6em; font-weight: 700; }
+  .reveal h3 { font-size: 1.2em; font-weight: 700; color: var(--purple); }
+  .reveal p, .reveal li { font-size: 0.7em; line-height: 1.6; }
+  .reveal .muted { color: var(--muted); }
+  .reveal .purple { color: var(--purple); }
+  .reveal .blue { color: var(--blue); }
+  .reveal .small { font-size: 0.55em; }
+  .reveal .catch { font-size: 1.0em; color: var(--purple); margin: 0.5em 0; }
+  .reveal code {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    background: rgba(30,20,50,0.6);
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 0.85em;
+  }
+  .reveal pre {
+    background: rgba(13,13,36,0.9);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    font-size: 0.48em;
+    line-height: 1.5;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    width: 100%;
+    margin: 0.5em auto;
+  }
+  .reveal pre code {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-size: 1em;
+  }
+  .three-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 24px;
+    margin-top: 24px;
+  }
+  .col-card {
+    background: rgba(30,20,50,0.5);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+  }
+  .col-card h3 { margin-top: 0; font-size: 1.0em; }
+  .col-card p { font-size: 0.6em; }
+  .layer-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .layer-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 0.6em;
+  }
+  .layer-tag {
+    font-weight: 700;
+    min-width: 30px;
+    text-align: center;
+  }
+  .l0 { background: rgba(122,184,255,0.15); border-left: 4px solid var(--blue); }
+  .l1 { background: rgba(212,160,255,0.15); border-left: 4px solid var(--purple); }
+  .l2 { background: rgba(255,180,100,0.15); border-left: 4px solid #ffb464; }
+  .l3 { background: rgba(100,255,180,0.15); border-left: 4px solid #64ffb4; }
+  .four-quad {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .quad-card {
+    background: rgba(30,20,50,0.5);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .quad-card h3 { margin: 0 0 8px 0; font-size: 0.9em; }
+  .quad-card p { font-size: 0.55em; margin: 0; }
+  .timeline {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-top: 32px;
+    position: relative;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--blue), var(--purple));
+  }
+  .timeline-item {
+    text-align: center;
+    width: 22%;
+    position: relative;
+  }
+  .timeline-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--blue);
+    margin: 12px auto 12px;
+    position: relative;
+    z-index: 1;
+  }
+  .timeline-item:nth-child(2) .timeline-dot { background: var(--purple); }
+  .timeline-item:nth-child(3) .timeline-dot { background: #ffb464; }
+  .timeline-item:nth-child(4) .timeline-dot { background: #64ffb4; }
+  .timeline-label { font-size: 0.7em; font-weight: 700; color: var(--blue); }
+  .timeline-item:nth-child(2) .timeline-label { color: var(--purple); }
+  .timeline-item:nth-child(3) .timeline-label { color: #ffb464; }
+  .timeline-item:nth-child(4) .timeline-label { color: #64ffb4; }
+  .timeline-desc { font-size: 0.5em; color: var(--muted); margin-top: 4px; }
+  .tech-strip {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+  .tech-badge {
+    background: rgba(74,111,165,0.3);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 4px 14px;
+    font-size: 0.5em;
+    color: var(--muted);
+  }
+  .memory-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.55em;
+    margin-top: 12px;
+  }
+  .memory-table th {
+    background: rgba(74,111,165,0.3);
+    color: var(--blue);
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 2px solid var(--border);
+  }
+  .memory-table td {
+    padding: 6px 12px;
+    border-bottom: 1px solid #333;
+    color: var(--text);
+  }
+  .victory-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 12px;
+  }
+  .victory-list li {
+    padding: 6px 0;
+    font-size: 0.6em;
+    border-bottom: 1px solid #222;
+  }
+  .victory-list li span {
+    color: var(--purple);
+    font-weight: 700;
+    margin-right: 8px;
+  }
+  .center-text { text-align: center; }
+  .starknet-badge {
+    display: inline-block;
+    background: rgba(122,184,255,0.15);
+    border: 1px solid var(--blue);
+    border-radius: 20px;
+    padding: 4px 16px;
+    font-size: 0.6em;
+    color: var(--blue);
+    margin-top: 16px;
+  }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- ===== Slide 1: Title ===== -->
+<section class="center-text">
+  <h1>村里</h1>
+  <p class="muted" style="font-size:0.8em; margin-bottom: 0.2em;">(Murasato)</p>
+  <p class="catch">AIが自律的に生き、語り、子を産み、文明を築く</p>
+  <p class="small muted">AI自己繁殖JRPGビレッジビルダー on Starknet</p>
+  <div class="starknet-badge">Built on Starknet / Dojo</div>
+</section>
+
+<!-- ===== Slide 2: Problem ===== -->
+<section>
+  <h2>既存のゲームAIの限界</h2>
+  <div class="three-col" style="margin-top: 32px;">
+    <div class="col-card">
+      <h3 style="color:#ff6b6b;">Script AI</h3>
+      <p>固定ルール<br>すぐ飽きる<br>予測可能</p>
+    </div>
+    <div class="col-card">
+      <h3 style="color:#ff6b6b;">On-Chain Games</h3>
+      <p>ルールは公正<br>でも知能がない<br>NPC = 空っぽ</p>
+    </div>
+    <div class="col-card">
+      <h3 style="color:#ff6b6b;">LLM Games</h3>
+      <p>会話は上手い<br>でもゲームがない<br>チャットだけ</p>
+    </div>
+  </div>
+  <p class="fragment" style="text-align: center; margin-top: 24px; font-size: 0.8em;">
+    <span class="purple">村里は3つを融合する</span>
+  </p>
+</section>
+
+<!-- ===== Slide 3: What is Murasato ===== -->
+<section>
+  <h2>村里 = AI + Blockchain + 4X</h2>
+  <div class="three-col">
+    <div class="col-card">
+      <h3 style="color:var(--purple);">AI Agents</h3>
+      <p><strong>Claude API</strong><br>性格・記憶・哲学を持つ<br>自律会話・意思決定<br>繁殖で性格継承</p>
+    </div>
+    <div class="col-card">
+      <h3 style="color:var(--blue);">On-Chain World</h3>
+      <p><strong>Dojo / Cairo</strong><br>物理法則は不変<br>全ルールを検証<br>AI提案→チェーン検証</p>
+    </div>
+    <div class="col-card">
+      <h3 style="color:#64ffb4;">Autonomous World</h3>
+      <p><strong>4X Strategy</strong><br>探索・拡張・活用・殲滅<br>25建物 / 30技術 / 10ユニット<br>5種の勝利条件</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Slide 4: Architecture ===== -->
+<section>
+  <h2>アーキテクチャ</h2>
+  <pre style="color: var(--text); font-size: 0.42em; line-height: 1.4;"><code>┌──────────────────────────────────────────────────────┐
+│  <span style="color:#7ab8ff">Off-chain</span>                                           │
+│  ┌──────────────┐  ┌───────────────┐                 │
+│  │ <span style="color:#d4a0ff">LLM Agent</span>    │→ │ <span style="color:#ffb464">TX Submitter</span>  │── tx ──┐        │
+│  │ (Claude API) │  │ (starknet.js) │        │        │
+│  └──────────────┘  └───────────────┘        │        │
+│  ┌──────────────┐  ┌───────────────┐        │        │
+│  │ <span style="color:#64ffb4">Bun Server</span>   │  │ <span style="color:#64ffb4">React Frontend</span>│        │        │
+│  │ (Hono + WS)  │  │ (Canvas2D)    │        │        │
+│  └──────────────┘  └───────────────┘        │        │
+│         ↑                                   │        │
+│         └──── <span style="color:#ffb464">Torii</span> (GraphQL subscribe) ────┤        │
+│                                             ▼        │
+│  ┌─ <span style="color:#7ab8ff">Starknet / Katana</span> ──────────────────────────────┐│
+│  │  <span style="color:#d4a0ff">Dojo World</span> (Cairo Smart Contracts)              ││
+│  │                                                  ││
+│  │  Models: Village, Building, Technology,          ││
+│  │          Military, Covenant, Invention,           ││
+│  │          Institution, Diplomacy, Config           ││
+│  │                                                  ││
+│  │  Systems: <span style="color:#7ab8ff">physics</span>, village_tick, commands,        ││
+│  │           combat, covenant, invention,            ││
+│  │           institution, <span style="color:#64ffb4">victory</span>, setup             ││
+│  └──────────────────────────────────────────────────┘│
+└──────────────────────────────────────────────────────┘</code></pre>
+  <div class="tech-strip">
+    <span class="tech-badge">Starknet (Katana)</span>
+    <span class="tech-badge">Dojo v1.5</span>
+    <span class="tech-badge">Cairo 2.10</span>
+    <span class="tech-badge">React 19</span>
+    <span class="tech-badge">Bun + Hono</span>
+    <span class="tech-badge">Claude API</span>
+    <span class="tech-badge">Torii</span>
+  </div>
+</section>
+
+<!-- ===== Slide 5a: AI Decision ===== -->
+<section>
+<section>
+  <h2>AI: 3層意思決定エンジン</h2>
+  <div class="layer-stack">
+    <div class="layer-row l0">
+      <span class="layer-tag blue">P2</span>
+      <div>
+        <strong>本能 (Instinct)</strong> — ルールベース即応<br>
+        <span class="small muted">hunger &lt; 20 → eat / energy &lt; 15 → sleep</span>
+      </div>
+    </div>
+    <div class="layer-row l1">
+      <span class="layer-tag purple">P1</span>
+      <div>
+        <strong>日課計画 (Daily Plan)</strong> — LLM 1日1回生成<br>
+        <span class="small muted">24スロットのスケジュール + socialIntentions</span>
+      </div>
+    </div>
+    <div class="layer-row l2">
+      <span class="layer-tag" style="color:#ffb464;">P0</span>
+      <div>
+        <strong>探索 (Fallback)</strong> — 計画外の状況<br>
+        <span class="small muted">新規状況に対応 / 世界を探索</span>
+      </div>
+    </div>
+  </div>
+  <pre style="margin-top: 16px;"><code style="color: var(--text);">// decisionEngine.ts — decide()
+<span style="color:#d4a0ff">async function</span> <span style="color:#7ab8ff">decide</span>(ctx: DecisionContext): Promise&lt;AgentAction&gt; {
+  <span style="color:#888">// P2: Instinct — 生存本能が最優先</span>
+  <span style="color:#d4a0ff">const</span> instinct = checkInstincts(agent);
+  <span style="color:#d4a0ff">if</span> (instinct) <span style="color:#d4a0ff">return</span> instinct;
+
+  <span style="color:#888">// P1: Daily Plan — LLMが朝に生成した計画に従う</span>
+  <span style="color:#d4a0ff">if</span> (tickOfDay === 0 || !plan)
+    plan = <span style="color:#d4a0ff">await</span> generateDailyPlan(ctx);
+  <span style="color:#d4a0ff">const</span> scheduled = getScheduledAction(plan, tickOfDay);
+  <span style="color:#d4a0ff">if</span> (scheduled) <span style="color:#d4a0ff">return</span> scheduled;
+
+  <span style="color:#888">// P0: Fallback — 探索行動</span>
+  <span style="color:#d4a0ff">return</span> { type: <span style="color:#64ffb4">'explore'</span> };
+}</code></pre>
+</section>
+
+<!-- ===== Slide 5b: AI Memory + Conversation (vertical) ===== -->
+<section>
+  <h2>AI: メモリ + 会話</h2>
+  <h3>3層メモリシステム</h3>
+  <table class="memory-table">
+    <thead>
+      <tr><th>Tier</th><th>容量</th><th>減衰</th><th>用途</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><span class="blue">Working</span></td><td>50</td><td>高速</td><td>直近のイベント</td></tr>
+      <tr><td><span class="purple">Episodic</span></td><td>200</td><td>重要度依存</td><td>過去の重要経験</td></tr>
+      <tr><td><span style="color:#64ffb4">Longterm</span></td><td>無制限</td><td>なし</td><td>最重要記憶</td></tr>
+    </tbody>
+  </table>
+  <h3 style="margin-top: 20px;">プロンプト構造</h3>
+  <pre><code style="color: var(--text);"><span style="color:#888">// prompts.ts</span>
+<span style="color:#d4a0ff">あなたはJRPGの世界に生きるキャラクター「${<span style="color:#7ab8ff">identity.name</span>}」です。</span>
+<span style="color:#d4a0ff">あなたは自分の性格と信念に基づいて、今日一日の計画を立ててください。</span>
+
+<span style="color:#888">// LLM JSON出力 → 3-6ターンの自然な会話</span>
+{ "dialogue": [
+    { "speakerId": "agent-1", "text": "こんにちは、良い天気ですね" },
+    { "speakerId": "agent-2", "text": "ああ、農作業にはぴったりだ" }
+  ],
+  "sentimentChange": { "agent-1": +3, "agent-2": +2 }
+}</code></pre>
+  <p class="small muted" style="text-align: center;">Claude Haiku: ~$0.0004/call | Sonnet: ~$0.003/call</p>
+</section>
+</section>
+
+<!-- ===== Slide 6a: On-Chain 4-Layer ===== -->
+<section>
+<section>
+  <h2>On-Chain: 4層アーキテクチャ</h2>
+  <p class="small muted">全てのルールはCairo契約で検証。AIが提案→Starknetが検証。</p>
+  <div class="layer-stack">
+    <div class="layer-row l3">
+      <span class="layer-tag" style="color:#64ffb4;">L3</span>
+      <div>
+        <strong>Institutions (制度)</strong> — ギルド、宗教、同盟、学院<br>
+        <span class="small muted">村横断の組織。入会条件・メンバーEffects</span>
+      </div>
+    </div>
+    <div class="layer-row l2">
+      <span class="layer-tag" style="color:#ffb464;">L2</span>
+      <div>
+        <strong>Inventions (発明)</strong> — AI/プレイヤーが新建物・技術・ユニットを定義<br>
+        <span class="small muted">物理法則(L0)で自動検証。知識の伝播</span>
+      </div>
+    </div>
+    <div class="layer-row l1">
+      <span class="layer-tag purple">L1</span>
+      <div>
+        <strong>Covenants (契約)</strong> — 村の法律・条約・経済政策<br>
+        <span class="small muted">13種条項 → Effect変換。税率、徴兵、建設禁止、祭り</span>
+      </div>
+    </div>
+    <div class="layer-row l0">
+      <span class="layer-tag blue">L0</span>
+      <div>
+        <strong>Physics (物理法則)</strong> — 不変の世界ルール<br>
+        <span class="small muted">18種エフェクトの上下限値、コスト下限、減衰率。誰も変更不可</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Slide 6b: Cairo Code (vertical) ===== -->
+<section>
+  <h2>Cairo: 物理法則の不変性</h2>
+  <pre><code style="color: var(--text);"><span style="color:#888">// physics.cairo — Layer 0: clamp_effect</span>
+<span style="color:#888">// 全Effectは物理法則の範囲内に強制クランプされる</span>
+<span style="color:#d4a0ff">fn</span> <span style="color:#7ab8ff">clamp_effect</span>(
+    config: @PhysicsConfig,
+    effect_type: EffectType,
+    value: i128
+) -> i128 {
+    <span style="color:#d4a0ff">let</span> (lo, hi) = Self::get_bounds(config, effect_type);
+    <span style="color:#d4a0ff">if</span> value &lt; lo { lo }
+    <span style="color:#d4a0ff">else if</span> value > hi { hi }
+    <span style="color:#d4a0ff">else</span> { value }
+}</code></pre>
+  <div class="three-col" style="margin-top: 16px;">
+    <div class="col-card">
+      <h3 style="color:var(--blue); font-size:0.8em;">固定小数点</h3>
+      <p style="font-size:0.5em;">Cairo has no floats<br>全値 ×1000 scale<br>0.5 → 500</p>
+    </div>
+    <div class="col-card">
+      <h3 style="color:var(--purple); font-size:0.8em;">25 Buildings</h3>
+      <p style="font-size:0.5em;">Economy / Military<br>Culture / Infra<br>全てオンチェーン定義</p>
+    </div>
+    <div class="col-card">
+      <h3 style="color:#64ffb4; font-size:0.8em;">30 Techs / 10 Units</h3>
+      <p style="font-size:0.5em;">3分岐×10段階<br>militia→elite_guard<br>物理検証付き</p>
+    </div>
+  </div>
+</section>
+</section>
+
+<!-- ===== Slide 7: 4X + Victory ===== -->
+<section>
+  <h2>自律世界 4X + 勝利条件</h2>
+  <div class="four-quad">
+    <div class="quad-card">
+      <h3 style="color:var(--blue);">eXplore</h3>
+      <p>地形偵察・資源発見<br>Perlin noiseマップ生成</p>
+    </div>
+    <div class="quad-card">
+      <h3 style="color:var(--purple);">eXpand</h3>
+      <p>建設 (25種) ・人口増加<br>領土拡張</p>
+    </div>
+    <div class="quad-card">
+      <h3 style="color:#ffb464;">eXploit</h3>
+      <p>資源生産・技術研究<br>3分岐×10段階</p>
+    </div>
+    <div class="quad-card">
+      <h3 style="color:#ff6b6b;">eXterminate</h3>
+      <p>軍事訓練 (10種)・戦闘<br>外交・同盟・宣戦</p>
+    </div>
+  </div>
+  <h3 style="margin-top: 20px;">5つの勝利パス</h3>
+  <ul class="victory-list">
+    <li><span>Culture</span> total_culture_points >= 1,000,000</li>
+    <li><span>Domination</span> 全村の75%以上を支配</li>
+    <li><span>Diplomacy</span> 他村の60%以上と同盟</li>
+    <li><span>Tech Mastery</span> 3分岐全てのTier 10を研究</li>
+    <li><span>Score</span> Tick 12,000 到達時の最高スコア</li>
+  </ul>
+  <p class="small muted" style="margin-top: 8px;">+ 性格進化: 経験→哲学シフト→統治観・経済観が変化</p>
+</section>
+
+<!-- ===== Slide 8: Live Demo ===== -->
+<section class="center-text">
+  <h1 style="font-size: 3em;">Live Demo</h1>
+  <p class="catch">実際に動かします</p>
+  <p class="muted small">ゲームタブに切り替えます</p>
+</section>
+
+<!-- ===== Slide 9: Roadmap ===== -->
+<section>
+  <h2>ロードマップ</h2>
+  <div class="timeline">
+    <div class="timeline-item">
+      <div class="timeline-label">Now</div>
+      <div class="timeline-dot"></div>
+      <div class="timeline-desc">
+        エージェント自律行動<br>
+        会話・繁殖<br>
+        村建設・4X戦略<br>
+        オンチェーン検証
+      </div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-label">Next</div>
+      <div class="timeline-dot"></div>
+      <div class="timeline-desc">
+        Torii完全連携<br>
+        マルチプレイヤー<br>
+        Katanaデプロイ<br>
+        UIポリッシュ
+      </div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-label">Future</div>
+      <div class="timeline-dot"></div>
+      <div class="timeline-desc">
+        Mainnetデプロイ<br>
+        NFTエージェント<br>
+        クロスワールド移住<br>
+        DAO統治
+      </div>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-label">Vision</div>
+      <div class="timeline-dot"></div>
+      <div class="timeline-desc">
+        AI文明の永続世界<br>
+        プレイヤーは神<br>
+        世界は自律する<br>
+        歴史は繰り返さない
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Slide 10: Closing ===== -->
+<section class="center-text">
+  <h1>村里</h1>
+  <p class="catch">AIが自律的に生き、語り、子を産み、文明を築く</p>
+  <p class="muted" style="font-size:0.7em; margin-top: 32px;">ありがとうございました</p>
+  <div class="starknet-badge">Built on Starknet / Dojo</div>
+</section>
+
+</div><!-- .slides -->
+</div><!-- .reveal -->
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script>
+Reveal.initialize({
+  hash: true,
+  center: false,
+  transition: 'fade',
+  transitionSpeed: 'fast',
+  backgroundTransition: 'fade',
+  width: 1280,
+  height: 720,
+  margin: 0.08,
+});
+</script>
+</body>
+</html>

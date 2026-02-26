@@ -349,6 +349,28 @@ export function formAlliance(
   };
 }
 
+// --- 4X integration: check if two villages are at war ---
+
+export function areAtWar(diplomacy: DiplomacyManager, v1: string, v2: string): boolean {
+  const rel = diplomacy.getRelation(v1, v2);
+  return rel.status === 'war';
+}
+
+export function areAllied(diplomacy: DiplomacyManager, v1: string, v2: string): boolean {
+  const rel = diplomacy.getRelation(v1, v2);
+  return rel.status === 'allied';
+}
+
+/** Count how many villages are allied with the given village */
+export function countAllies(diplomacy: DiplomacyManager, villageId: string, allVillageIds: string[]): number {
+  let count = 0;
+  for (const otherId of allVillageIds) {
+    if (otherId === villageId) continue;
+    if (areAllied(diplomacy, villageId, otherId)) count++;
+  }
+  return count;
+}
+
 // --- Periodic diplomacy tick ---
 
 export async function processDiplomacy(

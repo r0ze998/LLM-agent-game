@@ -1,4 +1,6 @@
 import type { TerrainType, Tile } from '@murasato/shared';
+import { TILE_SIZE } from '@murasato/shared';
+import { getTilePatternCanvas } from './TilePatternCache.ts';
 
 // Terrain color palette (JRPG-inspired pixel art colors)
 const TERRAIN_COLORS: Record<TerrainType, number> = {
@@ -44,6 +46,41 @@ export function getElevationShade(baseColor: number, elevation: number): number 
   const g = Math.min(255, Math.round(((baseColor >> 8) & 0xff) * factor));
   const b = Math.min(255, Math.round((baseColor & 0xff) * factor));
   return (r << 16) | (g << 8) | b;
+}
+
+/**
+ * Draw a FRLG-style tile pattern at the given screen position.
+ * Uses cached 16×16 pattern canvases stamped via drawImage().
+ * Elevation is applied as a semi-transparent color overlay on top.
+ */
+export function drawTilePattern(
+  ctx: CanvasRenderingContext2D,
+  tile: Tile,
+  tx: number,
+  ty: number,
+  screenX: number,
+  screenY: number,
+  size: number,
+) {
+  const pattern = getTilePatternCanvas(tile.terrain, tx, ty);
+
+  // Stamp the 16×16 pattern scaled to `size`
+  ctx.drawImage(pattern, 0, 0, TILE_SIZE, TILE_SIZE, screenX, screenY, size, size);
+
+  // Elevation overlay: warm highlight for high ground, cool shadow for low ground
+  const mid = 0.5;
+  const delta = tile.elevation - mid;
+  if (delta > 0.05) {
+    // High ground — warm highlight
+    const intensity = Math.min(0.25, delta * 0.5);
+    ctx.fillStyle = `rgba(255,255,200,${intensity})`;
+    ctx.fillRect(screenX, screenY, size, size);
+  } else if (delta < -0.05) {
+    // Low ground — cool shadow
+    const intensity = Math.min(0.25, Math.abs(delta) * 0.5);
+    ctx.fillStyle = `rgba(0,0,30,${intensity})`;
+    ctx.fillRect(screenX, screenY, size, size);
+  }
 }
 
 // Personality-to-color mapping for agent sprites
