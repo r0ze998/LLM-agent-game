@@ -25,8 +25,19 @@ export function WorldCanvas() {
 
   useAgentFocus(centerOn);
 
-  // Subscribe to visible chunks
+  // Center on first agent when they arrive
+  const hasCentered = useRef(false);
   useEffect(() => {
+    if (hasCentered.current || agents.size === 0) return;
+    const first = agents.values().next().value;
+    if (first) {
+      centerOn(first.position.x, first.position.y);
+      hasCentered.current = true;
+    }
+  }, [agents, centerOn]);
+
+  // Subscribe to visible chunks
+  const subscribeVisibleChunks = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -43,7 +54,20 @@ export function WorldCanvas() {
     if (toUnsubscribe.length > 0) wsClient.unsubscribeChunks(toUnsubscribe);
 
     prevChunks.current = keys;
-  }, [viewport, getVisibleChunks]);
+  }, [getVisibleChunks]);
+
+  useEffect(() => {
+    subscribeVisibleChunks();
+  }, [viewport, subscribeVisibleChunks]);
+
+  // Re-subscribe when WS reconnects
+  useEffect(() => {
+    const unsub = wsClient.onConnect(() => {
+      prevChunks.current = [];
+      subscribeVisibleChunks();
+    });
+    return unsub;
+  }, [subscribeVisibleChunks]);
 
   // Update agent sprites from state
   useEffect(() => {

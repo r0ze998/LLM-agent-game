@@ -1,12 +1,19 @@
 import type { WSClientMessage, WSServerMessage } from '@murasato/shared';
 
 type MessageHandler = (msg: WSServerMessage) => void;
+type ConnectionHandler = () => void;
 
 class WSClient {
   private ws: WebSocket | null = null;
   private handlers = new Set<MessageHandler>();
+  private connectionHandlers = new Set<ConnectionHandler>();
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private gameId: string | null = null;
+  private pendingMessages: WSClientMessage[] = [];
+
+  get isConnected(): boolean {
+    return this.ws?.readyState === WebSocket.OPEN;
+  }
 
   connect(gameId: string) {
     this.gameId = gameId;
@@ -19,6 +26,15 @@ class WSClient {
 
     this.ws.onopen = () => {
       console.log('WS connected');
+      // Flush any pending messages
+      for (const msg of this.pendingMessages) {
+        this.ws!.send(JSON.stringify(msg));
+      }
+      this.pendingMessages = [];
+      // Notify connection handlers
+      for (const handler of this.connectionHandlers) {
+        handler();
+      }
     };
 
     this.ws.onmessage = (e) => {
@@ -54,17 +70,26 @@ class WSClient {
       this.ws.close();
       this.ws = null;
     }
+    this.pendingMessages = [];
   }
 
   send(msg: WSClientMessage) {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(msg));
+    } else {
+      // Queue for when connection opens
+      this.pendingMessages.push(msg);
     }
   }
 
   subscribe(handler: MessageHandler): () => void {
     this.handlers.add(handler);
     return () => this.handlers.delete(handler);
+  }
+
+  onConnect(handler: ConnectionHandler): () => void {
+    this.connectionHandlers.add(handler);
+    return () => this.connectionHandlers.delete(handler);
   }
 
   subscribeChunks(chunks: { cx: number; cy: number }[]) {
