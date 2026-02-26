@@ -31,7 +31,7 @@ export function findConversationOpportunities(
       if (used.has(a2.identity.id)) continue;
 
       const dist = Math.abs(a1.position.x - a2.position.x) + Math.abs(a1.position.y - a2.position.y);
-      if (dist > 3) continue;
+      if (dist > 8) continue;
 
       const rel12 = relationships.get(a1.identity.id)?.find(r => r.targetId === a2.identity.id);
       const rel21 = relationships.get(a2.identity.id)?.find(r => r.targetId === a1.identity.id);
@@ -64,16 +64,16 @@ function determineSituation(
   if (!rel12 || rel12.familiarity < 5) {
     return {
       situation: `${a1.identity.name}と${a2.identity.name}が初めて出会った。`,
-      priority: 0.3,
+      priority: 0.6,
     };
   }
 
   // Long time no see
   const ticksSince = tick - (rel12.lastInteractionTick ?? 0);
-  if (ticksSince > 100) {
+  if (ticksSince > 50) {
     return {
       situation: `${a1.identity.name}と${a2.identity.name}が久しぶりに再会した。`,
-      priority: 0.25,
+      priority: 0.5,
     };
   }
 
@@ -81,7 +81,7 @@ function determineSituation(
   if ((rel12.sentiment ?? 0) < -30) {
     return {
       situation: `${a1.identity.name}と${a2.identity.name}がにらみ合っている。`,
-      priority: 0.2,
+      priority: 0.45,
     };
   }
 
@@ -89,14 +89,14 @@ function determineSituation(
   if ((rel12.sentiment ?? 0) > 50) {
     return {
       situation: `親しい仲間の${a1.identity.name}と${a2.identity.name}が談笑している。`,
-      priority: 0.15,
+      priority: 0.4,
     };
   }
 
   // Default casual encounter
   return {
     situation: `${a1.identity.name}と${a2.identity.name}が近くを通りかかった。`,
-    priority: 0.1,
+    priority: 0.3,
   };
 }
 
@@ -178,10 +178,10 @@ ${a1.identity.name}→${a2.identity.name}: ${rel12Desc}
 ${a2.identity.name}→${a1.identity.name}: ${rel21Desc}
 今の行動: ${a2.currentAction ?? '特になし'}
 
-3-6ターンの会話をJSON形式で生成してください。sentimentChangeとtrustChangeのキーはIDを使ってください。`;
+2-4ターンの短い会話をJSON形式で生成してください。セリフは短く自然に。sentimentChangeとtrustChangeのキーはIDを使ってください。`;
 
   try {
-    const raw = await callLLM({ system, userMessage: user, importance: 'social' });
+    const raw = await callLLM({ system, userMessage: user, importance: 'social', maxTokens: 2048 });
     const parsed = extractJSON<ConversationResult & { trustChange?: Record<string, number>; informationExchange?: string[] }>(raw);
 
     return {
@@ -189,7 +189,8 @@ ${a2.identity.name}→${a1.identity.name}: ${rel21Desc}
       sentimentChange: parsed.sentimentChange ?? {},
       newMemories: parsed.newMemories ?? [],
     };
-  } catch {
+  } catch (err) {
+    console.warn(`Conversation LLM failed (${a1.identity.name}×${a2.identity.name}):`, (err as Error).message?.slice(0, 200));
     // Fallback conversation
     const compat = calculateCompatibility(a1, a2);
     const change = compat > 0.6 ? 2 : compat > 0.4 ? 1 : -1;
@@ -241,13 +242,17 @@ export function createConversationEvent(
   result: ConversationResult,
   tick: number,
 ): GameEvent {
+  const turns = result.dialogue.length;
+  const summary = turns > 0
+    ? `${a1.identity.name}と${a2.identity.name}が会話した（${turns}ターン）`
+    : `${a1.identity.name}と${a2.identity.name}が会話した`;
   return {
     id: `evt_${crypto.randomUUID()}`,
     gameId,
     type: 'conversation',
     tick,
     actorIds: [a1.identity.id, a2.identity.id],
-    description: `${a1.identity.name}と${a2.identity.name}が会話した`,
-    data: { dialogue: result.dialogue },
+    description: summary,
+    data: { dialogue: result.dialogue, sentimentChange: result.sentimentChange },
   };
 }

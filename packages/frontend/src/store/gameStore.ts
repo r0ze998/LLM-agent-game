@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AgentState, Chunk, GameEvent, GameState, Village, DialogueLine, WorldStats } from '@murasato/shared';
+import type { AgentState, Chunk, GameEvent, GameState, Village, DialogueLine, WorldStats, VillageState4XSerialized, CombatResult, VictoryEvent } from '@murasato/shared';
 
 interface GameStore {
   // State
@@ -7,9 +7,12 @@ interface GameStore {
   agents: Map<string, AgentState>;
   chunks: Map<string, Chunk>;
   villages: Map<string, Village>;
+  village4xStates: Map<string, VillageState4XSerialized>;
   events: GameEvent[];
-  currentDialogue: { agentId: string; targetId: string; lines: DialogueLine[] } | null;
+  dialogueQueue: { agentId: string; targetId: string; lines: DialogueLine[] }[];
   stats: WorldStats | null;
+  lastBattleResult: CombatResult | null;
+  victoryEvent: VictoryEvent | null;
 
   // Actions
   setGame: (game: GameState) => void;
@@ -18,8 +21,12 @@ interface GameStore {
   updateChunk: (chunk: Chunk) => void;
   setVillages: (villages: Village[]) => void;
   updateVillage: (village: Village) => void;
+  updateVillage4X: (state: VillageState4XSerialized) => void;
+  setBattleResult: (result: CombatResult) => void;
+  setVictoryEvent: (event: VictoryEvent) => void;
   addEvent: (event: GameEvent) => void;
-  setDialogue: (dialogue: { agentId: string; targetId: string; lines: DialogueLine[] } | null) => void;
+  addDialogue: (dialogue: { agentId: string; targetId: string; lines: DialogueLine[] }) => void;
+  shiftDialogue: () => void;
   setStats: (stats: WorldStats) => void;
   reset: () => void;
 }
@@ -29,9 +36,12 @@ const initialState = {
   agents: new Map<string, AgentState>(),
   chunks: new Map<string, Chunk>(),
   villages: new Map<string, Village>(),
+  village4xStates: new Map<string, VillageState4XSerialized>(),
   events: [] as GameEvent[],
-  currentDialogue: null as { agentId: string; targetId: string; lines: DialogueLine[] } | null,
+  dialogueQueue: [] as { agentId: string; targetId: string; lines: DialogueLine[] }[],
   stats: null as WorldStats | null,
+  lastBattleResult: null as CombatResult | null,
+  victoryEvent: null as VictoryEvent | null,
 };
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -70,14 +80,38 @@ export const useGameStore = create<GameStore>((set) => ({
       return { villages };
     }),
 
+  updateVillage4X: (state4x) =>
+    set((s) => {
+      const village4xStates = new Map(s.village4xStates);
+      village4xStates.set(state4x.villageId, state4x);
+      return { village4xStates };
+    }),
+
+  setBattleResult: (result) => set({ lastBattleResult: result }),
+
+  setVictoryEvent: (event) => set({ victoryEvent: event }),
+
   addEvent: (event) =>
     set((state) => ({
       events: [...state.events.slice(-199), event], // keep last 200
     })),
 
-  setDialogue: (dialogue) => set({ currentDialogue: dialogue }),
+  addDialogue: (dialogue) =>
+    set((state) => ({
+      dialogueQueue: [...state.dialogueQueue, dialogue],
+    })),
+
+  shiftDialogue: () =>
+    set((state) => ({
+      dialogueQueue: state.dialogueQueue.slice(1),
+    })),
 
   setStats: (stats) => set({ stats }),
 
-  reset: () => set({ ...initialState, agents: new Map(), chunks: new Map(), villages: new Map(), events: [] }),
+  reset: () => set({
+    ...initialState,
+    agents: new Map(), chunks: new Map(), villages: new Map(),
+    village4xStates: new Map(), events: [], dialogueQueue: [],
+    lastBattleResult: null, victoryEvent: null,
+  }),
 }));

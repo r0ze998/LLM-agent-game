@@ -4,9 +4,10 @@ import { useGameStore } from '../../store/gameStore.ts';
 const CHAR_DELAY = 40; // ms per character (typewriter effect)
 
 export function DialogueBox() {
-  const dialogue = useGameStore((s) => s.currentDialogue);
+  const dialogueQueue = useGameStore((s) => s.dialogueQueue);
+  const dialogue = dialogueQueue[0] ?? null;
   const agents = useGameStore((s) => s.agents);
-  const setDialogue = useGameStore((s) => s.setDialogue);
+  const shiftDialogue = useGameStore((s) => s.shiftDialogue);
   const [currentLine, setCurrentLine] = useState(0);
   const [displayText, setDisplayText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -61,7 +62,7 @@ export function DialogueBox() {
     } else if (currentLine < dialogue.lines.length - 1) {
       setCurrentLine(currentLine + 1);
     } else {
-      setDialogue(null);
+      shiftDialogue();
     }
   };
 

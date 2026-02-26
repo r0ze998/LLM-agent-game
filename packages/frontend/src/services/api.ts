@@ -1,4 +1,4 @@
-import type { ApiResponse, GameState, AgentState, AgentBlueprint, DeployedBlueprintMeta, Chunk, Village, PlayerIntention, IntentionType, IntentionStrength } from '@murasato/shared';
+import type { ApiResponse, GameState, AgentState, AgentBlueprint, DeployedBlueprintMeta, Chunk, Village, PlayerIntention, IntentionType, IntentionStrength, PlayerCommand, CommandResult, VillageState4XSerialized, WorldStats } from '@murasato/shared';
 
 const BASE_URL = '/api/v1';
 
@@ -14,6 +14,9 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   // Game
+  listActiveGames: () =>
+    request<{ gameId: string; tick: number; running: boolean; events: number }[]>('/game/list/active'),
+
   createGame: (config?: Partial<{ seed: number; mapSize: number; initialAgents: number }>) =>
     request<GameState>('/game', { method: 'POST', body: JSON.stringify(config ?? {}) }),
 
@@ -71,4 +74,21 @@ export const api = {
 
   recallBlueprint: (gameId: string, blueprintId: string) =>
     request<{ recalled: true; agentName: string }>(`/blueprint/${gameId}/${blueprintId}`, { method: 'DELETE' }),
+
+  // Strategy (4X)
+  sendCommand: (gameId: string, playerId: string, command: PlayerCommand) =>
+    request<CommandResult>('/strategy/command', {
+      method: 'POST',
+      body: JSON.stringify({ gameId, playerId, command }),
+    }),
+
+  getVillage4XStates: (gameId: string) =>
+    request<VillageState4XSerialized[]>(`/strategy/villages/${gameId}`),
+
+  getVillage4XState: (gameId: string, villageId: string) =>
+    request<VillageState4XSerialized>(`/strategy/villages/${gameId}/${villageId}`),
+
+  // Stats
+  getGameStats: (gameId: string) =>
+    request<WorldStats>(`/game/${gameId}/stats`),
 };
