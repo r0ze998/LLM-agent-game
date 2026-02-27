@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useUIStore } from '../../store/uiStore.ts';
 import { useGameStore } from '../../store/gameStore.ts';
+import { useWalletStore } from '../../store/walletStore.ts';
 import { wsClient } from '../../services/wsClient.ts';
+import { executeCommandOnChain } from '../../services/starknetTx.ts';
 import { BUILDING_DEFS, TECH_DEFS, UNIT_DEFS } from '@murasato/shared';
 import type { ResourceType4X, VillageState4XSerialized } from '@murasato/shared';
 
@@ -52,8 +54,25 @@ export function StrategyPanel() {
     );
   }
 
-  const sendCmd = (command: any) => {
-    wsClient.sendCommand('player', command);
+  const isOnChain = useWalletStore((s) => s.isOnChain);
+  const [txPending, setTxPending] = useState(false);
+
+  const sendCmd = async (command: any) => {
+    if (isOnChain) {
+      setTxPending(true);
+      try {
+        const result = await executeCommandOnChain(command);
+        if (result.success) {
+          console.log(`[StrategyPanel] On-chain TX: ${result.txHash}`);
+        } else {
+          console.error(`[StrategyPanel] On-chain TX failed: ${result.error}`);
+        }
+      } finally {
+        setTxPending(false);
+      }
+    } else {
+      wsClient.sendCommand('player', command);
+    }
   };
 
   return (

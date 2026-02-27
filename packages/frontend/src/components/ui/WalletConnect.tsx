@@ -1,33 +1,14 @@
 /**
- * WalletConnect.tsx — ウォレット接続/切断ボタン (F7)
+ * WalletConnect.tsx — Katana devnet 接続ボタン
  *
- * 接続時はアドレス短縮表示。
- * @starknet-react/core が利用可能な場合はネイティブコネクタを使用。
+ * connectKatana() で RpcProvider + Account を作成。
+ * 接続時はアドレス短縮表示 + 緑インジケーター。
  */
 
 import { useWalletStore } from '../../store/walletStore.ts';
 
 export function WalletConnect() {
-  const { address, isConnected, disconnect, setWallet } = useWalletStore();
-
-  const handleConnect = async () => {
-    try {
-      // Try to use get-starknet for wallet connection
-      const starknet = (window as any).starknet;
-      if (starknet) {
-        await starknet.enable();
-        const addr = starknet.selectedAddress;
-        const chainId = starknet.chainId ?? 'unknown';
-        if (addr) {
-          setWallet(addr, chainId);
-        }
-      } else {
-        console.warn('No Starknet wallet detected');
-      }
-    } catch (err) {
-      console.error('Wallet connection failed:', err);
-    }
-  };
+  const { address, isConnected, isOnChain, disconnect, connectKatana } = useWalletStore();
 
   if (isConnected && address) {
     const shortAddr = `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -37,13 +18,23 @@ export function WalletConnect() {
         alignItems: 'center',
         gap: 8,
         background: '#2a2a3a',
-        border: '1px solid #8b8bff',
+        border: `1px solid ${isOnChain ? '#5add5a' : '#8b8bff'}`,
         borderRadius: 6,
         padding: '4px 10px',
         fontFamily: '"M PLUS 1p", monospace',
         fontSize: 11,
       }}>
-        <span style={{ color: '#8b8bff' }}>{shortAddr}</span>
+        {isOnChain && (
+          <span style={{
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            background: '#5add5a',
+            boxShadow: '0 0 6px #5add5a',
+            display: 'inline-block',
+          }} />
+        )}
+        <span style={{ color: isOnChain ? '#5add5a' : '#8b8bff' }}>{shortAddr}</span>
         <button
           onClick={disconnect}
           style={{
@@ -65,9 +56,9 @@ export function WalletConnect() {
 
   return (
     <button
-      onClick={handleConnect}
+      onClick={() => connectKatana()}
       style={{
-        background: 'linear-gradient(135deg, #4a3aaa, #6a4aee)',
+        background: 'linear-gradient(135deg, #2a6a2a, #3a8a3a)',
         border: 'none',
         borderRadius: 6,
         padding: '6px 14px',
@@ -78,7 +69,7 @@ export function WalletConnect() {
         fontWeight: 'bold',
       }}
     >
-      ウォレット接続
+      Katana接続
     </button>
   );
 }

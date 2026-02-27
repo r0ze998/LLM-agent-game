@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '../../store/gameStore.ts';
 import { useUIStore } from '../../store/uiStore.ts';
 import { TICKS_PER_DAY, TICKS_PER_YEAR } from '@murasato/shared';
+import { WalletConnect } from '../ui/WalletConnect.tsx';
 
 export function TopBar() {
   const tick = useGameStore((s) => s.game?.tick ?? 0);
@@ -66,6 +67,7 @@ export function TopBar() {
             <HeaderButton onClick={toggleIntention}>天の声</HeaderButton>
           </>
         )}
+        <WalletConnect />
       </div>
     </div>
   );

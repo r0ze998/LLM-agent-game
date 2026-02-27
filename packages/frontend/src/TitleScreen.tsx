@@ -1,11 +1,21 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useGameStore } from './store/gameStore.ts';
 import { useUIStore } from './store/uiStore.ts';
+import { useWalletStore } from './store/walletStore.ts';
 import { api } from './services/api.ts';
+import { initializeOnChain } from './services/dojoGameInit.ts';
+import { initTxService } from './services/starknetTx.ts';
+import { VillageIdMapper } from './services/dojoSync.ts';
+import { DojoTxService } from './services/dojoTxService.ts';
+import { DojoStateReader } from './services/dojoStateReader.ts';
+import { DojoStateSync } from './services/dojoStateSync.ts';
+import { DojoTickAdvancer } from './services/dojoTickAdvancer.ts';
+import { WORLD_ADDRESS } from './services/dojoConfig.ts';
 import {
   createTitleScene,
   updateTitleScene,
   renderTitleScene,
+  skipToEnd,
 } from './components/world/TitleBackground.ts';
 import type { TitleScene } from './components/world/TitleBackground.ts';
 import {
@@ -28,6 +38,8 @@ import {
   previewValueStyle,
   previewSoulStyle,
   errorStyle,
+  phaseTextStyle,
+  skipHintStyle,
 } from './styles/appStyles.ts';
 
 type WizardStep = 0 | 1 | 2 | 3;
@@ -285,6 +297,41 @@ function AutoJoinIndicator() {
   );
 }
 
+// ---- Phase text overlay ----
+
+const PHASE_TEXTS = ['...', '大地を形成する', '文明の種を蒔く', '意識を吹き込む', ''];
+
+function PhaseTextOverlay({ phase }: { phase: number }) {
+  const [displayPhase, setDisplayPhase] = useState(0);
+  const [animState, setAnimState] = useState<'in' | 'out'>('in');
+
+  useEffect(() => {
+    if (phase !== displayPhase) {
+      // Fade out current text, then switch
+      setAnimState('out');
+      const timer = setTimeout(() => {
+        setDisplayPhase(phase);
+        setAnimState('in');
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [phase, displayPhase]);
+
+  const text = PHASE_TEXTS[displayPhase];
+  if (!text) return null;
+
+  return (
+    <div
+      style={{
+        ...phaseTextStyle,
+        animation: animState === 'in' ? 'phaseTextIn 0.6s ease-out forwards' : 'phaseTextOut 0.5s ease-in forwards',
+      }}
+    >
+      {text}
+    </div>
+  );
+}
+
 // ---- Main Component ----
 
 export function TitleScreen() {
@@ -296,6 +343,9 @@ export function TitleScreen() {
   const [agentName, setAgentName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const autoJoinAttempted = useRef(false);
+  const [introComplete, setIntroComplete] = useState(false);
+  const [currentPhase, setCurrentPhase] = useState(0);
+  const [showSkipHint, setShowSkipHint] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const sceneRef = useRef<TitleScene | null>(null);
@@ -316,6 +366,7 @@ export function TitleScreen() {
     sceneRef.current = scene;
     let lastTime = performance.now();
     let rafId: number;
+    let introNotified = false;
 
     function resize() {
       canvas!.width = window.innerWidth;
@@ -329,6 +380,16 @@ export function TitleScreen() {
       lastTime = now;
       updateTitleScene(scene, delta);
       renderTitleScene(ctx!, scene, canvas!.width, canvas!.height);
+
+      // Track phase changes
+      setCurrentPhase(scene.phase);
+
+      // Trigger intro complete after phase 4 settles
+      if (scene.phase === 4 && scene.phaseTime > 1500 && !introNotified) {
+        introNotified = true;
+        setIntroComplete(true);
+      }
+
       rafId = requestAnimationFrame(loop);
     }
     rafId = requestAnimationFrame(loop);
@@ -338,6 +399,22 @@ export function TitleScreen() {
       window.removeEventListener('resize', resize);
     };
   }, []);
+
+  // Show skip hint after 3 seconds
+  useEffect(() => {
+    if (introComplete) return;
+    const timer = setTimeout(() => setShowSkipHint(true), 3000);
+    return () => clearTimeout(timer);
+  }, [introComplete]);
+
+  // Skip handler: click or keypress during intro
+  const handleSkip = useCallback(() => {
+    if (introComplete) return;
+    const scene = sceneRef.current;
+    if (scene) skipToEnd(scene);
+    setIntroComplete(true);
+    setCurrentPhase(4);
+  }, [introComplete]);
 
   // Auto-join a running headless game if one exists
   useEffect(() => {
@@ -388,6 +465,42 @@ export function TitleScreen() {
         ...(agentName.trim() ? { name: agentName.trim() } : {}),
       });
       await api.startGame(gameState.id);
+
+      // On-chain initialization if connected to Katana
+      const walletState = useWalletStore.getState();
+      if (walletState.isOnChain && walletState.account && walletState.provider) {
+        try {
+          const mapper = new VillageIdMapper();
+          // Find the player's village UUID from game state
+          const playerVillageId = agent.identity.id;
+
+          // Initialize TX service
+          initTxService(walletState.account, walletState.provider, mapper);
+
+          // Run on-chain initialization
+          await initializeOnChain(
+            walletState.account,
+            walletState.provider,
+            mapper,
+            playerVillageId,
+          );
+
+          // Start tick advancer
+          const txService = new DojoTxService(walletState.account, walletState.provider);
+          const tickAdvancer = new DojoTickAdvancer(txService, mapper);
+          tickAdvancer.start(3000);
+
+          // Start state sync polling
+          const stateReader = new DojoStateReader(walletState.provider, WORLD_ADDRESS);
+          const stateSync = new DojoStateSync(stateReader, mapper);
+          stateSync.startPolling(3000);
+
+          console.log('[TitleScreen] On-chain initialization complete');
+        } catch (onChainErr) {
+          console.warn('[TitleScreen] On-chain init failed (game continues off-chain):', onChainErr);
+        }
+      }
+
       setGameMode('player');
       selectAgent(agent.identity.id);
       followAgent(agent.identity.id);
@@ -457,28 +570,53 @@ export function TitleScreen() {
   }
 
   return (
-    <div style={titleScreenContainerStyle}>
+    <div
+      style={titleScreenContainerStyle}
+      onClick={!introComplete ? handleSkip : undefined}
+      onKeyDown={!introComplete ? handleSkip : undefined}
+      tabIndex={0}
+    >
       <canvas ref={canvasRef} style={backgroundCanvasStyle} />
-      <div style={contentOverlayStyle}>
-        <TitleHeader shrink={step > 0} />
 
-        {step > 0 && !autoJoining && (
-          <StepIndicator current={step as 1 | 2 | 3} />
-        )}
+      {/* Phase text overlay during intro */}
+      {!introComplete && <PhaseTextOverlay phase={currentPhase} />}
 
-        <div
-          key={step}
-          style={{
-            animation: `${animationName} 0.3s ease-out`,
-          }}
-        >
-          {step > 0 && !autoJoining ? (
-            <div style={glassCardStyle}>{stepContent}</div>
-          ) : (
-            stepContent
-          )}
+      {/* Skip hint */}
+      {!introComplete && showSkipHint && (
+        <div style={{
+          ...skipHintStyle,
+          animation: 'phaseTextIn 0.6s ease-out forwards',
+        }}>
+          クリックでスキップ
         </div>
-      </div>
+      )}
+
+      {/* Main UI — fades in after intro completes */}
+      {introComplete && (
+        <div style={{
+          ...contentOverlayStyle,
+          animation: 'fadeIn 1s ease-out',
+        }}>
+          <TitleHeader shrink={step > 0} />
+
+          {step > 0 && !autoJoining && (
+            <StepIndicator current={step as 1 | 2 | 3} />
+          )}
+
+          <div
+            key={step}
+            style={{
+              animation: `${animationName} 0.3s ease-out`,
+            }}
+          >
+            {step > 0 && !autoJoining ? (
+              <div style={glassCardStyle}>{stepContent}</div>
+            ) : (
+              stepContent
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

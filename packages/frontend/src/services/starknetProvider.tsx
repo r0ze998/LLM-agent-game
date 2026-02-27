@@ -1,44 +1,100 @@
 /**
- * starknetProvider.tsx — StarknetConfig ラッパー (F7)
+ * starknetProvider.tsx — Dojo コンテキスト提供
  *
- * Argent / Braavos コネクタ + Katana devnet チェーン設定。
- * @starknet-react/core が未インストールの場合は graceful に children のみ返す。
+ * React Context で txService, stateReader, tickAdvancer, stateSync を共有。
+ * walletStore.isOnChain が true の場合のみサービスが有効。
  */
 
-import React from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { useWalletStore } from '../store/walletStore.ts';
+import { DojoTxService } from './dojoTxService.ts';
+import { DojoStateReader } from './dojoStateReader.ts';
+import { DojoStateSync } from './dojoStateSync.ts';
+import { DojoTickAdvancer } from './dojoTickAdvancer.ts';
+import { VillageIdMapper } from './dojoSync.ts';
+import { initTxService } from './starknetTx.ts';
+import { WORLD_ADDRESS } from './dojoConfig.ts';
 
-// Katana devnet chain definition
-export const katanaDevnet = {
-  id: BigInt('0x4b4154414e41'), // "KATANA" in hex
-  network: 'katana',
-  name: 'Katana Devnet',
-  rpcUrls: {
-    default: { http: ['http://localhost:5050'] },
-  },
-} as const;
+export interface DojoContextValue {
+  txService: DojoTxService | null;
+  stateReader: DojoStateReader | null;
+  stateSync: DojoStateSync | null;
+  tickAdvancer: DojoTickAdvancer | null;
+  villageMapper: VillageIdMapper;
+  isReady: boolean;
+}
+
+const DojoContext = createContext<DojoContextValue>({
+  txService: null,
+  stateReader: null,
+  stateSync: null,
+  tickAdvancer: null,
+  villageMapper: new VillageIdMapper(),
+  isReady: false,
+});
+
+export function useDojoContext(): DojoContextValue {
+  return useContext(DojoContext);
+}
 
 interface StarknetProviderProps {
   children: React.ReactNode;
 }
 
-/**
- * Wrapper component that provides Starknet context.
- * When @starknet-react packages are available, this wraps children in StarknetConfig.
- * Otherwise, it renders children directly (graceful degradation).
- */
 export function StarknetProvider({ children }: StarknetProviderProps) {
-  // Graceful degradation: if starknet-react is not installed, just render children
-  try {
-    // Dynamic import check — if the module is available, we'd use it
-    // For now, since we can't guarantee the dependency is installed,
-    // we provide a pass-through wrapper
-    return <>{children}</>;
-  } catch {
-    return <>{children}</>;
-  }
-}
+  const account = useWalletStore((s) => s.account);
+  const provider = useWalletStore((s) => s.provider);
+  const isOnChain = useWalletStore((s) => s.isOnChain);
 
-// Re-export chain config for use in starknetTx.ts
-export function getKatanaRpcUrl(): string {
-  return 'http://localhost:5050';
+  const mapperRef = useRef(new VillageIdMapper());
+  const [value, setValue] = useState<DojoContextValue>({
+    txService: null,
+    stateReader: null,
+    stateSync: null,
+    tickAdvancer: null,
+    villageMapper: mapperRef.current,
+    isReady: false,
+  });
+
+  useEffect(() => {
+    if (!isOnChain || !account || !provider) {
+      setValue({
+        txService: null,
+        stateReader: null,
+        stateSync: null,
+        tickAdvancer: null,
+        villageMapper: mapperRef.current,
+        isReady: false,
+      });
+      return;
+    }
+
+    const txService = new DojoTxService(account, provider);
+    const stateReader = new DojoStateReader(provider, WORLD_ADDRESS);
+    const stateSync = new DojoStateSync(stateReader, mapperRef.current);
+    const tickAdvancer = new DojoTickAdvancer(txService, mapperRef.current);
+
+    // Initialize the global TX service (used by starknetTx.ts)
+    initTxService(account, provider, mapperRef.current);
+
+    setValue({
+      txService,
+      stateReader,
+      stateSync,
+      tickAdvancer,
+      villageMapper: mapperRef.current,
+      isReady: true,
+    });
+
+    return () => {
+      tickAdvancer.stop();
+      stateSync.stopPolling();
+    };
+  }, [isOnChain, account, provider]);
+
+  return (
+    <DojoContext.Provider value={value}>
+      {children}
+    </DojoContext.Provider>
+  );
 }

@@ -1,102 +1,129 @@
 /**
- * starknetTx.ts — プレイヤーウォレット直接オンチェーンコマンド (F7)
+ * starknetTx.ts — フロントエンド直接オンチェーンコマンド実行
  *
- * ブラウザのStarknetウォレットから直接TXを送信する。
- * サーバー経由のバックエンドTXとは別ルート。
+ * DojoTxService + VillageIdMapper を使用してプレイヤーコマンドを
+ * Katana devnet に直接送信する。
  */
 
+import type { Account, RpcProvider } from 'starknet';
 import type { PlayerCommand } from '@murasato/shared';
+import { DojoTxService, DiplomacyStatus } from './dojoTxService.ts';
+import {
+  VillageIdMapper,
+  BUILDING_STR_TO_U32,
+  TECH_STR_TO_U32,
+  UNIT_STR_TO_U32,
+} from './dojoSync.ts';
 
-interface StarknetWallet {
-  account: {
-    execute: (calls: any[]) => Promise<{ transaction_hash: string }>;
-    address: string;
-  };
+let txService: DojoTxService | null = null;
+let villageMapper: VillageIdMapper | null = null;
+
+/** TXサービスを初期化 (walletStore.connectKatana 後に呼ぶ) */
+export function initTxService(
+  account: Account,
+  provider: RpcProvider,
+  mapper: VillageIdMapper,
+): void {
+  txService = new DojoTxService(account, provider);
+  villageMapper = mapper;
+  console.log('[StarknetTx] TX service initialized');
 }
 
-function getWallet(): StarknetWallet | null {
-  const starknet = (window as any).starknet;
-  if (!starknet?.account) return null;
-  return starknet;
+/** VillageIdMapper への参照を返す */
+export function getVillageMapper(): VillageIdMapper | null {
+  return villageMapper;
 }
 
-/**
- * Execute a player command directly via wallet TX.
- * Returns the transaction hash, or null if wallet is not available.
- */
-export async function executeCommandViaWallet(
+/** DojoTxService への参照を返す */
+export function getTxService(): DojoTxService | null {
+  return txService;
+}
+
+/** コマンドをオンチェーンで実行 */
+export async function executeCommandOnChain(
   command: PlayerCommand,
-  systemAddress: string,
-): Promise<string | null> {
-  const wallet = getWallet();
-  if (!wallet) return null;
+): Promise<{ success: boolean; txHash?: string; error?: string }> {
+  if (!txService || !villageMapper) {
+    return { success: false, error: 'TX service not initialized' };
+  }
+
+  const villageUuid = (command as any).villageId as string | undefined;
+  if (!villageUuid) {
+    return { success: false, error: 'No villageId in command' };
+  }
+
+  const villageU32 = villageMapper.toU32(villageUuid);
+  if (villageU32 === undefined) {
+    return { success: false, error: `Village ${villageUuid} not registered on-chain` };
+  }
 
   try {
-    const call = buildCall(command, systemAddress);
-    if (!call) return null;
+    const txHash = await submitCommand(command, villageU32);
+    if (!txHash) {
+      return { success: false, error: `Unsupported command type: ${command.type}` };
+    }
 
-    const result = await wallet.account.execute([call]);
-    console.log(`[StarknetTx] Command ${command.type} → tx: ${result.transaction_hash}`);
-    return result.transaction_hash;
+    console.log(`[StarknetTx] Command ${command.type} → tx: ${txHash}`);
+    // Wait for confirmation
+    await txService.waitForTx(txHash);
+    return { success: true, txHash };
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
     console.error(`[StarknetTx] Command ${command.type} failed:`, err);
-    return null;
+    return { success: false, error: msg };
   }
 }
 
-function buildCall(command: PlayerCommand, systemAddress: string): any | null {
-  switch (command.type) {
-    case 'build':
-      return {
-        contractAddress: systemAddress,
-        entrypoint: 'build',
-        calldata: [
-          (command as any).villageId ?? '0',
-          (command as any).buildingDefId ?? '0',
-          String((command as any).position?.x ?? 0),
-          String((command as any).position?.y ?? 0),
-        ],
-      };
+async function submitCommand(
+  cmd: PlayerCommand,
+  villageU32: number,
+): Promise<string | null> {
+  if (!txService || !villageMapper) return null;
 
-    case 'research':
-      return {
-        contractAddress: systemAddress,
-        entrypoint: 'research',
-        calldata: [
-          (command as any).villageId ?? '0',
-          (command as any).techDefId ?? '0',
-        ],
+  switch (cmd.type) {
+    case 'build': {
+      const defId = BUILDING_STR_TO_U32[(cmd as any).buildingDefId];
+      if (!defId) return null;
+      const pos = (cmd as any).position ?? { x: 0, y: 0 };
+      return txService.submitBuild(villageU32, defId, pos.x, pos.y);
+    }
+    case 'research': {
+      const techId = TECH_STR_TO_U32[(cmd as any).techDefId];
+      if (!techId) return null;
+      return txService.submitResearch(villageU32, techId);
+    }
+    case 'train': {
+      const unitId = UNIT_STR_TO_U32[(cmd as any).unitDefId];
+      if (!unitId) return null;
+      const count = (cmd as any).count ?? 1;
+      return txService.submitTrain(villageU32, unitId, count);
+    }
+    case 'demolish': {
+      const buildingId = (cmd as any).buildingId;
+      if (buildingId === undefined) return null;
+      return txService.submitDemolish(villageU32, Number(buildingId) || 1);
+    }
+    case 'attack': {
+      const targetUuid = (cmd as any).targetVillageId;
+      const targetU32 = villageMapper.toU32(targetUuid);
+      if (!targetU32) return null;
+      return txService.submitAttack(villageU32, targetU32);
+    }
+    case 'diplomacy': {
+      const targetUuid = (cmd as any).targetVillageId;
+      const targetU32 = villageMapper.toU32(targetUuid);
+      if (!targetU32) return null;
+      const statusMap: Record<string, DiplomacyStatus> = {
+        declare_war: DiplomacyStatus.War,
+        propose_alliance: DiplomacyStatus.Allied,
+        propose_peace: DiplomacyStatus.Neutral,
+        break_alliance: DiplomacyStatus.Neutral,
       };
-
-    case 'train':
-      return {
-        contractAddress: systemAddress,
-        entrypoint: 'train',
-        calldata: [
-          (command as any).villageId ?? '0',
-          (command as any).unitDefId ?? '0',
-          String((command as any).count ?? 1),
-        ],
-      };
-
-    case 'diplomacy':
-      return {
-        contractAddress: systemAddress,
-        entrypoint: 'set_diplomacy',
-        calldata: [
-          (command as any).villageId ?? '0',
-          (command as any).targetVillageId ?? '0',
-          String((command as any).status ?? 0),
-        ],
-      };
-
+      const action = (cmd as any).action ?? 'propose_peace';
+      const status = statusMap[action] ?? DiplomacyStatus.Neutral;
+      return txService.submitDiplomacy(villageU32, targetU32, status);
+    }
     default:
       return null;
   }
-}
-
-/** Get the connected wallet address, or null */
-export function getWalletAddress(): string | null {
-  const wallet = getWallet();
-  return wallet?.account.address ?? null;
 }
