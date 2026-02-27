@@ -100,9 +100,9 @@ class WSClient {
     this.send({ type: 'unsubscribe_chunks', chunks });
   }
 
-  sendCommand(playerId: string, command: PlayerCommand) {
+  sendCommand(playerId: string, command: PlayerCommand, signerAddress?: string) {
     if (!this.gameId) return;
-    this.send({ type: 'player_command', gameId: this.gameId, playerId, command });
+    this.send({ type: 'player_command', gameId: this.gameId, playerId, command, signerAddress });
   }
 }
 

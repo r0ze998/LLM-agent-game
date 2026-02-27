@@ -15,6 +15,7 @@ interface UIStore {
   showDemoOverlay: boolean;
   speed: number;
   isPaused: boolean;
+  isWalletConnected: boolean;
 
   setGameMode: (mode: GameMode) => void;
   selectAgent: (id: string | null) => void;
@@ -28,6 +29,7 @@ interface UIStore {
   toggleDemoOverlay: () => void;
   setSpeed: (speed: number) => void;
   setIsPaused: (paused: boolean) => void;
+  setWalletConnected: (connected: boolean) => void;
 }
 
 export const useUIStore = create<UIStore>((set) => ({
@@ -43,6 +45,7 @@ export const useUIStore = create<UIStore>((set) => ({
   showDemoOverlay: false,
   speed: 1,
   isPaused: true,
+  isWalletConnected: false,
 
   setGameMode: (mode) => set({ gameMode: mode }),
   selectAgent: (id) => set({ selectedAgentId: id, showAgentInspector: !!id }),
@@ -56,4 +59,5 @@ export const useUIStore = create<UIStore>((set) => ({
   toggleDemoOverlay: () => set((s) => ({ showDemoOverlay: !s.showDemoOverlay })),
   setSpeed: (speed) => set({ speed, isPaused: speed === 0 }),
   setIsPaused: (isPaused) => set({ isPaused }),
+  setWalletConnected: (isWalletConnected) => set({ isWalletConnected }),
 }));

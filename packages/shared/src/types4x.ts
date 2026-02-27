@@ -62,6 +62,7 @@ export interface TradeRoute4X {
 export interface VillageState4X {
   villageId: string;
   ownerId: string | null;      // プレイヤーID or null (AI村)
+  ownerAddress?: string;        // Starknet wallet address (F7)
 
   // 資源
   resources: Resources4X;

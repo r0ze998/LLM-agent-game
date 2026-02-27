@@ -438,11 +438,23 @@ async function run4XTick(world: WorldState): Promise<GameEvent[]> {
 
     // Run economic tick (with Autonomous World state for Layer 1-3 effects)
     // Dojo: オンチェーン実行 → フォールバック
-    const tickResult = world.dojoBridge?.isEnabled()
+    const tickResultRaw = world.dojoBridge?.isEnabled()
       ? await world.dojoBridge.executeVillageTick(
           villageId, vs, territoryTiles, world.autonomousWorld, world.tick,
         )
       : processVillageTick(vs, territoryTiles, world.autonomousWorld, world.tick);
+
+    const tickResult = tickResultRaw;
+
+    // Merge on-chain events into the event stream
+    if ('onChainEvents' in tickResult) {
+      const onChainEvts = (tickResult as any).onChainEvents as import('@murasato/shared').GameEvent[];
+      for (const evt of onChainEvts) {
+        // Inject correct gameId (the bridge doesn't know it)
+        evt.gameId = world.gameId;
+        events.push(evt);
+      }
+    }
 
     // Emit events for completed items
     for (const completedId of tickResult.queueCompleted) {
@@ -644,6 +656,27 @@ async function run4XTick(world: WorldState): Promise<GameEvent[]> {
           }
         }
       }
+    }
+  }
+
+  // === Trade tick (F8) ===
+  // Execute on-chain trade routes via DojoBridge
+  if (world.dojoBridge?.isEnabled()) {
+    // Collect all active trade route IDs from village states
+    const activeRouteIds: number[] = [];
+    for (const vs of world.villageStates4X.values()) {
+      for (const route of vs.tradeRoutes) {
+        // Route IDs are stored as strings, try to parse as number for on-chain
+        const routeNum = parseInt(route.id, 10);
+        if (!isNaN(routeNum)) {
+          activeRouteIds.push(routeNum);
+        }
+      }
+    }
+    if (activeRouteIds.length > 0) {
+      world.dojoBridge.executeTradeTick(activeRouteIds).catch(
+        (err) => console.warn('[DojoBridge] executeTradeTick bg error:', err),
+      );
     }
   }
 

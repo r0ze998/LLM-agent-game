@@ -3,7 +3,7 @@ import { useGameStore } from '../../store/gameStore.ts';
 import { useUIStore } from '../../store/uiStore.ts';
 import type { GameEvent, DialogueLine } from '@murasato/shared';
 
-type FilterCategory = 'all' | 'conversation' | 'incident' | 'construction' | 'social';
+type FilterCategory = 'all' | 'conversation' | 'incident' | 'construction' | 'social' | 'onchain';
 
 const FILTER_TABS: { key: FilterCategory; label: string }[] = [
   { key: 'all', label: '全て' },
@@ -11,6 +11,7 @@ const FILTER_TABS: { key: FilterCategory; label: string }[] = [
   { key: 'incident', label: '事件' },
   { key: 'construction', label: '建設' },
   { key: 'social', label: '社会' },
+  { key: 'onchain', label: '鎖上' },
 ];
 
 const CATEGORY_MAP: Record<string, FilterCategory> = {
@@ -41,6 +42,7 @@ export function TimelinePanel() {
   const filtered = useMemo(() => {
     const recent = events.slice(-80);
     if (filter === 'all') return recent;
+    if (filter === 'onchain') return recent.filter(e => e.data?._origin === 'onchain');
     return recent.filter(e => (CATEGORY_MAP[e.type] ?? 'social') === filter);
   }, [events, filter]);
 
@@ -107,13 +109,17 @@ export function TimelinePanel() {
           const isExpanded = expandedId === event.id;
           const hasDetail = hasExpandableContent(event);
 
+          const isOnchain = event.data?._origin === 'onchain';
+
           return (
             <div
               key={event.id}
               onClick={() => hasDetail && setExpandedId(isExpanded ? null : event.id)}
               style={{
                 borderBottom: '1px solid #333',
+                borderLeft: isOnchain ? '3px solid #8b8bff' : 'none',
                 paddingBottom: 4,
+                paddingLeft: isOnchain ? 6 : 0,
                 cursor: hasDetail ? 'pointer' : 'default',
               }}
             >
@@ -130,6 +136,16 @@ export function TimelinePanel() {
                 }}>
                   {eventIcon(event.type)}
                 </span>
+                {isOnchain && (
+                  <span style={{
+                    color: '#8b8bff',
+                    fontSize: 9,
+                    fontWeight: 'bold',
+                    background: 'rgba(139,139,255,0.15)',
+                    borderRadius: 3,
+                    padding: '1px 4px',
+                  }}>鎖</span>
+                )}
                 <span style={{ flex: 1 }}>{event.description}</span>
                 {hasDetail && (
                   <span style={{ color: '#666', fontSize: 10 }}>

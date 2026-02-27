@@ -10,10 +10,11 @@ import type { DojoBridge } from './dojo/dojoBridge.ts';
 
 class TickService {
   private worlds = new Map<string, WorldState>();
-  private timers = new Map<string, ReturnType<typeof setInterval>>();
+  private timers = new Map<string, ReturnType<typeof setInterval | typeof setTimeout>>();
   private speeds = new Map<string, number>(); // multiplier
   private ticking = new Set<string>(); // prevent overlapping ticks
   private _dojoBridge?: DojoBridge;
+  private tickCounts = new Map<string, number>(); // for periodic logging
 
   /** DojoBridge をセット（index.ts から起動時に呼ばれる） */
   setDojoBridge(bridge: DojoBridge): void {
@@ -22,6 +23,11 @@ class TickService {
 
   getWorld(gameId: string): WorldState | undefined {
     return this.worlds.get(gameId);
+  }
+
+  /** 全ワールドを返す (fullSync等で使用) */
+  getAllWorlds(): Map<string, WorldState> {
+    return this.worlds;
   }
 
   createGame(gameId: string, config: GameConfig, dojoBridge?: DojoBridge): WorldState {
@@ -47,14 +53,24 @@ class TickService {
     if (this.timers.has(gameId)) return false; // Already running
 
     this.speeds.set(gameId, speedMultiplier);
-    const interval = DEFAULT_TICK_INTERVAL_MS / speedMultiplier;
+    this.tickCounts.set(gameId, 0);
+    const baseInterval = DEFAULT_TICK_INTERVAL_MS / speedMultiplier;
+    const adaptiveEnabled = process.env.ADAPTIVE_TICK_ENABLED === 'true';
 
-    const timer = setInterval(async () => {
+    const runTick = async () => {
       // Prevent overlapping ticks when LLM calls are slow
-      if (this.ticking.has(gameId)) return;
+      if (this.ticking.has(gameId)) {
+        if (adaptiveEnabled) {
+          const timer = setTimeout(runTick, baseInterval);
+          this.timers.set(gameId, timer);
+        }
+        return;
+      }
       this.ticking.add(gameId);
       try {
         const result = await tick(world);
+        const tickNum = (this.tickCounts.get(gameId) ?? 0) + 1;
+        this.tickCounts.set(gameId, tickNum);
 
         // Accumulate events in store
         eventStore.push(gameId, result.events);
@@ -124,14 +140,53 @@ class TickService {
           const stats = computeWorldStats(world);
           wsManager.broadcastToGame(gameId, { type: 'stats_update', stats });
         }
+
+        // F9: Log latency metrics every 100 ticks
+        if (adaptiveEnabled && this._dojoBridge && tickNum % 100 === 0) {
+          const metrics = this._dojoBridge.getLatencyMetrics();
+          console.log(`[Latency] tick=${tickNum} avg=${metrics.avg.toFixed(0)}ms p95=${metrics.p95.toFixed(0)}ms p99=${metrics.p99.toFixed(0)}ms max=${metrics.max.toFixed(0)}ms success=${(metrics.successRate * 100).toFixed(1)}%`);
+        }
+
+        // F5: Run integrity check every 50 ticks
+        if (process.env.SYNC_CHECK_ENABLED === 'true' && this._dojoBridge && result.tick % 50 === 0) {
+          this._dojoBridge.runIntegrityCheck(world.villageStates4X, result.tick).catch(
+            (err) => console.warn('[SyncChecker] background error:', err),
+          );
+        }
       } catch (err) {
         console.error(`Tick error for game ${gameId}:`, err);
       } finally {
         this.ticking.delete(gameId);
       }
-    }, interval);
 
-    this.timers.set(gameId, timer);
+      // F9: Adaptive tick — use recommended interval
+      if (adaptiveEnabled && this._dojoBridge) {
+        const recommended = this._dojoBridge.getRecommendedInterval(baseInterval);
+        const timer = setTimeout(runTick, recommended);
+        this.timers.set(gameId, timer);
+      }
+    };
+
+    if (adaptiveEnabled) {
+      // Recursive setTimeout for adaptive intervals
+      const timer = setTimeout(runTick, baseInterval);
+      this.timers.set(gameId, timer);
+    } else {
+      // Standard setInterval
+      const timer = setInterval(runTick, baseInterval);
+      this.timers.set(gameId, timer);
+    }
+
+    // F4: Set up Torii external event handler
+    if (this._dojoBridge) {
+      this._dojoBridge.onExternalEvents((events) => {
+        eventStore.push(gameId, events);
+        for (const event of events) {
+          wsManager.broadcastToGame(gameId, { type: 'event', event });
+        }
+      });
+    }
+
     return true;
   }
 
@@ -139,6 +194,7 @@ class TickService {
     const timer = this.timers.get(gameId);
     if (!timer) return false;
     clearInterval(timer);
+    clearTimeout(timer);
     this.timers.delete(gameId);
     return true;
   }

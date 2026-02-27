@@ -87,8 +87,19 @@ const dojoConfig = loadDojoConfig();
 if (dojoConfig.enabled) {
   const dojoBridge = new DojoBridge(dojoConfig);
   tickService.setDojoBridge(dojoBridge);
-  dojoBridge.initialize().then(() => {
+  dojoBridge.initialize().then(async () => {
     console.log('⛓️  Dojo bridge initialized and ready');
+
+    // fullSync: 既存村のオンチェーン状態を同期
+    const mapperEntries = dojoBridge.getVillageMapperEntries();
+    if (mapperEntries.length > 0) {
+      console.log(`⛓️  Found ${mapperEntries.length} persisted village mappings, running fullSync...`);
+      // Collect all active village states from running games
+      for (const [gameId, world] of tickService.getAllWorlds()) {
+        await dojoBridge.fullSync(world.villageStates4X);
+      }
+      console.log('⛓️  fullSync completed');
+    }
   }).catch((err) => {
     console.warn('⛓️  Dojo bridge initialization failed (will retry on use):', err);
   });

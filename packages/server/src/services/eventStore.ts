@@ -22,6 +22,15 @@ class EventStore {
     this.store.set(gameId, list);
   }
 
+  /** Push events with an origin tag (_origin: 'onchain' | 'offchain') */
+  pushWithOrigin(gameId: string, events: GameEvent[], origin: 'onchain' | 'offchain'): void {
+    const tagged = events.map(e => ({
+      ...e,
+      data: { ...e.data, _origin: origin },
+    }));
+    this.push(gameId, tagged);
+  }
+
   getAll(gameId: string): GameEvent[] {
     return this.store.get(gameId) ?? [];
   }

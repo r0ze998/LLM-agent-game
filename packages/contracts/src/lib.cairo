@@ -11,6 +11,7 @@ pub mod models {
     pub mod diplomacy;
     pub mod config;
     pub mod effect;
+    pub mod trade;
 }
 
 pub mod systems {
@@ -23,4 +24,5 @@ pub mod systems {
     pub mod institution;
     pub mod victory;
     pub mod setup;
+    pub mod trade;
 }

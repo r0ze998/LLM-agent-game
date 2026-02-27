@@ -199,6 +199,29 @@ gameRouter.get('/:id/events/summary', (c) => {
   });
 });
 
+// Sync status (F5 debug API)
+gameRouter.get('/:id/sync-status', (c) => {
+  const gameId = c.req.param('id');
+  const world = tickService.getWorld(gameId);
+  if (!world) return c.json<ApiResponse<never>>({ ok: false, error: 'Game not found' }, 404);
+
+  const bridge = (world as any).dojoBridge;
+  if (!bridge || typeof bridge.getSyncReports !== 'function') {
+    return c.json<ApiResponse<{ reports: never[]; latency: null }>>({
+      ok: true,
+      data: { reports: [], latency: null },
+    });
+  }
+
+  const reports = bridge.getSyncReports();
+  const latency = typeof bridge.getLatencyMetrics === 'function' ? bridge.getLatencyMetrics() : null;
+
+  return c.json<ApiResponse<{ reports: typeof reports; latency: typeof latency }>>({
+    ok: true,
+    data: { reports, latency },
+  });
+});
+
 // Agent biography
 gameRouter.get('/:id/agent/:agentId/biography', async (c) => {
   const gameId = c.req.param('id');

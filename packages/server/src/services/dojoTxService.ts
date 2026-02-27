@@ -313,6 +313,113 @@ export class DojoTxService {
     ]);
   }
 
+  // ── Trade (F8) ──
+
+  async submitProposeTrade(
+    fromVillage: number,
+    toVillage: number,
+    offerFood: number,
+    offerWood: number,
+    offerStone: number,
+    offerIron: number,
+    offerGold: number,
+    requestFood: number,
+    requestWood: number,
+    requestStone: number,
+    requestIron: number,
+    requestGold: number,
+  ): Promise<string> {
+    return this.execute("trade_sys", "propose_trade", [
+      fromVillage.toString(),
+      toVillage.toString(),
+      toFixed1000(offerFood), toFixed1000(offerWood), toFixed1000(offerStone),
+      toFixed1000(offerIron), toFixed1000(offerGold),
+      toFixed1000(requestFood), toFixed1000(requestWood), toFixed1000(requestStone),
+      toFixed1000(requestIron), toFixed1000(requestGold),
+    ]);
+  }
+
+  async submitAcceptTrade(tradeId: number): Promise<string> {
+    return this.execute("trade_sys", "accept_trade", [tradeId.toString()]);
+  }
+
+  async submitCancelTrade(tradeId: number): Promise<string> {
+    return this.execute("trade_sys", "cancel_trade", [tradeId.toString()]);
+  }
+
+  async submitCreateTradeRoute(
+    fromVillage: number,
+    toVillage: number,
+    sendFood: number, sendWood: number, sendStone: number, sendIron: number, sendGold: number,
+    recvFood: number, recvWood: number, recvStone: number, recvIron: number, recvGold: number,
+  ): Promise<string> {
+    return this.execute("trade_sys", "create_trade_route", [
+      fromVillage.toString(),
+      toVillage.toString(),
+      toFixed1000(sendFood), toFixed1000(sendWood), toFixed1000(sendStone),
+      toFixed1000(sendIron), toFixed1000(sendGold),
+      toFixed1000(recvFood), toFixed1000(recvWood), toFixed1000(recvStone),
+      toFixed1000(recvIron), toFixed1000(recvGold),
+    ]);
+  }
+
+  async submitExecuteTradeTick(routeIds: number[]): Promise<string> {
+    return this.execute("trade_sys", "execute_trade_tick", [
+      routeIds.map(id => id.toString()),
+    ]);
+  }
+
+  // ── Batch Operations (F9) ──
+
+  /** Batch multiple village ticks into a single multicall */
+  async submitBatchVillageTicks(villageIds: number[]): Promise<string> {
+    const calls: Call[] = villageIds.map(id => ({
+      contractAddress: this.getSystemAddress("village_tick"),
+      entrypoint: "tick",
+      calldata: [id.toString()],
+    }));
+    const { transaction_hash } = await this.account.execute(calls);
+    console.log(`[DojoTx] Batch village_tick (${villageIds.length} villages) → tx: ${transaction_hash}`);
+    return transaction_hash;
+  }
+
+  /** Full tick batch: advance_tick + village_ticks + trade_tick in a single TX */
+  async submitTickBatch(
+    villageIds: number[],
+    tradeRouteIds: number[],
+  ): Promise<string> {
+    const calls: Call[] = [];
+
+    // advance_tick
+    calls.push({
+      contractAddress: this.getSystemAddress("commands"),
+      entrypoint: "advance_tick",
+      calldata: [],
+    });
+
+    // village ticks
+    for (const id of villageIds) {
+      calls.push({
+        contractAddress: this.getSystemAddress("village_tick"),
+        entrypoint: "tick",
+        calldata: [id.toString()],
+      });
+    }
+
+    // trade tick (if any routes)
+    if (tradeRouteIds.length > 0) {
+      calls.push({
+        contractAddress: this.getSystemAddress("trade_sys"),
+        entrypoint: "execute_trade_tick",
+        calldata: this.flattenCalldata([tradeRouteIds.map(id => id.toString())]),
+      });
+    }
+
+    const { transaction_hash } = await this.account.execute(calls);
+    console.log(`[DojoTx] TickBatch (${villageIds.length} villages, ${tradeRouteIds.length} routes) → tx: ${transaction_hash}`);
+    return transaction_hash;
+  }
+
   // ── Physics initialization ──
 
   async initializePhysics(): Promise<string> {
@@ -347,8 +454,10 @@ export class DojoTxService {
 
   // ── Tx confirmation ──
 
-  async waitForTx(txHash: string): Promise<void> {
-    await this.provider.waitForTransaction(txHash);
+  /** Wait for tx confirmation and return the receipt (with events). */
+  async waitForTx(txHash: string): Promise<any> {
+    const receipt = await this.provider.waitForTransaction(txHash);
+    return receipt;
   }
 
   // ── Internal ──

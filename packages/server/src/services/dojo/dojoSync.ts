@@ -138,4 +138,26 @@ export class VillageIdMapper {
   entries(): [string, number][] {
     return [...this.uuidToU32.entries()];
   }
+
+  /** シリアライズ用データを返す */
+  serialize(): { mappings: Array<{ uuid: string; u32: number }>; nextId: number } {
+    return {
+      mappings: this.entries().map(([uuid, u32]) => ({ uuid, u32 })),
+      nextId: this.nextId,
+    };
+  }
+
+  /** 外部から復元する (永続化ファイルなどから) */
+  restore(
+    mappings: Array<{ uuid: string; u32: number }>,
+    nextId: number,
+  ): void {
+    this.uuidToU32.clear();
+    this.u32ToUuid.clear();
+    for (const { uuid, u32 } of mappings) {
+      this.uuidToU32.set(uuid, u32);
+      this.u32ToUuid.set(u32, uuid);
+    }
+    this.nextId = nextId;
+  }
 }

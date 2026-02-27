@@ -247,7 +247,7 @@ export type WSClientMessage =
   | { type: 'subscribe_chunks'; chunks: { cx: number; cy: number }[] }
   | { type: 'unsubscribe_chunks'; chunks: { cx: number; cy: number }[] }
   | { type: 'send_intention'; intention: Omit<PlayerIntention, 'id' | 'tick'> }
-  | { type: 'player_command'; gameId: string; playerId: string; command: PlayerCommand };
+  | { type: 'player_command'; gameId: string; playerId: string; command: PlayerCommand; signerAddress?: string };
 
 export type WSServerMessage =
   | { type: 'tick'; tick: number; dayOfYear: number; year: number }

@@ -4,6 +4,7 @@ import { wsManager, type WSData } from '../services/wsManager.ts';
 import { tickService } from '../services/tickService.ts';
 import { processCommand } from '../engine/commandProcessor.ts';
 import { buildWorld4XRef } from '../world/simulation.ts';
+import { playerManager } from '../services/playerManager.ts';
 
 export function onOpen(ws: ServerWebSocket<WSData>) {
   wsManager.add(ws);
@@ -64,6 +65,19 @@ export async function onMessage(ws: ServerWebSocket<WSData>, raw: string | Buffe
       case 'player_command': {
         const world = tickService.getWorld(msg.gameId);
         if (world) {
+          // F7: Multiplayer ownership check
+          const multiplayerEnabled = process.env.MULTIPLAYER_ENABLED === 'true';
+          if (multiplayerEnabled && msg.signerAddress) {
+            const villageId = (msg.command as any).villageId;
+            if (villageId) {
+              const vs = world.villageStates4X.get(villageId);
+              if (vs?.ownerAddress && vs.ownerAddress.toLowerCase() !== msg.signerAddress.toLowerCase()) {
+                wsManager.send(ws, { type: 'error', message: 'Not village owner' });
+                break;
+              }
+            }
+          }
+
           const worldRef = buildWorld4XRef(world);
           const result = processCommand(msg.command, msg.playerId, worldRef);
           wsManager.send(ws, { type: 'command_result', result } as any);

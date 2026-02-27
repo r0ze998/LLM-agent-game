@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
+    "@dojoengine/grpc": "^1.8.7",
     "@murasato/shared": "workspace:*",
     "drizzle-orm": "^0.41.0",
     "hono": "^4.7.0",

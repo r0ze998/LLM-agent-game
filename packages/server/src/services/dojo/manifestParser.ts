@@ -17,6 +17,7 @@ export interface ManifestContracts {
   invention_sys: string;
   setup: string;
   victory: string;
+  trade_sys: string;
 }
 
 interface ManifestContract {
@@ -56,6 +57,7 @@ export function parseManifest(manifestPath: string): {
     "aw-invention_sys": "invention_sys",
     "aw-setup": "setup",
     "aw-victory": "victory",
+    "aw-trade_sys": "trade_sys",
   };
 
   const contracts: Partial<ManifestContracts> = {};
@@ -70,7 +72,7 @@ export function parseManifest(manifestPath: string): {
   const required: (keyof ManifestContracts)[] = [
     "physics", "village_tick", "combat", "commands",
     "covenant_sys", "institution_sys", "invention_sys",
-    "setup", "victory",
+    "setup", "victory", "trade_sys",
   ];
   const missing = required.filter((k) => !contracts[k]);
   if (missing.length > 0) {

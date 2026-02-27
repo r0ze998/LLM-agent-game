@@ -16,6 +16,7 @@ export interface DojoConfig {
   privateKey: string;
   worldAddress: string;
   contracts: ManifestContracts;
+  toriiUrl?: string;
 }
 
 // Katana devnet default account (sozo dev seed 0)
@@ -39,6 +40,7 @@ export function loadDojoConfig(): DojoConfig {
       privateKey: "",
       worldAddress: "",
       contracts: {} as ManifestContracts,
+      toriiUrl: undefined,
     };
   }
 
@@ -64,6 +66,9 @@ export function loadDojoConfig(): DojoConfig {
     `[DojoConfig] Systems: ${Object.keys(contracts).join(", ")}`,
   );
 
+  // Torii configuration (optional)
+  const toriiUrl = process.env.TORII_URL;
+
   return {
     enabled: true,
     rpcUrl,
@@ -71,5 +76,6 @@ export function loadDojoConfig(): DojoConfig {
     privateKey,
     worldAddress,
     contracts,
+    toriiUrl,
   };
 }
