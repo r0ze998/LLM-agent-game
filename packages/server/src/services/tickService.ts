@@ -176,9 +176,9 @@ class TickService {
           console.log(`[Latency] tick=${tickNum} avg=${metrics.avg.toFixed(0)}ms p95=${metrics.p95.toFixed(0)}ms p99=${metrics.p99.toFixed(0)}ms max=${metrics.max.toFixed(0)}ms success=${(metrics.successRate * 100).toFixed(1)}%`);
         }
 
-        // F5: Run integrity check every 50 ticks
-        if (process.env.SYNC_CHECK_ENABLED === 'true' && this._dojoBridge && result.tick % 50 === 0) {
-          this._dojoBridge.runIntegrityCheck(world.villageStates4X, result.tick).catch(
+        // F5: Run sync check (interval managed by bridge)
+        if (this._dojoBridge) {
+          this._dojoBridge.maybeRunSyncCheck(world.villageStates4X, result.tick).catch(
             (err) => console.warn('[SyncChecker] background error:', err),
           );
         }

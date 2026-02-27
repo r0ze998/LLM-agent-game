@@ -31,6 +31,7 @@ import { saveMapper, restoreMapper } from "./dojoVillageMapperPersistence.ts";
 import { DojoLatencyTracker } from "./dojoLatencyTracker.ts";
 import { ToriiEventClient, type ToriiConfig } from "./toriiClient.ts";
 import { DojoSyncChecker, type DriftReport } from "./dojoSyncChecker.ts";
+import { withRetry } from "./retryUtils.ts";
 
 const LOG_PREFIX = "[DojoBridge]";
 
@@ -49,6 +50,8 @@ export class DojoBridge {
   private toriiClient: ToriiEventClient | null = null;
   private syncChecker: DojoSyncChecker | null = null;
   private externalEventHandlers: ((events: GameEvent[]) => void)[] = [];
+  private syncCheckInterval = 50;
+  private lastSyncCheckTick = 0;
 
   constructor(config: DojoConfig) {
     this.config = config;
@@ -69,6 +72,21 @@ export class DojoBridge {
 
   isEnabled(): boolean {
     return this.config.enabled;
+  }
+
+  /** TX送信 + waitForTx をリトライ付きで実行 */
+  private async submitWithRetry(
+    submit: () => Promise<string>,
+    label: string,
+  ): Promise<{ txHash: string; receipt: any }> {
+    return withRetry(
+      async () => {
+        const txHash = await submit();
+        const receipt = await this.txService.waitForTx(txHash);
+        return { txHash, receipt };
+      },
+      label,
+    );
   }
 
   // ── Initialization ──
@@ -116,18 +134,16 @@ export class DojoBridge {
         console.log(`${LOG_PREFIX} Torii client initialized (worldAddress=${this.config.worldAddress})`);
       }
 
-      // Initialize sync checker if configured
-      if (process.env.SYNC_CHECK_ENABLED === "true") {
-        this.syncChecker = new DojoSyncChecker(
-          this.stateReader,
-          this.villageMapper,
-          {
-            driftThreshold: Number(process.env.SYNC_DRIFT_THRESHOLD ?? "0.05"),
-            autoRepair: process.env.SYNC_AUTO_REPAIR === "true",
-          },
-        );
-        console.log(`${LOG_PREFIX} SyncChecker initialized`);
-      }
+      // Initialize sync checker (always active when Dojo is enabled)
+      this.syncChecker = new DojoSyncChecker(
+        this.stateReader,
+        this.villageMapper,
+        {
+          driftThreshold: Number(process.env.SYNC_DRIFT_THRESHOLD ?? "0.05"),
+          autoRepair: process.env.SYNC_AUTO_REPAIR === "true",
+        },
+      );
+      console.log(`${LOG_PREFIX} SyncChecker initialized`);
     } catch (err) {
       console.error(`${LOG_PREFIX} Initialization failed, will retry on next call:`, err);
     }
@@ -149,8 +165,10 @@ export class DojoBridge {
 
     try {
       const addr = ownerAddress ?? this.config.accountAddress;
-      const txHash = await this.txService.createVillage(addr);
-      await this.txService.waitForTx(txHash);
+      await this.submitWithRetry(
+        () => this.txService.createVillage(addr),
+        `createVillage(${uuid})`,
+      );
       console.log(
         `${LOG_PREFIX} Village created on-chain: UUID=${uuid} → u32=${u32Id}`,
       );
@@ -187,11 +205,13 @@ export class DojoBridge {
         this.stateReader.readTrainQueue(u32Id),
       ]);
 
-      // Step 2: TX送信 → レシート取得 (with latency tracking)
+      // Step 2: TX送信 → レシート取得 (with latency tracking + retry)
       const txStart = performance.now();
-      const txHash = await this.txService.submitVillageTick(u32Id);
+      const { txHash, receipt } = await this.submitWithRetry(
+        () => this.txService.submitVillageTick(u32Id),
+        `villageTick(${uuid})`,
+      );
       if (this.toriiClient) this.toriiClient.markOwnTx(txHash);
-      const receipt = await this.txService.waitForTx(txHash);
       this.latencyTracker.record(performance.now() - txStart);
 
       // Step 3: レシートからイベント解析
@@ -259,8 +279,11 @@ export class DojoBridge {
       const txHash = await this.submitCommandOnChain(cmd, u32Id);
       if (txHash) {
         const cmdStart = performance.now();
+        const { receipt } = await withRetry(
+          () => this.txService.waitForTx(txHash),
+          `command(${cmd.type})/wait`,
+        ).then((receipt) => ({ receipt }));
         if (this.toriiClient) this.toriiClient.markOwnTx(txHash);
-        const receipt = await this.txService.waitForTx(txHash);
         this.latencyTracker.record(performance.now() - cmdStart);
 
         // Parse events from command receipt
@@ -332,14 +355,16 @@ export class DojoBridge {
     if (u32Id === undefined) return null;
 
     try {
-      const txHash = await this.txService.submitCovenantProposal(
-        u32Id,
-        scope as CovenantScope,
-        targetU32,
-        name,
-        clauses,
+      const { txHash } = await this.submitWithRetry(
+        () => this.txService.submitCovenantProposal(
+          u32Id,
+          scope as CovenantScope,
+          targetU32,
+          name,
+          clauses,
+        ),
+        `proposeCovenant(${name})`,
       );
-      await this.txService.waitForTx(txHash);
       console.log(`${LOG_PREFIX} Covenant proposed on-chain: ${name}`);
       return txHash;
     } catch (err) {
@@ -361,14 +386,16 @@ export class DojoBridge {
     if (u32Id === undefined) return null;
 
     try {
-      const txHash = await this.txService.submitInvention(
-        u32Id,
-        inventionType as InventionType,
-        name,
-        totalCost,
-        effects,
+      const { txHash } = await this.submitWithRetry(
+        () => this.txService.submitInvention(
+          u32Id,
+          inventionType as InventionType,
+          name,
+          totalCost,
+          effects,
+        ),
+        `registerInvention(${name})`,
       );
-      await this.txService.waitForTx(txHash);
       console.log(`${LOG_PREFIX} Invention registered on-chain: ${name}`);
       return txHash;
     } catch (err) {
@@ -389,13 +416,15 @@ export class DojoBridge {
     if (u32Id === undefined) return null;
 
     try {
-      const txHash = await this.txService.submitInstitutionFound(
-        u32Id,
-        instType as InstitutionType,
-        name,
-        effects,
+      const { txHash } = await this.submitWithRetry(
+        () => this.txService.submitInstitutionFound(
+          u32Id,
+          instType as InstitutionType,
+          name,
+          effects,
+        ),
+        `foundInstitution(${name})`,
       );
-      await this.txService.waitForTx(txHash);
       console.log(`${LOG_PREFIX} Institution founded on-chain: ${name}`);
       return txHash;
     } catch (err) {
@@ -706,9 +735,11 @@ export class DojoBridge {
     if (routeIds.length === 0) return;
     try {
       const start = performance.now();
-      const txHash = await this.txService.submitExecuteTradeTick(routeIds);
+      const { txHash } = await this.submitWithRetry(
+        () => this.txService.submitExecuteTradeTick(routeIds),
+        `executeTradeTick(${routeIds.length})`,
+      );
       if (this.toriiClient) this.toriiClient.markOwnTx(txHash);
-      await this.txService.waitForTx(txHash);
       this.latencyTracker.record(performance.now() - start);
       console.log(`${LOG_PREFIX} Trade tick executed: ${routeIds.length} routes`);
     } catch (err) {
@@ -729,9 +760,11 @@ export class DojoBridge {
       const CHUNK_SIZE = 20;
       if (villageIds.length <= CHUNK_SIZE) {
         const start = performance.now();
-        const txHash = await this.txService.submitTickBatch(villageIds, tradeRouteIds);
+        const { txHash } = await this.submitWithRetry(
+          () => this.txService.submitTickBatch(villageIds, tradeRouteIds),
+          `batchTick(${villageIds.length})`,
+        );
         if (this.toriiClient) this.toriiClient.markOwnTx(txHash);
-        await this.txService.waitForTx(txHash);
         this.latencyTracker.record(performance.now() - start);
         return txHash;
       }
@@ -739,11 +772,13 @@ export class DojoBridge {
       // Chunked execution for large sets
       for (let i = 0; i < villageIds.length; i += CHUNK_SIZE) {
         const chunk = villageIds.slice(i, i + CHUNK_SIZE);
-        const routes = i === 0 ? tradeRouteIds : []; // Include trade routes only in first chunk
+        const routes = i === 0 ? tradeRouteIds : [];
         const start = performance.now();
-        const txHash = await this.txService.submitTickBatch(chunk, routes);
+        const { txHash } = await this.submitWithRetry(
+          () => this.txService.submitTickBatch(chunk, routes),
+          `batchTickChunk(${chunk.length})`,
+        );
         if (this.toriiClient) this.toriiClient.markOwnTx(txHash);
-        await this.txService.waitForTx(txHash);
         this.latencyTracker.record(performance.now() - start);
       }
 
@@ -775,6 +810,38 @@ export class DojoBridge {
   }
 
   // ── Sync Checker (F5) ──
+
+  /** tick間隔に応じてsyncチェックを自動実行 */
+  async maybeRunSyncCheck(
+    villageStates: Map<string, VillageState4X>,
+    tick: number,
+  ): Promise<DriftReport[] | null> {
+    if (!this.syncChecker) return null;
+    if (tick - this.lastSyncCheckTick < this.syncCheckInterval) return null;
+    this.lastSyncCheckTick = tick;
+    return this.syncChecker.runCheck(villageStates, tick);
+  }
+
+  /** ブリッジの現在の状態サマリ */
+  getBridgeStatus(): {
+    initialized: boolean;
+    enabled: boolean;
+    villageCount: number;
+    syncCheckerActive: boolean;
+    lastSyncCheckTick: number;
+    latencyMetrics: ReturnType<DojoLatencyTracker["getMetrics"]>;
+    syncReports: DriftReport[];
+  } {
+    return {
+      initialized: this._initialized,
+      enabled: this.config.enabled,
+      villageCount: this.villageMapper.size,
+      syncCheckerActive: this.syncChecker !== null,
+      lastSyncCheckTick: this.lastSyncCheckTick,
+      latencyMetrics: this.latencyTracker.getMetrics(),
+      syncReports: this.syncChecker?.getReports() ?? [],
+    };
+  }
 
   /** 整合性チェックを実行 */
   async runIntegrityCheck(

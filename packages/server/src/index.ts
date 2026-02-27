@@ -84,19 +84,20 @@ console.log(`🏘️  村里 server running on http://localhost:${server.port}`)
 // --- Dojo on-chain bridge initialization ---
 
 const dojoConfig = loadDojoConfig();
+let dojoBridge: DojoBridge | null = null;
+
 if (dojoConfig.enabled) {
-  const dojoBridge = new DojoBridge(dojoConfig);
+  dojoBridge = new DojoBridge(dojoConfig);
   tickService.setDojoBridge(dojoBridge);
   dojoBridge.initialize().then(async () => {
     console.log('⛓️  Dojo bridge initialized and ready');
 
     // fullSync: 既存村のオンチェーン状態を同期
-    const mapperEntries = dojoBridge.getVillageMapperEntries();
+    const mapperEntries = dojoBridge!.getVillageMapperEntries();
     if (mapperEntries.length > 0) {
       console.log(`⛓️  Found ${mapperEntries.length} persisted village mappings, running fullSync...`);
-      // Collect all active village states from running games
       for (const [gameId, world] of tickService.getAllWorlds()) {
-        await dojoBridge.fullSync(world.villageStates4X);
+        await dojoBridge!.fullSync(world.villageStates4X);
       }
       console.log('⛓️  fullSync completed');
     }
@@ -106,6 +107,29 @@ if (dojoConfig.enabled) {
 } else {
   console.log('⛓️  Dojo bridge disabled (set DOJO_ENABLED=true to enable)');
 }
+
+// Dojo health endpoint
+app.get('/health/dojo', (c) => {
+  if (!dojoBridge) return c.json({ status: 'disabled' });
+  const s = dojoBridge.getBridgeStatus();
+  const m = s.latencyMetrics;
+  return c.json({
+    status: s.initialized ? 'ok' : 'initializing',
+    villageCount: s.villageCount,
+    syncChecker: {
+      active: s.syncCheckerActive,
+      lastCheckTick: s.lastSyncCheckTick,
+    },
+    latency: {
+      avg: m.avg,
+      p95: m.p95,
+      p99: m.p99,
+      max: m.max,
+      successRate: m.successRate,
+    },
+    recentSyncReports: s.syncReports.slice(-10),
+  });
+});
 
 // --- Headless auto-start ---
 
