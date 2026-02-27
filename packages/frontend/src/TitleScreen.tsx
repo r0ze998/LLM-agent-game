@@ -3,21 +3,293 @@ import { useGameStore } from './store/gameStore.ts';
 import { useUIStore } from './store/uiStore.ts';
 import { api } from './services/api.ts';
 import {
-  titleContainerStyle,
-  titleStyle,
-  subtitleStyle,
-  primaryButtonStyle,
-  secondaryButtonStyle,
-  labelStyle,
-  inputStyle,
-  textareaStyle,
-  backLinkStyle,
+  createTitleScene,
+  updateTitleScene,
+  renderTitleScene,
+} from './components/world/TitleBackground.ts';
+import type { TitleScene } from './components/world/TitleBackground.ts';
+import {
+  titleScreenContainerStyle,
+  backgroundCanvasStyle,
+  contentOverlayStyle,
+  glassCardStyle,
+  glassInputStyle,
+  glassTextareaStyle,
+  primaryButtonGlassStyle,
+  secondaryButtonGlassStyle,
+  stepHeadingStyle,
+  stepDescStyle,
+  buttonRowStyle,
+  wizardBackButtonStyle,
+  nextButtonStyle,
+  confirmButtonStyle,
+  previewFieldStyle,
+  previewLabelStyle,
+  previewValueStyle,
+  previewSoulStyle,
+  errorStyle,
 } from './styles/appStyles.ts';
 
-type TitlePhase = 'title' | 'create-agent';
+type WizardStep = 0 | 1 | 2 | 3;
+
+// ---- Sub-components ----
+
+function TitleHeader({ shrink }: { shrink: boolean }) {
+  return (
+    <div style={{ textAlign: 'center', marginBottom: shrink ? 20 : 32, transition: 'margin 0.3s' }}>
+      <h1
+        style={{
+          fontSize: shrink ? 28 : 56,
+          color: '#7ab8ff',
+          animation: 'titleGlow 4s ease-in-out infinite',
+          transition: 'font-size 0.3s',
+          margin: 0,
+          lineHeight: 1.2,
+        }}
+      >
+        村里
+      </h1>
+      <p
+        style={{
+          color: '#7a9ec7',
+          fontSize: shrink ? 11 : 14,
+          marginTop: shrink ? 4 : 8,
+          transition: 'all 0.3s',
+          opacity: shrink ? 0.7 : 1,
+        }}
+      >
+        AI自己繁殖JRPGビレッジビルダー
+      </p>
+    </div>
+  );
+}
+
+function StepIndicator({ current }: { current: 1 | 2 | 3 }) {
+  return (
+    <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 24 }}>
+      {([1, 2, 3] as const).map((s) => (
+        <div
+          key={s}
+          style={{
+            width: s === current ? 24 : 8,
+            height: 8,
+            borderRadius: 4,
+            background: s === current ? '#7ab8ff' : s < current ? '#4a6fa5' : 'rgba(122,184,255,0.15)',
+            transition: 'all 0.3s',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function MainMenu({
+  onStart,
+  onObserve,
+  loading,
+}: {
+  onStart: () => void;
+  onObserve: () => void;
+  loading: boolean;
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center' }}>
+      <button onClick={onStart} disabled={loading} style={primaryButtonGlassStyle}>
+        始める
+      </button>
+      <button onClick={onObserve} disabled={loading} style={secondaryButtonGlassStyle}>
+        {loading ? '世界を創造中...' : '観察する'}
+      </button>
+    </div>
+  );
+}
+
+function NameStep({
+  agentName,
+  setAgentName,
+  onNext,
+  onBack,
+}: {
+  agentName: string;
+  setAgentName: (v: string) => void;
+  onNext: () => void;
+  onBack: () => void;
+}) {
+  return (
+    <div>
+      <h2 style={stepHeadingStyle}>名前を決める</h2>
+      <p style={stepDescStyle}>
+        あなたの分身となるエージェントの名前を入力してください。
+        <br />
+        空欄にするとAIが自動で名付けます。
+      </p>
+      <input
+        value={agentName}
+        onChange={(e) => setAgentName(e.target.value)}
+        placeholder="例: タロウ"
+        style={glassInputStyle}
+        autoFocus
+        onKeyDown={(e) => { if (e.key === 'Enter') onNext(); }}
+      />
+      <div style={buttonRowStyle}>
+        <button onClick={onBack} style={wizardBackButtonStyle}>← 戻る</button>
+        <button onClick={onNext} style={nextButtonStyle}>次へ</button>
+      </div>
+    </div>
+  );
+}
+
+function SoulStep({
+  soul,
+  setSoul,
+  onNext,
+  onBack,
+}: {
+  soul: string;
+  setSoul: (v: string) => void;
+  onNext: () => void;
+  onBack: () => void;
+}) {
+  const canProceed = soul.trim().length >= 10;
+  return (
+    <div>
+      <h2 style={stepHeadingStyle}>魂を描く</h2>
+      <p style={stepDescStyle}>
+        エージェントの性格や価値観を自由に描写してください。
+        <br />
+        この文章がAIの行動指針となります。
+      </p>
+      <textarea
+        value={soul}
+        onChange={(e) => setSoul(e.target.value)}
+        placeholder="穏やかな農夫で、土地と季節のリズムを深く敬う。争いを嫌い、常に対話で解決しようとする。"
+        rows={5}
+        style={glassTextareaStyle}
+        autoFocus
+      />
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+        <span style={{ fontSize: 11, color: canProceed ? '#5a8a5a' : '#7a5a5a' }}>
+          {soul.trim().length}/10
+        </span>
+        {!canProceed && soul.trim().length > 0 && (
+          <span style={{ fontSize: 11, color: '#a07070' }}>10文字以上必要です</span>
+        )}
+      </div>
+      <div style={buttonRowStyle}>
+        <button onClick={onBack} style={wizardBackButtonStyle}>← 戻る</button>
+        <button
+          onClick={onNext}
+          disabled={!canProceed}
+          style={{
+            ...nextButtonStyle,
+            opacity: canProceed ? 1 : 0.4,
+            cursor: canProceed ? 'pointer' : 'not-allowed',
+          }}
+        >
+          次へ
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PreviewStep({
+  agentName,
+  soul,
+  loading,
+  error,
+  onConfirm,
+  onBack,
+}: {
+  agentName: string;
+  soul: string;
+  loading: boolean;
+  error: string | null;
+  onConfirm: () => void;
+  onBack: () => void;
+}) {
+  return (
+    <div>
+      <h2 style={stepHeadingStyle}>確認</h2>
+      <p style={stepDescStyle}>以下の内容で世界に降り立ちます。</p>
+
+      <div style={previewFieldStyle}>
+        <div style={previewLabelStyle}>名前</div>
+        <div style={previewValueStyle}>{agentName.trim() || '（AIが命名）'}</div>
+      </div>
+
+      <div style={previewFieldStyle}>
+        <div style={previewLabelStyle}>魂の描写</div>
+        <div style={previewSoulStyle}>{soul.trim()}</div>
+      </div>
+
+      {error && <div style={errorStyle}>{error}</div>}
+
+      <button
+        onClick={onConfirm}
+        disabled={loading}
+        style={{
+          ...confirmButtonStyle,
+          opacity: loading ? 0.7 : 1,
+          cursor: loading ? 'wait' : 'pointer',
+        }}
+      >
+        {loading ? <LoadingIndicator text="世界を創造中" /> : '世界に降り立つ'}
+      </button>
+
+      <div style={{ marginTop: 12, textAlign: 'center' }}>
+        <button onClick={onBack} disabled={loading} style={wizardBackButtonStyle}>← 戻る</button>
+      </div>
+    </div>
+  );
+}
+
+function LoadingIndicator({ text }: { text: string }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+      {text}
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          style={{
+            display: 'inline-block',
+            width: 4,
+            height: 4,
+            borderRadius: '50%',
+            background: '#fff',
+            animation: `dotBounce 1.2s ease-in-out ${i * 0.15}s infinite`,
+          }}
+        />
+      ))}
+    </span>
+  );
+}
+
+function AutoJoinIndicator() {
+  return (
+    <div style={contentOverlayStyle}>
+      <h1
+        style={{
+          fontSize: 56,
+          color: '#7ab8ff',
+          animation: 'titleGlow 4s ease-in-out infinite',
+          margin: 0,
+        }}
+      >
+        村里
+      </h1>
+      <p style={{ color: '#7a9ec7', fontSize: 14, marginTop: 16 }}>
+        <LoadingIndicator text="接続中" />
+      </p>
+    </div>
+  );
+}
+
+// ---- Main Component ----
 
 export function TitleScreen() {
-  const [phase, setPhase] = useState<TitlePhase>('title');
+  const [step, setStep] = useState<WizardStep>(0);
+  const [direction, setDirection] = useState<'forward' | 'back'>('forward');
   const [loading, setLoading] = useState(false);
   const [autoJoining, setAutoJoining] = useState(false);
   const [soul, setSoul] = useState('');
@@ -25,10 +297,47 @@ export function TitleScreen() {
   const [error, setError] = useState<string | null>(null);
   const autoJoinAttempted = useRef(false);
 
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const sceneRef = useRef<TitleScene | null>(null);
+
   const setGame = useGameStore((s) => s.setGame);
   const setGameMode = useUIStore((s) => s.setGameMode);
   const selectAgent = useUIStore((s) => s.selectAgent);
   const followAgent = useUIStore((s) => s.followAgent);
+
+  // Canvas background animation
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const scene = createTitleScene();
+    sceneRef.current = scene;
+    let lastTime = performance.now();
+    let rafId: number;
+
+    function resize() {
+      canvas!.width = window.innerWidth;
+      canvas!.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    function loop(now: number) {
+      const delta = Math.min(now - lastTime, 50); // cap to avoid jumps
+      lastTime = now;
+      updateTitleScene(scene, delta);
+      renderTitleScene(ctx!, scene, canvas!.width, canvas!.height);
+      rafId = requestAnimationFrame(loop);
+    }
+    rafId = requestAnimationFrame(loop);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', resize);
+    };
+  }, []);
 
   // Auto-join a running headless game if one exists
   useEffect(() => {
@@ -38,7 +347,7 @@ export function TitleScreen() {
     (async () => {
       try {
         const games = await api.listActiveGames();
-        const running = games.find(g => g.running);
+        const running = games.find((g) => g.running);
         if (running) {
           setAutoJoining(true);
           const gameState = await api.getGame(running.gameId);
@@ -51,6 +360,18 @@ export function TitleScreen() {
       }
     })();
   }, [setGame, setGameMode]);
+
+  const goForward = useCallback((to: WizardStep) => {
+    setDirection('forward');
+    setStep(to);
+    setError(null);
+  }, []);
+
+  const goBack = useCallback((to: WizardStep) => {
+    setDirection('back');
+    setStep(to);
+    setError(null);
+  }, []);
 
   const handleStartPlayer = useCallback(async () => {
     if (soul.trim().length < 10) {
@@ -90,97 +411,73 @@ export function TitleScreen() {
     setLoading(false);
   }, [setGame, setGameMode]);
 
-  // Auto-join connecting indicator
+  const animationName = direction === 'forward' ? 'wizardSlideInRight' : 'wizardSlideInLeft';
+
+  // Render the current step content
+  let stepContent: React.ReactNode;
   if (autoJoining) {
-    return (
-      <div style={titleContainerStyle}>
-        <h1 style={titleStyle}>村里</h1>
-        <p style={{ color: '#7a9ec7', fontSize: 14 }}>接続中...</p>
-      </div>
+    stepContent = <AutoJoinIndicator />;
+  } else if (step === 0) {
+    stepContent = (
+      <MainMenu
+        onStart={() => goForward(1)}
+        onObserve={handleStartObserver}
+        loading={loading}
+      />
+    );
+  } else if (step === 1) {
+    stepContent = (
+      <NameStep
+        agentName={agentName}
+        setAgentName={setAgentName}
+        onNext={() => goForward(2)}
+        onBack={() => goBack(0)}
+      />
+    );
+  } else if (step === 2) {
+    stepContent = (
+      <SoulStep
+        soul={soul}
+        setSoul={setSoul}
+        onNext={() => goForward(3)}
+        onBack={() => goBack(1)}
+      />
+    );
+  } else {
+    stepContent = (
+      <PreviewStep
+        agentName={agentName}
+        soul={soul}
+        loading={loading}
+        error={error}
+        onConfirm={handleStartPlayer}
+        onBack={() => goBack(2)}
+      />
     );
   }
 
-  if (phase === 'create-agent') {
-    return (
-      <div style={titleContainerStyle}>
-        <h1 style={titleStyle}>村里</h1>
-        <p style={subtitleStyle}>AI自己繁殖JRPGビレッジビルダー</p>
-
-        <div style={{
-          width: 'min(400px, 85vw)',
-          background: 'rgba(30, 20, 50, 0.6)',
-          border: '1px solid #5a3d7a',
-          borderRadius: 8,
-          padding: 24,
-        }}>
-          <label style={labelStyle}>名前 (省略時はAIが生成)</label>
-          <input
-            value={agentName}
-            onChange={(e) => setAgentName(e.target.value)}
-            placeholder="例: タロウ"
-            style={inputStyle}
-          />
-
-          <label style={labelStyle}>魂の描写 (10文字以上)</label>
-          <textarea
-            value={soul}
-            onChange={(e) => setSoul(e.target.value)}
-            placeholder="穏やかな農夫で、土地と季節のリズムを深く敬う。争いを嫌い、常に対話で解決しようとする。"
-            rows={5}
-            style={textareaStyle}
-          />
-
-          {error && (
-            <div style={{ color: '#f66', fontSize: 12, marginBottom: 12 }}>
-              {error}
-            </div>
-          )}
-
-          <button
-            onClick={handleStartPlayer}
-            disabled={loading}
-            style={{
-              ...primaryButtonStyle,
-              cursor: loading ? 'wait' : 'pointer',
-              opacity: loading ? 0.7 : 1,
-              width: '100%',
-              marginBottom: 12,
-            }}
-          >
-            {loading ? '世界を創造中...' : '世界に降り立つ'}
-          </button>
-
-          <button
-            onClick={() => { setPhase('title'); setError(null); }}
-            style={backLinkStyle}
-          >
-            ← 戻る
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // phase === 'title'
   return (
-    <div style={titleContainerStyle}>
-      <h1 style={titleStyle}>村里</h1>
-      <p style={subtitleStyle}>AI自己繁殖JRPGビレッジビルダー</p>
-      <div style={{ display: 'flex', gap: 16 }}>
-        <button
-          onClick={() => setPhase('create-agent')}
-          disabled={loading}
-          style={primaryButtonStyle}
+    <div style={titleScreenContainerStyle}>
+      <canvas ref={canvasRef} style={backgroundCanvasStyle} />
+      <div style={contentOverlayStyle}>
+        <TitleHeader shrink={step > 0} />
+
+        {step > 0 && !autoJoining && (
+          <StepIndicator current={step as 1 | 2 | 3} />
+        )}
+
+        <div
+          key={step}
+          style={{
+            animation: `${animationName} 0.3s ease-out`,
+          }}
         >
-          始める
-        </button>
-        <button
-          onClick={handleStartObserver}
-          disabled={loading}
-          style={secondaryButtonStyle}
-        >
-          {loading ? '世界を創造中...' : '観察する'}
-        </button>
+          {step > 0 && !autoJoining ? (
+            <div style={glassCardStyle}>{stepContent}</div>
+          ) : (
+            stepContent
+          )}
+        </div>
       </div>
     </div>
   );
