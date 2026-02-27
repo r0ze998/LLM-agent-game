@@ -9,12 +9,24 @@ import { drawTilePattern } from './TileRenderer.ts';
 import { createAgentSpriteData, updateAgentSpriteData, drawAgent, type AgentSpriteData } from './AgentSprite.ts';
 import { drawBuildingFromId } from './BuildingSprite.ts';
 import { applyTimeOverlay } from './WeatherEffects.ts';
+import { buildTerritoryLookup, buildColorMap, drawTerritoryOverlay, type TerritoryLookup } from './TerritoryRenderer.ts';
+import { drawArmy } from './ArmySprite.ts';
+
+interface BattleEffect {
+  x: number;
+  y: number;
+  startTick: number;
+  attackerWon: boolean;
+}
 
 export function WorldCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const agentSprites = useRef<Map<string, AgentSpriteData>>(new Map());
   const animFrameRef = useRef<number>(0);
   const prevChunks = useRef<string[]>([]);
+  const territoryLookupRef = useRef<TerritoryLookup>(new Map());
+  const territoryColorMapRef = useRef<Map<string, string>>(new Map());
+  const battleEffectsRef = useRef<BattleEffect[]>([]);
 
   const { viewport, pan, handlers, getVisibleChunks, centerOn } = useViewport();
   const chunks = useGameStore((s) => s.chunks);
@@ -22,8 +34,33 @@ export function WorldCanvas() {
   const game = useGameStore((s) => s.game);
   const selectedAgentId = useUIStore((s) => s.selectedAgentId);
   const selectAgent = useUIStore((s) => s.selectAgent);
+  const selectVillage = useUIStore((s) => s.selectVillage);
+  const setViewportUI = useUIStore((s) => s.setViewport);
+  const villages = useGameStore((s) => s.villages);
+  const village4xStates = useGameStore((s) => s.village4xStates);
+
+  const lastBattleResult = useGameStore((s) => s.lastBattleResult);
 
   useAgentFocus(centerOn);
+
+  // Rebuild territory lookup when village4xStates change
+  const village4xVersionRef = useRef(0);
+  useEffect(() => {
+    village4xVersionRef.current++;
+    territoryLookupRef.current = buildTerritoryLookup(village4xStates);
+    territoryColorMapRef.current = buildColorMap(village4xStates);
+  }, [village4xStates]);
+
+  // Add battle effects when new battle results arrive
+  useEffect(() => {
+    if (!lastBattleResult) return;
+    battleEffectsRef.current.push({
+      x: lastBattleResult.position.x,
+      y: lastBattleResult.position.y,
+      startTick: Date.now(),
+      attackerWon: lastBattleResult.attackerWon,
+    });
+  }, [lastBattleResult]);
 
   // Center on first agent when they arrive
   const hasCentered = useRef(false);
@@ -60,7 +97,8 @@ export function WorldCanvas() {
 
   useEffect(() => {
     subscribeVisibleChunksRef.current();
-  }, [viewport, getVisibleChunks]);
+    setViewportUI(viewport);
+  }, [viewport, getVisibleChunks, setViewportUI]);
 
   // Re-subscribe when WS reconnects
   useEffect(() => {
@@ -115,8 +153,19 @@ export function WorldCanvas() {
         return;
       }
     }
+
+    // Find village territory at this tile
+    for (const [id, state4x] of village4xStates) {
+      const territory = state4x.territory;
+      if (territory.some((t) => t.x === tileX && t.y === tileY)) {
+        selectVillage(id);
+        selectAgent(null);
+        return;
+      }
+    }
+
     selectAgent(null);
-  }, [viewport, agents, selectAgent]);
+  }, [viewport, agents, selectAgent, village4xStates, selectVillage]);
 
   // Render loop
   useEffect(() => {
@@ -180,6 +229,13 @@ export function WorldCanvas() {
         }
       }
 
+      // F14: Territory overlay (between tiles and agents)
+      drawTerritoryOverlay(
+        ctx, territoryLookupRef.current, territoryColorMapRef.current,
+        startTileX, endTileX, startTileY, endTileY,
+        camX, camY, halfW, halfH, zoom,
+      );
+
       // Update agent sprite interpolation every frame for smooth movement
       for (const [id, sprite] of agentSprites.current) {
         const agent = agentsRef.current.get(id);
@@ -200,6 +256,48 @@ export function WorldCanvas() {
         drawAgent(ctx, sprite, camX - halfW / zoom, camY - halfH / zoom, zoom, sprite.id === selectedAgentId);
       }
 
+      // F15: Army rendering
+      const currentTick = game?.tick ?? 0;
+      for (const vs of village4xStates.values()) {
+        const color = territoryColorMapRef.current.get(vs.villageId) ?? '#888';
+        for (const army of vs.armies) {
+          const armyWorldX = army.position.x * TILE_SIZE + TILE_SIZE / 2;
+          const armyWorldY = army.position.y * TILE_SIZE + TILE_SIZE / 2;
+          const armyScreenX = halfW + (armyWorldX - camX) * zoom;
+          const armyScreenY = halfH + (armyWorldY - camY) * zoom;
+          // Cull off-screen
+          if (armyScreenX < -80 || armyScreenX > width + 80 || armyScreenY < -80 || armyScreenY > height + 80) continue;
+          drawArmy(ctx, army, color, camX, camY, halfW, halfH, zoom, currentTick);
+        }
+      }
+
+      // F16: Battle effects (3-second radial pulse)
+      const now = Date.now();
+      battleEffectsRef.current = battleEffectsRef.current.filter((eff) => now - eff.startTick < 3000);
+      for (const eff of battleEffectsRef.current) {
+        const elapsed = (now - eff.startTick) / 3000; // 0..1
+        const alpha = 1 - elapsed;
+        const radius = (20 + elapsed * 40) * zoom;
+        const effScreenX = halfW + (eff.x * TILE_SIZE + TILE_SIZE / 2 - camX) * zoom;
+        const effScreenY = halfH + (eff.y * TILE_SIZE + TILE_SIZE / 2 - camY) * zoom;
+
+        ctx.beginPath();
+        ctx.arc(effScreenX, effScreenY, radius, 0, Math.PI * 2);
+        ctx.strokeStyle = eff.attackerWon
+          ? `rgba(255, 215, 0, ${alpha * 0.7})`
+          : `rgba(255, 60, 60, ${alpha * 0.7})`;
+        ctx.lineWidth = 3 * zoom;
+        ctx.stroke();
+
+        // Inner glow
+        ctx.beginPath();
+        ctx.arc(effScreenX, effScreenY, radius * 0.5, 0, Math.PI * 2);
+        ctx.fillStyle = eff.attackerWon
+          ? `rgba(255, 215, 0, ${alpha * 0.15})`
+          : `rgba(255, 60, 60, ${alpha * 0.15})`;
+        ctx.fill();
+      }
+
       // Time overlay
       if (game) {
         applyTimeOverlay(ctx, width, height, game.tick);
@@ -212,7 +310,7 @@ export function WorldCanvas() {
 
     animFrameRef.current = requestAnimationFrame(render);
     return () => cancelAnimationFrame(animFrameRef.current);
-  }, [viewport, chunks, selectedAgentId, game]);
+  }, [viewport, chunks, selectedAgentId, game, village4xStates]);
 
   // Resize canvas
   useEffect(() => {

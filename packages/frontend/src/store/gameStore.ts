@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { AgentState, Chunk, GameEvent, GameState, Village, DialogueLine, WorldStats, VillageState4XSerialized, CombatResult, VictoryEvent } from '@murasato/shared';
+import type { AgentState, Chunk, GameEvent, GameState, Village, DialogueLine, WorldStats, VillageState4XSerialized, CombatResult, VictoryEvent, DiplomaticRelation, Relationship, Covenant, Invention, Institution } from '@murasato/shared';
 
 interface GameStore {
   // State
@@ -13,6 +13,11 @@ interface GameStore {
   stats: WorldStats | null;
   lastBattleResult: CombatResult | null;
   victoryEvent: VictoryEvent | null;
+  diplomaticRelations: DiplomaticRelation[];
+  agentRelationships: Map<string, Relationship[]>;
+  covenants: Covenant[];
+  inventions: Invention[];
+  institutions: Institution[];
 
   // Actions
   setGame: (game: GameState) => void;
@@ -28,6 +33,9 @@ interface GameStore {
   addDialogue: (dialogue: { agentId: string; targetId: string; lines: DialogueLine[] }) => void;
   shiftDialogue: () => void;
   setStats: (stats: WorldStats) => void;
+  setDiplomaticRelations: (relations: DiplomaticRelation[]) => void;
+  setAgentRelationships: (data: { agentId: string; relations: Relationship[] }[]) => void;
+  setAutonomousWorld: (data: { covenants: Covenant[]; inventions: Invention[]; institutions: Institution[] }) => void;
   reset: () => void;
 }
 
@@ -42,6 +50,11 @@ const initialState = {
   stats: null as WorldStats | null,
   lastBattleResult: null as CombatResult | null,
   victoryEvent: null as VictoryEvent | null,
+  diplomaticRelations: [] as DiplomaticRelation[],
+  agentRelationships: new Map<string, Relationship[]>(),
+  covenants: [] as Covenant[],
+  inventions: [] as Invention[],
+  institutions: [] as Institution[],
 };
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -108,10 +121,27 @@ export const useGameStore = create<GameStore>((set) => ({
 
   setStats: (stats) => set({ stats }),
 
+  setDiplomaticRelations: (relations) => set({ diplomaticRelations: relations }),
+
+  setAgentRelationships: (data) =>
+    set(() => {
+      const map = new Map<string, Relationship[]>();
+      for (const entry of data) map.set(entry.agentId, entry.relations);
+      return { agentRelationships: map };
+    }),
+
+  setAutonomousWorld: (data) => set({
+    covenants: data.covenants,
+    inventions: data.inventions,
+    institutions: data.institutions,
+  }),
+
   reset: () => set({
     ...initialState,
     agents: new Map(), chunks: new Map(), villages: new Map(),
     village4xStates: new Map(), events: [], dialogueQueue: [],
     lastBattleResult: null, victoryEvent: null,
+    diplomaticRelations: [], agentRelationships: new Map(),
+    covenants: [], inventions: [], institutions: [],
   }),
 }));

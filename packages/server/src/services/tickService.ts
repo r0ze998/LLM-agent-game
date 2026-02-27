@@ -135,10 +135,39 @@ class TickService {
           }
         }
 
-        // Broadcast stats every 10 ticks
+        // Broadcast stats + diplomacy + relationships every 10 ticks
         if (result.tick % 10 === 0) {
           const stats = computeWorldStats(world);
           wsManager.broadcastToGame(gameId, { type: 'stats_update', stats });
+
+          // Diplomacy relations
+          const allRelations = world.diplomacy.getAllRelations();
+          wsManager.broadcastToGame(gameId, {
+            type: 'diplomacy_update',
+            relations: allRelations,
+          } as any);
+
+          // Agent relationships
+          const relationshipsData: { agentId: string; relations: any[] }[] = [];
+          for (const [agentId, relations] of world.relationships) {
+            relationshipsData.push({ agentId, relations });
+          }
+          wsManager.broadcastToGame(gameId, {
+            type: 'relationships_update',
+            relationships: relationshipsData,
+          } as any);
+
+          // F19: Autonomous world data (covenants, inventions, institutions)
+          const aw = world.autonomousWorld;
+          const covenants = [...aw.covenants.values()].filter((c) => c.relevance > 0.1);
+          const inventions = [...aw.inventions.values()].filter((i) => i.relevance > 0.1);
+          const institutions = [...aw.institutions.values()].filter((i) => i.relevance > 0.1);
+          wsManager.broadcastToGame(gameId, {
+            type: 'autonomous_world_update',
+            covenants,
+            inventions,
+            institutions,
+          } as any);
         }
 
         // F9: Log latency metrics every 100 ticks

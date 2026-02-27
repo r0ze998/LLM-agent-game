@@ -1,5 +1,5 @@
 import type { PlayerCommand, CommandResult } from './commands.ts';
-import type { CombatResult, VictoryEvent, VillageState4XSerialized } from './types4x.ts';
+import type { CombatResult, VictoryEvent, VillageState4XSerialized, Covenant, Invention, Institution } from './types4x.ts';
 
 // === Geometry ===
 
@@ -263,7 +263,10 @@ export type WSServerMessage =
   | { type: 'battle_result'; result: CombatResult }
   | { type: 'tech_researched'; villageId: string; techId: string }
   | { type: 'victory'; event: VictoryEvent }
-  | { type: 'village_4x_update'; state: VillageState4XSerialized };
+  | { type: 'village_4x_update'; state: VillageState4XSerialized }
+  | { type: 'diplomacy_update'; relations: DiplomaticRelation[] }
+  | { type: 'relationships_update'; relationships: { agentId: string; relations: Relationship[] }[] }
+  | { type: 'autonomous_world_update'; covenants: Covenant[]; inventions: Invention[]; institutions: Institution[] };
 
 export interface DialogueLine {
   speakerId: string;

@@ -14,6 +14,15 @@ import { Minimap } from './components/ui/Minimap.tsx';
 import { DashboardPanel } from './components/ui/DashboardPanel.tsx';
 import { AgentDeployer } from './components/ui/AgentDeployer.tsx';
 import { DemoOverlay } from './components/ui/DemoOverlay.tsx';
+import { StrategyPanel } from './components/ui/StrategyPanel.tsx';
+import { TechTreeViewer } from './components/ui/TechTreeViewer.tsx';
+import { DiplomacyOverlay } from './components/ui/DiplomacyOverlay.tsx';
+import { SocialNetworkGraph } from './components/ui/SocialNetworkGraph.tsx';
+import { NotificationToasts } from './components/ui/NotificationToasts.tsx';
+import { BattleReportPopup } from './components/ui/BattleReportPopup.tsx';
+import { VictoryPanel } from './components/ui/VictoryPanel.tsx';
+import { VictoryAnnouncement } from './components/ui/VictoryAnnouncement.tsx';
+import { AutonomousWorldPanel } from './components/ui/AutonomousWorldPanel.tsx';
 import { TICKS_PER_DAY, TICKS_PER_YEAR } from '@murasato/shared';
 
 type TitlePhase = 'title' | 'create-agent';
@@ -38,6 +47,12 @@ export default function App() {
   const toggleTimeline = useUIStore((s) => s.toggleTimeline);
   const toggleDashboard = useUIStore((s) => s.toggleDashboard);
   const toggleDeployer = useUIStore((s) => s.toggleAgentDeployer);
+  const toggleStrategy = useUIStore((s) => s.toggleStrategy);
+  const toggleTechTree = useUIStore((s) => s.toggleTechTree);
+  const toggleDiplomacy = useUIStore((s) => s.toggleDiplomacy);
+  const toggleSocialGraph = useUIStore((s) => s.toggleSocialGraph);
+  const toggleVictory = useUIStore((s) => s.toggleVictory);
+  const toggleAutonomousWorld = useUIStore((s) => s.toggleAutonomousWorld);
 
   useWorldState(game?.id ?? null);
 
@@ -243,6 +258,12 @@ export default function App() {
               <HeaderButton onClick={toggleIntention}>天の声</HeaderButton>
             </>
           )}
+          <HeaderButton onClick={toggleStrategy}>戦略</HeaderButton>
+          <HeaderButton onClick={toggleTechTree}>技術</HeaderButton>
+          <HeaderButton onClick={toggleDiplomacy}>外交</HeaderButton>
+          <HeaderButton onClick={toggleSocialGraph}>社会</HeaderButton>
+          <HeaderButton onClick={toggleVictory}>勝利</HeaderButton>
+          <HeaderButton onClick={toggleAutonomousWorld}>自治</HeaderButton>
           <HeaderButton onClick={toggleTimeline}>年代記</HeaderButton>
           <HeaderButton onClick={toggleDashboard}>統計</HeaderButton>
         </div>
@@ -259,6 +280,15 @@ export default function App() {
       <AgentDeployer />
       <SpeedControl />
       <DemoOverlay />
+      <StrategyPanel />
+      <TechTreeViewer />
+      <DiplomacyOverlay />
+      <SocialNetworkGraph />
+      <NotificationToasts />
+      <BattleReportPopup />
+      <VictoryPanel />
+      <VictoryAnnouncement />
+      <AutonomousWorldPanel />
     </div>
   );
 }
