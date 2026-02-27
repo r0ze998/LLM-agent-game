@@ -151,6 +151,7 @@ export function generateMap(seed: number, size: number = MAP_SIZE): WorldMap {
         fertility: terrainFertility(terrain, moisture),
         resources: terrainResources(terrain),
         structureId: null,
+        degradation: 0,
       };
     }
   }
@@ -173,7 +174,7 @@ export function getChunk(map: WorldMap, cx: number, cy: number): Chunk {
       if (x < map.size && y < map.size) {
         chunkTiles[dy][dx] = map.tiles[y][x];
       } else {
-        chunkTiles[dy][dx] = { terrain: 'water', elevation: 0, fertility: 0, resources: {}, structureId: null };
+        chunkTiles[dy][dx] = { terrain: 'water', elevation: 0, fertility: 0, resources: {}, structureId: null, degradation: 0 };
       }
     }
   }

@@ -106,6 +106,7 @@ export interface Tile {
   fertility: number;
   resources: Partial<Record<ResourceType, number>>;
   structureId: string | null;
+  degradation: number;          // 0-1, environmental degradation (F3a)
 }
 
 export interface Structure {
@@ -150,6 +151,14 @@ export interface GovernanceSystem {
   lastElectionTick: number | null;
 }
 
+export interface ReligionState {
+  name: string;
+  deities: string[];
+  beliefs: string[];
+  rituals: string[];
+  orthodoxy: number;            // 0-100
+}
+
 export interface CultureState {
   traditions: string[];
   stories: string[];
@@ -157,6 +166,7 @@ export interface CultureState {
   namingStyle: string;
   greetingStyle: string;
   architectureStyle: string;
+  religion?: ReligionState;     // F8: Village religion
 }
 
 // === Diplomacy ===
@@ -229,7 +239,23 @@ export type GameEventType =
   | 'birth' | 'death' | 'founding' | 'election'
   | 'war' | 'peace' | 'discovery' | 'construction'
   | 'conversation' | 'reproduction' | 'migration'
-  | 'trade' | 'alliance' | 'diplomacy';
+  | 'trade' | 'alliance' | 'diplomacy'
+  | 'disaster';                 // F4: Natural disasters
+
+// === Information Propagation (F9) ===
+
+export type InformationType = 'disaster_warning' | 'resource_location' | 'village_condition' | 'war_status' | 'rumor';
+
+export interface InformationPiece {
+  id: string;
+  type: InformationType;
+  content: string;
+  reliability: number;          // 0-1, degrades with each hop
+  hopCount: number;
+  knownByAgentIds: string[];
+  originTick: number;
+  originVillageId?: string;
+}
 
 export interface GameEvent {
   id: string;
@@ -298,6 +324,7 @@ export interface ConversationResult {
   dialogue: DialogueLine[];
   sentimentChange: Record<string, number>;
   newMemories: { agentId: string; content: string; importance: number }[];
+  informationExchange?: string[];  // F9: Information pieces shared during conversation
 }
 
 export interface ReflectionResult {

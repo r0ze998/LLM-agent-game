@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { DAILY_PLAN_MODEL, SOCIAL_MODEL, IMPORTANT_MODEL, LLM_MAX_RETRIES } from '@murasato/shared';
+import { DAILY_PLAN_MODEL, SOCIAL_MODEL, IMPORTANT_MODEL, LLM_MAX_RETRIES, LLM_BUDGET_PER_HOUR_USD } from '@murasato/shared';
 
 const client = new Anthropic();
 
@@ -95,6 +95,39 @@ export const costTracker = {
   },
 };
 
+// --- LLM Budget Error ---
+
+export class LLMBudgetExceeded extends Error {
+  constructor() {
+    super('LLM_BUDGET_EXCEEDED');
+    this.name = 'LLMBudgetExceeded';
+  }
+}
+
+// --- Hourly rolling-window budget tracker (F11) ---
+
+const budgetTracker = {
+  entries: [] as { timestamp: number; costUSD: number }[],
+
+  addCost(costUSD: number): void {
+    this.entries.push({ timestamp: Date.now(), costUSD });
+  },
+
+  getHourlyCost(): number {
+    const oneHourAgo = Date.now() - 3600_000;
+    this.entries = this.entries.filter(e => e.timestamp > oneHourAgo);
+    return this.entries.reduce((sum, e) => sum + e.costUSD, 0);
+  },
+
+  checkBudget(): void {
+    if (this.getHourlyCost() >= LLM_BUDGET_PER_HOUR_USD) {
+      throw new LLMBudgetExceeded();
+    }
+  },
+};
+
+export { budgetTracker };
+
 // --- Model selection ---
 
 export type DecisionImportance = 'routine' | 'social' | 'important';
@@ -119,6 +152,9 @@ export interface LLMCallOptions {
 
 export async function callLLM(options: LLMCallOptions): Promise<string> {
   const { system, userMessage, importance, cacheKey, maxTokens = 1024 } = options;
+
+  // F11: Budget gate
+  budgetTracker.checkBudget();
 
   // Check cache
   if (cacheKey) {
@@ -145,6 +181,10 @@ export async function callLLM(options: LLMCallOptions): Promise<string> {
         costTracker.inputTokens += response.usage.input_tokens;
         costTracker.outputTokens += response.usage.output_tokens;
         costTracker.requests += 1;
+
+        // F11: Track cost in hourly budget
+        const callCostUSD = (response.usage.input_tokens * 0.25 + response.usage.output_tokens * 1.25) / 1_000_000;
+        budgetTracker.addCost(callCostUSD);
 
         const text = response.content
           .filter(block => block.type === 'text')

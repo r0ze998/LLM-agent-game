@@ -18,13 +18,16 @@ export type AgentAction =
   | { type: 'explore' }
   | { type: 'rest' }
   | { type: 'teach'; targetId: string }
-  | { type: 'heal'; targetId: string };
+  | { type: 'heal'; targetId: string }
+  | { type: 'migrate'; targetVillageId: string };  // F7: Migration
 
 const AVAILABLE_ACTIONS = [
   'move', 'gather', 'eat', 'sleep', 'build', 'farm',
   'craft', 'socialize', 'explore', 'rest', 'teach', 'heal',
   // 4X-aware actions — エージェントが村の戦略状態に応じて選択
   'gather_iron', 'defend', 'patrol',
+  // F7: Migration
+  'migrate',
 ];
 
 // --- P2: Instinct (rule-based) ---
@@ -85,6 +88,8 @@ function parseAction(actionStr: string, target?: string): AgentAction {
   // 4X-aware actions map to existing action types
   if (action === 'gather_iron') return { type: 'gather', resource: 'ore' };
   if (action === 'defend' || action === 'patrol') return { type: 'explore' };
+  // F7: Migration
+  if (action === 'migrate') return { type: 'migrate', targetVillageId: target ?? '' };
 
   return { type: 'rest' };
 }

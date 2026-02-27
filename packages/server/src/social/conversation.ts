@@ -1,6 +1,6 @@
 import type { AgentState, Relationship, Memory, ConversationResult, DialogueLine, GameEvent } from '@murasato/shared';
 import { VISION_RANGE } from '@murasato/shared';
-import { callLLM, extractJSON } from '../agent/llmClient.ts';
+import { callLLM, extractJSON, LLMBudgetExceeded } from '../agent/llmClient.ts';
 import { getOrCreateRelationship, adjustSentiment, adjustTrust, adjustFamiliarity, calculateCompatibility } from './relationships.ts';
 import { MemoryManager } from '../agent/memory.ts';
 
@@ -190,20 +190,86 @@ ${a2.identity.name}→${a1.identity.name}: ${rel21Desc}
       newMemories: parsed.newMemories ?? [],
     };
   } catch (err) {
-    console.warn(`Conversation LLM failed (${a1.identity.name}×${a2.identity.name}):`, (err as Error).message?.slice(0, 200));
-    // Fallback conversation
-    const compat = calculateCompatibility(a1, a2);
-    const change = compat > 0.6 ? 2 : compat > 0.4 ? 1 : -1;
-
-    return {
-      dialogue: [
-        { speakerId: a1.identity.id, text: 'やあ。' },
-        { speakerId: a2.identity.id, text: 'こんにちは。' },
-      ],
-      sentimentChange: { [a1.identity.id]: change, [a2.identity.id]: change },
-      newMemories: [],
-    };
+    if (err instanceof LLMBudgetExceeded) {
+      console.warn(`LLM budget exceeded, using fallback conversation (${a1.identity.name}×${a2.identity.name})`);
+    } else {
+      console.warn(`Conversation LLM failed (${a1.identity.name}×${a2.identity.name}):`, (err as Error).message?.slice(0, 200));
+    }
+    // F11: Template-based fallback conversation
+    return generateFallbackConversation(a1, a2, rel12);
   }
+}
+
+// --- F11: Template-based fallback conversation by relationship state ---
+
+const FALLBACK_GREETINGS: Record<string, string[]> = {
+  first_meeting: [
+    'はじめまして。あなたは…？',
+    'おや、見かけない顔ですね。',
+    'こんにちは。この辺りの方ですか？',
+  ],
+  friendly: [
+    'やあ、元気にしてた？',
+    'おお！会えてうれしいよ。',
+    'いい天気だね。どうしてる？',
+  ],
+  hostile: [
+    '…何の用だ。',
+    'ふん、またお前か。',
+    '近寄るな。',
+  ],
+  default: [
+    'やあ。',
+    'こんにちは。',
+    'どうも。',
+  ],
+};
+
+const FALLBACK_RESPONSES: Record<string, string[]> = {
+  first_meeting: [
+    'ええ、ここで暮らしています。よろしく。',
+    'はい、はじめまして。お見知りおきを。',
+  ],
+  friendly: [
+    'うん、まあまあだよ。そっちは？',
+    'ありがとう。最近は忙しくてね。',
+  ],
+  hostile: [
+    '…用がないなら失せろ。',
+    'お前に話すことはない。',
+  ],
+  default: [
+    'ああ、こんにちは。',
+    'どうも。',
+  ],
+};
+
+export function generateFallbackConversation(
+  a1: AgentState,
+  a2: AgentState,
+  rel12: Relationship | null,
+): ConversationResult {
+  const compat = calculateCompatibility(a1, a2);
+  let state: string;
+  if (!rel12 || rel12.familiarity < 5) state = 'first_meeting';
+  else if (rel12.sentiment > 30) state = 'friendly';
+  else if (rel12.sentiment < -30) state = 'hostile';
+  else state = 'default';
+
+  const greetings = FALLBACK_GREETINGS[state];
+  const responses = FALLBACK_RESPONSES[state];
+  const greeting = greetings[Math.floor(Math.random() * greetings.length)];
+  const response = responses[Math.floor(Math.random() * responses.length)];
+  const change = compat > 0.6 ? 2 : compat > 0.4 ? 1 : -1;
+
+  return {
+    dialogue: [
+      { speakerId: a1.identity.id, text: greeting },
+      { speakerId: a2.identity.id, text: response },
+    ],
+    sentimentChange: { [a1.identity.id]: change, [a2.identity.id]: change },
+    newMemories: [],
+  };
 }
 
 // --- Apply conversation results to world state ---

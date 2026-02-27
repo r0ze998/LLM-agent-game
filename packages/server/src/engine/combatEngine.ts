@@ -19,7 +19,7 @@ function computeAttackPower(
   village: VillageState4X,
   terrain: TerrainType4X,
 ): number {
-  const agg = aggregateEffects(village);
+  const agg = aggregateEffects(village, undefined, undefined, 'war');
   const terrainRule = TERRAIN_RULES[terrain];
   const terrainAttackMod = 1 - (terrainRule?.attackPenalty || 0);
 
@@ -46,7 +46,7 @@ function computeDefensePower(
   terrain: TerrainType4X,
   includeFortification: boolean,
 ): number {
-  const agg = aggregateEffects(village);
+  const agg = aggregateEffects(village, undefined, undefined, 'war');
   const terrainRule = TERRAIN_RULES[terrain];
   const terrainDefMod = 1 + (terrainRule?.defenseBonus || 0);
 

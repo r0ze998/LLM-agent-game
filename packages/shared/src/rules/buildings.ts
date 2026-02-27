@@ -352,6 +352,22 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
     ],
     requires: {},
   },
+
+  // ========== 拡張系 (F2) ==========
+  outpost: {
+    id: 'outpost',
+    name: 'Outpost',
+    nameJa: '前哨基地',
+    category: 'military',
+    cost: { wood: 20, stone: 15 },
+    buildTicks: 15,
+    maxPerVillage: 3,
+    effects: [
+      { type: 'vision_range', target: { scope: 'village' }, value: 2 },
+      { type: 'fortification', target: { scope: 'village' }, value: 3 },
+    ],
+    requires: { tech: 'fortification' },
+  },
 };
 
 export const BUILDING_LIST = Object.values(BUILDING_DEFS);

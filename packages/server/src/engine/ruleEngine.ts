@@ -81,6 +81,7 @@ export function aggregateEffects(
   village: VillageState4X,
   awState?: AutonomousWorldState,
   currentTick?: number,
+  diplomaticStatus?: string,
 ): AggregatedEffects {
   const agg = emptyAggregated();
 
@@ -89,7 +90,7 @@ export function aggregateEffects(
     const def = BUILDING_DEFS[bi.defId];
     if (!def) continue;
     for (const eff of def.effects) {
-      applyEffect(agg, clampEffect(eff), village);
+      applyEffect(agg, clampEffect(eff), village, diplomaticStatus);
     }
   }
 
@@ -98,7 +99,7 @@ export function aggregateEffects(
     const def = TECH_DEFS[techId];
     if (!def) continue;
     for (const eff of def.effects) {
-      applyEffect(agg, clampEffect(eff), village);
+      applyEffect(agg, clampEffect(eff), village, diplomaticStatus);
     }
   }
 
@@ -109,29 +110,29 @@ export function aggregateEffects(
     // Layer 1: アクティブな Covenant の Effect
     const covenantEffects = getActiveCovenantEffects(village.villageId, awState, tick);
     for (const eff of covenantEffects) {
-      applyEffect(agg, eff, village); // already clamped in covenantEngine
+      applyEffect(agg, eff, village, diplomaticStatus);
     }
 
     // Layer 2: 発明された建物・技術の Effect
     const inventionEffects = getInventionEffects(village, awState);
     for (const eff of inventionEffects) {
-      applyEffect(agg, eff, village); // already clamped in inventionRegistry
+      applyEffect(agg, eff, village, diplomaticStatus);
     }
 
     // Layer 3: 所属 Institution の memberEffects
     const institutionEffects = getInstitutionEffects(village.villageId, awState);
     for (const eff of institutionEffects) {
-      applyEffect(agg, eff, village); // already clamped in institutionEngine
+      applyEffect(agg, eff, village, diplomaticStatus);
     }
   }
 
   return agg;
 }
 
-function applyEffect(agg: AggregatedEffects, eff: Effect, village: VillageState4X): void {
+function applyEffect(agg: AggregatedEffects, eff: Effect, village: VillageState4X, diplomaticStatus?: string): void {
   // 条件チェック
   if (eff.condition) {
-    if (!checkCondition(eff.condition, village)) return;
+    if (!checkCondition(eff.condition, village, diplomaticStatus)) return;
   }
 
   const res = eff.target.resource as ResourceType4X | undefined;
@@ -210,6 +211,7 @@ function applyEffect(agg: AggregatedEffects, eff: Effect, village: VillageState4
 function checkCondition(
   cond: { type: string; value: string | number },
   village: VillageState4X,
+  diplomaticStatus?: string,
 ): boolean {
   switch (cond.type) {
     case 'has_tech':
@@ -217,9 +219,9 @@ function checkCondition(
     case 'has_building':
       return village.buildings.some(b => b.defId === cond.value);
     case 'at_war':
-      return true; // 外交状態は外部から渡す必要がある。簡略化して常にtrue
+      return diplomaticStatus === 'war';
     case 'at_peace':
-      return true;
+      return diplomaticStatus !== 'war';
     case 'population_above':
       return village.population >= (cond.value as number);
     case 'population_below':
@@ -246,8 +248,9 @@ export function processVillageTick(
   territoryTiles: Tile[],
   awState?: AutonomousWorldState,
   currentTick?: number,
+  diplomaticStatus?: string,
 ): TickResult {
-  const agg = aggregateEffects(village, awState, currentTick);
+  const agg = aggregateEffects(village, awState, currentTick, diplomaticStatus);
   const result: TickResult = {
     resourceDelta: { food: 0, wood: 0, stone: 0, iron: 0, gold: 0 },
     populationDelta: 0,
@@ -338,7 +341,7 @@ export function processVillageTick(
   result.cultureGained = agg.culturePoints;
 
   // 9. キュー進行
-  processQueues(village, agg, result);
+  processQueues(village, agg, result, currentTick);
 
   // 10. スコア計算
   village.score = computeScore(village);
@@ -350,6 +353,7 @@ function processQueues(
   village: VillageState4X,
   agg: AggregatedEffects,
   result: TickResult,
+  currentTick?: number,
 ): void {
   // 建設キュー
   if (village.buildQueue.length > 0) {
@@ -367,7 +371,7 @@ function processQueues(
           level: 1,
           health: 100,
           maxHealth: 100,
-          builtAtTick: 0, // 呼び出し側で設定
+          builtAtTick: currentTick ?? 0,
         });
       }
       village.buildQueue.shift();

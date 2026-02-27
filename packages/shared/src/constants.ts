@@ -123,3 +123,41 @@ export const DIPLOMACY_ALLIANCE_RATIO = 0.60;
 // AI Strategy
 export const AI_TICK_INTERVAL = 5;             // AI村のコマンド発行間隔
 export const AI_MILITARY_THREAT_THRESHOLD = 0.6; // 軍事優先に切り替える脅威閾値
+
+// === Resource Degradation (F3a) ===
+export const DEGRADATION_PER_GATHER = 0.02;
+export const DEGRADATION_NATURAL_RECOVERY = 0.001;
+export const DEGRADATION_REGEN_PENALTY_MAX = 0.8;
+export const DEFOREST_THRESHOLD = 0.8;
+export const OVERFARM_FERTILITY_LOSS = 0.001;
+
+// === Territory (F2) ===
+export const TERRITORY_EXPANSION_CULTURE_THRESHOLD = 50;
+export const TERRITORY_EXPANSION_CHECK_INTERVAL = 100;
+export const TERRITORY_CONTEST_TENSION_GAIN = 5;
+export const OUTPOST_CLAIM_RADIUS = 3;
+// MAX_TERRITORY_RADIUS is defined in rules/physics.ts
+
+// === Army Movement (F1) ===
+export const ARMY_ATTACK_TRIGGER_RANGE = 1;
+export const ARMY_PATH_RECOMPUTE_INTERVAL = 10;
+
+// === Spatial Trade (F6) ===
+export const TRADE_DISTANCE_COST_FACTOR = 0.05;
+export const TRADE_ROAD_BONUS = 0.02;
+export const TRADE_ROAD_MAX_BONUS = 0.30;
+
+// === Natural Disasters (F4) ===
+export const DISASTER_CHECK_INTERVAL = 500;
+export const DISASTER_BASE_PROBABILITY = 0.15;
+
+// === Migration (F7) ===
+export const MIGRATION_FAMINE_THRESHOLD = 10;
+export const MIGRATION_OVERCROWD_RATIO = 1.5;
+export const MIGRATION_DISSATISFACTION_THRESHOLD = 60;
+export const MIGRATION_PHILOSOPHY_MISMATCH_WEIGHT = 30;
+export const MIGRATION_WAR_COURAGE_THRESHOLD = 30;
+
+// === LLM Budget (F11) ===
+export const LLM_BUDGET_PER_HOUR_USD = 1.0;
+export const LLM_PAUSE_DURATION_MS = 300000;

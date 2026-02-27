@@ -212,9 +212,11 @@ export async function createChildAgent(
   parent1: AgentState,
   parent2: AgentState,
   namingStyle: string,
+  villageGovernance?: Philosophy['governance'],
+  mutationMultiplier: number = 1.0,
 ): Promise<Omit<AgentState, 'currentAction'> & { currentAction: null }> {
-  const personality = blendPersonality(parent1.identity.personality, parent2.identity.personality);
-  const philosophy = blendPhilosophy(parent1.identity.philosophy, parent2.identity.philosophy);
+  const personality = blendPersonality(parent1.identity.personality, parent2.identity.personality, mutationMultiplier);
+  const philosophy = blendPhilosophy(parent1.identity.philosophy, parent2.identity.philosophy, villageGovernance);
   const skills = blendSkills(parent1.identity.skills, parent2.identity.skills);
 
   let name: string;
@@ -345,9 +347,9 @@ export function getSkillForAction(action: string): SkillType | null {
 
 // --- Blending helpers ---
 
-function blendPersonality(p1: PersonalityAxes, p2: PersonalityAxes): PersonalityAxes {
+function blendPersonality(p1: PersonalityAxes, p2: PersonalityAxes, mutationMultiplier: number = 1.0): PersonalityAxes {
   const blend = (a: number, b: number) =>
-    clamp(Math.round((a + b) / 2 + (Math.random() * 2 - 1) * PERSONALITY_MUTATION_RANGE), PERSONALITY_MIN, PERSONALITY_MAX);
+    clamp(Math.round((a + b) / 2 + (Math.random() * 2 - 1) * PERSONALITY_MUTATION_RANGE * mutationMultiplier), PERSONALITY_MIN, PERSONALITY_MAX);
 
   return {
     openness: blend(p1.openness, p2.openness),
@@ -358,8 +360,17 @@ function blendPersonality(p1: PersonalityAxes, p2: PersonalityAxes): Personality
   };
 }
 
-function blendPhilosophy(ph1: Philosophy, ph2: Philosophy): Philosophy {
-  const governance = Math.random() < 0.5 ? ph1.governance : ph2.governance;
+function blendPhilosophy(ph1: Philosophy, ph2: Philosophy, villageGovernance?: Philosophy['governance']): Philosophy {
+  // F10a: 70% parental + 30% village governance influence
+  let governance: Philosophy['governance'];
+  if (villageGovernance) {
+    const roll = Math.random();
+    if (roll < 0.35) governance = ph1.governance;
+    else if (roll < 0.70) governance = ph2.governance;
+    else governance = villageGovernance;
+  } else {
+    governance = Math.random() < 0.5 ? ph1.governance : ph2.governance;
+  }
   const economics = Math.random() < 0.5 ? ph1.economics : ph2.economics;
   const allValues = [...new Set([...ph1.values, ...ph2.values])];
   const values = allValues.sort(() => Math.random() - 0.5).slice(0, 3);

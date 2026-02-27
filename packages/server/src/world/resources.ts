@@ -1,6 +1,10 @@
 import type { Tile, ResourceType, AgentState, Position } from '@murasato/shared';
 import type { ResourceType4X } from '@murasato/shared';
-import { GATHER_BASE_AMOUNT, RESOURCE_REGEN_INTERVAL, EAT_RESTORE, BASE_FOOD_PER_FARM_TICK } from '@murasato/shared';
+import {
+  GATHER_BASE_AMOUNT, RESOURCE_REGEN_INTERVAL, EAT_RESTORE, BASE_FOOD_PER_FARM_TICK,
+  DEGRADATION_PER_GATHER, DEGRADATION_NATURAL_RECOVERY, DEGRADATION_REGEN_PENALTY_MAX,
+  DEFOREST_THRESHOLD, OVERFARM_FERTILITY_LOSS,
+} from '@murasato/shared';
 import type { WorldMap } from './map.ts';
 
 /** Map old 7 resource types to new 5 resource types */
@@ -25,6 +29,16 @@ export function gatherFromTile(tile: Tile, resourceType: ResourceType, skillLeve
 
   const amount = Math.min(available, Math.ceil(GATHER_BASE_AMOUNT * (1 + skillLevel * 0.1)));
   tile.resources[resourceType] = available - amount;
+
+  // F3a: Environmental degradation from gathering
+  tile.degradation = Math.min(1, (tile.degradation ?? 0) + DEGRADATION_PER_GATHER);
+
+  // Deforestation: forest tiles at high degradation convert to plains
+  if (tile.terrain === 'forest' && (tile.degradation ?? 0) >= DEFOREST_THRESHOLD) {
+    tile.terrain = 'plains';
+    tile.fertility = Math.max(0.2, tile.fertility * 0.6);
+  }
+
   return amount;
 }
 
@@ -49,6 +63,12 @@ export function eatFood(agent: AgentState): boolean {
 
 export function farmTile(tile: Tile, skillLevel: number): number {
   if (tile.fertility <= 0) return 0;
+
+  // F3a: Over-farming reduces fertility at high degradation
+  if ((tile.degradation ?? 0) > DEGRADATION_REGEN_PENALTY_MAX) {
+    tile.fertility = Math.max(0, tile.fertility - OVERFARM_FERTILITY_LOSS);
+  }
+
   return Math.ceil(BASE_FOOD_PER_FARM_TICK * tile.fertility * (1 + skillLevel * 0.05));
 }
 
@@ -61,27 +81,35 @@ export function regenerateResources(map: WorldMap, tick: number): void {
     for (let x = 0; x < map.size; x++) {
       const tile = map.tiles[y][x];
 
+      // F3a: Natural degradation recovery
+      if ((tile.degradation ?? 0) > 0) {
+        tile.degradation = Math.max(0, (tile.degradation ?? 0) - DEGRADATION_NATURAL_RECOVERY);
+      }
+
+      // F3a: Regeneration scaled by degradation penalty
+      const regenScale = 1 - (tile.degradation ?? 0) * DEGRADATION_REGEN_PENALTY_MAX;
+
       // Slowly regenerate based on terrain
       switch (tile.terrain) {
         case 'plains':
-          tile.resources.food = Math.min(5, (tile.resources.food ?? 0) + 1);
-          tile.resources.fiber = Math.min(3, (tile.resources.fiber ?? 0) + 1);
+          tile.resources.food = Math.min(5, (tile.resources.food ?? 0) + 1 * regenScale);
+          tile.resources.fiber = Math.min(3, (tile.resources.fiber ?? 0) + 1 * regenScale);
           break;
         case 'forest':
-          tile.resources.wood = Math.min(8, (tile.resources.wood ?? 0) + 1);
-          tile.resources.herbs = Math.min(3, (tile.resources.herbs ?? 0) + 1);
-          tile.resources.food = Math.min(2, (tile.resources.food ?? 0) + 1);
+          tile.resources.wood = Math.min(8, (tile.resources.wood ?? 0) + 1 * regenScale);
+          tile.resources.herbs = Math.min(3, (tile.resources.herbs ?? 0) + 1 * regenScale);
+          tile.resources.food = Math.min(2, (tile.resources.food ?? 0) + 1 * regenScale);
           break;
         case 'mountain':
-          tile.resources.stone = Math.min(8, (tile.resources.stone ?? 0) + 1);
-          tile.resources.ore = Math.min(5, (tile.resources.ore ?? 0) + 1);
+          tile.resources.stone = Math.min(8, (tile.resources.stone ?? 0) + 1 * regenScale);
+          tile.resources.ore = Math.min(5, (tile.resources.ore ?? 0) + 1 * regenScale);
           break;
         case 'swamp':
-          tile.resources.herbs = Math.min(5, (tile.resources.herbs ?? 0) + 1);
-          tile.resources.clay = Math.min(3, (tile.resources.clay ?? 0) + 1);
+          tile.resources.herbs = Math.min(5, (tile.resources.herbs ?? 0) + 1 * regenScale);
+          tile.resources.clay = Math.min(3, (tile.resources.clay ?? 0) + 1 * regenScale);
           break;
         case 'desert':
-          tile.resources.clay = Math.min(3, (tile.resources.clay ?? 0) + 1);
+          tile.resources.clay = Math.min(3, (tile.resources.clay ?? 0) + 1 * regenScale);
           break;
       }
     }

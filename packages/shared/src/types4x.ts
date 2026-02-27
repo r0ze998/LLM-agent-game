@@ -44,6 +44,7 @@ export interface Army {
   position: Position;
   targetPosition?: Position;   // 移動目標
   status: 'idle' | 'moving' | 'attacking' | 'defending';
+  cachedPath?: Position[];     // F1: Pathfinding cache
 }
 
 // --- 交易路 ---
@@ -63,6 +64,7 @@ export interface VillageState4X {
   villageId: string;
   ownerId: string | null;      // プレイヤーID or null (AI村)
   ownerAddress?: string;        // Starknet wallet address (F7)
+  centerPosition: Position;     // F2: Immutable village center
 
   // 資源
   resources: Resources4X;
@@ -108,10 +110,13 @@ export function createDefaultVillageState4X(
   ownerId: string | null,
   territory: Position[],
   tick: number,
+  centerPosition?: Position,
 ): VillageState4X {
+  const center = centerPosition ?? territory[0] ?? { x: 0, y: 0 };
   return {
     villageId,
     ownerId,
+    centerPosition: center,
     resources: { food: 50, wood: 30, stone: 20, iron: 0, gold: 0 },
     resourceStorage: { food: 200, wood: 200, stone: 200, iron: 100, gold: 100 },
     population: 5,
@@ -131,6 +136,20 @@ export function createDefaultVillageState4X(
     foundedAtTick: tick,
     score: 0,
   };
+}
+
+// --- 自然災害 (F4) ---
+
+export type DisasterType = 'drought' | 'flood' | 'plague' | 'locust' | 'earthquake';
+
+export interface Disaster {
+  id: string;
+  type: DisasterType;
+  centerPosition: Position;
+  radius: number;
+  remainingTicks: number;
+  severity: number;             // 0-1
+  affectedVillageIds: string[];
 }
 
 // --- 戦闘結果 ---

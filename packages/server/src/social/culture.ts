@@ -1,5 +1,5 @@
 import type { AgentState, Village, CultureState, GameEvent } from '@murasato/shared';
-import { callLLM, extractJSON } from '../agent/llmClient.ts';
+import { callLLM, extractJSON, LLMBudgetExceeded } from '../agent/llmClient.ts';
 
 // --- Tradition generation ---
 
@@ -21,7 +21,9 @@ export async function generateTradition(
       village.culture.traditions.push(tradition);
       return tradition;
     }
-  } catch {}
+  } catch (err) {
+    if (err instanceof LLMBudgetExceeded) return generateFallbackTradition(village);
+  }
   return null;
 }
 
@@ -48,7 +50,9 @@ export async function createStory(
       village.culture.stories.push(story);
       return story;
     }
-  } catch {}
+  } catch (err) {
+    if (err instanceof LLMBudgetExceeded) return generateFallbackStory(village);
+  }
   return null;
 }
 
@@ -72,8 +76,57 @@ export async function createTaboo(
       village.culture.taboos.push(taboo);
       return taboo;
     }
-  } catch {}
+  } catch (err) {
+    if (err instanceof LLMBudgetExceeded) return generateFallbackTaboo(village);
+  }
   return null;
+}
+
+// --- F11: Template-based fallback generators ---
+
+const FALLBACK_TRADITIONS = [
+  '月の満ちる夜に火を灯す祭り',
+  '初狩りの日に長老へ捧げ物をする風習',
+  '春分に種を大地に撒く儀式',
+  '新しい仲間を迎える歌の儀',
+  '収穫の後に全員で食事を分かち合う慣習',
+];
+
+const FALLBACK_STORIES = [
+  'かつて勇敢な者が嵐の中を歩き抜き、村を救ったという伝説。',
+  '森の奥に住む精霊との約束が、村を守り続けているという物語。',
+  '二人の旅人が偶然出会い、この地に平和の種を蒔いた話。',
+];
+
+const FALLBACK_TABOOS = [
+  '夜に口笛を吹いてはならない',
+  '森の大樹を切り倒してはならない',
+  '他人の食事を残してはならない',
+];
+
+export function generateFallbackTradition(village: Village): string | null {
+  if (village.culture.traditions.length >= 5) return null;
+  const available = FALLBACK_TRADITIONS.filter(t => !village.culture.traditions.includes(t));
+  if (available.length === 0) return null;
+  const tradition = available[Math.floor(Math.random() * available.length)];
+  village.culture.traditions.push(tradition);
+  return tradition;
+}
+
+export function generateFallbackStory(village: Village): string | null {
+  const story = FALLBACK_STORIES[Math.floor(Math.random() * FALLBACK_STORIES.length)];
+  if (village.culture.stories.length >= 10) village.culture.stories.shift();
+  village.culture.stories.push(story);
+  return story;
+}
+
+export function generateFallbackTaboo(village: Village): string | null {
+  if (village.culture.taboos.length >= 5) return null;
+  const available = FALLBACK_TABOOS.filter(t => !village.culture.taboos.includes(t));
+  if (available.length === 0) return null;
+  const taboo = available[Math.floor(Math.random() * available.length)];
+  village.culture.taboos.push(taboo);
+  return taboo;
 }
 
 // --- Cultural meme exchange between agents of different villages ---

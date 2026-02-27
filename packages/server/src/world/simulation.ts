@@ -1,12 +1,18 @@
 import type {
   AgentState, DeployedBlueprintMeta, GameEvent, GameEventType, Position, Relationship,
-  Village, PlayerIntention, ResourceType, StructureType,
+  Village, PlayerIntention, ResourceType, StructureType, InformationPiece, Memory,
 } from '@murasato/shared';
 import {
   HUNGER_DECAY_PER_TICK, ENERGY_DECAY_PER_TICK, SOCIAL_DECAY_PER_TICK,
   SLEEP_RESTORE, SOCIAL_RESTORE, VISION_RANGE, TICKS_PER_DAY,
   REPRODUCTION_MIN_SENTIMENT, REPRODUCTION_MIN_FOOD_SURPLUS,
   TERRAIN_MOVEMENT_COST, MAX_AGENTS, AI_TICK_INTERVAL,
+  TERRITORY_EXPANSION_CULTURE_THRESHOLD, TERRITORY_EXPANSION_CHECK_INTERVAL,
+  TERRITORY_CONTEST_TENSION_GAIN, OUTPOST_CLAIM_RADIUS, MAX_TERRITORY_RADIUS,
+  ARMY_ATTACK_TRIGGER_RANGE, ARMY_PATH_RECOMPUTE_INTERVAL,
+  TRADE_DISTANCE_COST_FACTOR, TRADE_ROAD_BONUS, TRADE_ROAD_MAX_BONUS,
+  DISASTER_CHECK_INTERVAL, DISASTER_BASE_PROBABILITY,
+  MIGRATION_DISSATISFACTION_THRESHOLD,
 } from '@murasato/shared';
 import {
   createDefaultVillageState4X,
@@ -15,20 +21,28 @@ import {
   type AutonomousWorldState,
   type Covenant,
   type Institution,
+  type Disaster,
+  type DisasterType,
 } from '@murasato/shared';
 import { TERRITORY_RADIUS, RELEVANCE_DECAY_RATE } from '@murasato/shared';
 import type { WorldMap } from './map.ts';
-import { getNextStep } from './pathfinding.ts';
+import { findPath, getNextStep } from './pathfinding.ts';
 import { gatherFromTile, addToInventory, eatFood, farmTile, regenerateResources, findNearbyResource, mapTo4XResource } from './resources.ts';
 import { canBuild, createStructure, getBuildCost } from './building.ts';
-import { decide, type DecisionContext, type AgentAction } from '../agent/decisionEngine.ts';
+import { decide, generateReflection, type DecisionContext, type AgentAction } from '../agent/decisionEngine.ts';
+import type { ReflectionContext } from '../agent/prompts.ts';
 import { MemoryManager } from '../agent/memory.ts';
 import { ageAgent, createChildAgent, growSkill, educateChild, getSkillForAction, checkGrowthMilestones } from '../agent/lifecycle.ts';
 import { checkVillageForming, foundVillage, runElection, proposeLaw, voteLaw, leaveVillage, markPlayerOwned } from '../social/governance.ts';
 import { findConversationOpportunities, generateConversation as genConversation, applyConversationResults, createConversationEvent } from '../social/conversation.ts';
 import { getOrCreateRelationship, setParentChildRoles, setSpouseRoles, decaySentiment } from '../social/relationships.ts';
 import { checkCulturalExchange, applyCulturalExchange, evolveCulture } from '../social/culture.ts';
-import { DiplomacyManager, processDiplomacy } from '../social/diplomacy.ts';
+import { DiplomacyManager, processDiplomacy, areAtWar } from '../social/diplomacy.ts';
+import { computeDissatisfaction, findMigrationTarget, checkHomelessRecruitment } from '../social/migration.ts';
+import { canReligionEmerge, generateReligion, checkReligionSpread, spreadReligion, processOrthodoxy, getReligionTensionModifier } from '../social/religion.ts';
+import { AgentKnowledgeStore, parseConversationInformation, transferInformation } from '../social/information.ts';
+import { resolveCombat, conquerVillage } from '../engine/combatEngine.ts';
+import { LLMBudgetExceeded } from '../agent/llmClient.ts';
 import { processVillageTick } from '../engine/ruleEngine.ts';
 import { processCommand, type World4XRef } from '../engine/commandProcessor.ts';
 import { checkVictory } from '../engine/victoryChecker.ts';
@@ -64,6 +78,16 @@ export interface WorldState {
   // Autonomous World layers (Layer 1-3)
   autonomousWorld: AutonomousWorldState;
 
+  // F4: Active natural disasters
+  activeDisasters: Disaster[];
+
+  // F9: Information propagation
+  informationPool: InformationPiece[];
+  agentKnowledge: AgentKnowledgeStore;
+
+  // F10c: Elder wisdom pool
+  villageWisdom: Map<string, Memory[]>;
+
   // Dojo on-chain bridge (optional)
   dojoBridge?: DojoBridge;
 
@@ -84,6 +108,10 @@ export function createWorldState(gameId: string, map: WorldMap, dojoBridge?: Doj
     tick: 0,
     villageStates4X: new Map(),
     autonomousWorld: createAutonomousWorldState(),
+    activeDisasters: [],
+    informationPool: [],
+    agentKnowledge: new AgentKnowledgeStore(),
+    villageWisdom: new Map(),
     dojoBridge,
 
     get livingAgents() {
@@ -107,6 +135,10 @@ export function buildWorld4XRef(world: WorldState): World4XRef {
     },
     tick: world.tick,
     generateId: () => crypto.randomUUID(),
+    getVillageCenter: (villageId: string) => {
+      const vs = world.villageStates4X.get(villageId);
+      return vs?.centerPosition ?? null;
+    },
   };
 }
 
@@ -217,6 +249,37 @@ export async function tick(world: WorldState): Promise<TickResult> {
       applyConversationResults(result, opp.agent1, opp.agent2, world.relationships, world.tick, world.gameId);
       events.push(createConversationEvent(world.gameId, opp.agent1, opp.agent2, result, world.tick));
 
+      // F9: Information exchange during conversation
+      if (result.informationExchange && result.informationExchange.length > 0) {
+        const villageId = opp.agent1.villageId ?? opp.agent2.villageId ?? undefined;
+        const infoPieces = parseConversationInformation(
+          result.informationExchange, opp.agent1.identity.id, opp.agent2.identity.id,
+          world.tick, villageId,
+        );
+        for (const piece of infoPieces) {
+          world.informationPool.push(piece);
+          world.agentKnowledge.addKnowledge(opp.agent1.identity.id, piece);
+          world.agentKnowledge.addKnowledge(opp.agent2.identity.id, piece);
+        }
+      }
+
+      // F9: Transfer existing knowledge between conversation partners
+      const a1Knowledge = world.agentKnowledge.getKnowledge(opp.agent1.identity.id);
+      const a2Knowledge = world.agentKnowledge.getKnowledge(opp.agent2.identity.id);
+      // Each agent shares up to 2 random pieces
+      for (const info of a1Knowledge.sort(() => Math.random() - 0.5).slice(0, 2)) {
+        if (!info.knownByAgentIds.includes(opp.agent2.identity.id)) {
+          const transferred = transferInformation(info, opp.agent1.identity.id, opp.agent2.identity.id);
+          world.agentKnowledge.addKnowledge(opp.agent2.identity.id, transferred);
+        }
+      }
+      for (const info of a2Knowledge.sort(() => Math.random() - 0.5).slice(0, 2)) {
+        if (!info.knownByAgentIds.includes(opp.agent1.identity.id)) {
+          const transferred = transferInformation(info, opp.agent2.identity.id, opp.agent1.identity.id);
+          world.agentKnowledge.addKnowledge(opp.agent1.identity.id, transferred);
+        }
+      }
+
       // Cultural exchange between agents of different villages
       const v1 = opp.agent1.villageId ? world.villages.get(opp.agent1.villageId) ?? null : null;
       const v2 = opp.agent2.villageId ? world.villages.get(opp.agent2.villageId) ?? null : null;
@@ -229,6 +292,25 @@ export async function tick(world: WorldState): Promise<TickResult> {
             `${exchange.carrierAgent.identity.name}が${exchange.fromVillage.name}の${exchange.memeType}を${exchange.toVillage.name}に伝えた`,
             { memeType: exchange.memeType, content: exchange.content },
           ));
+        }
+
+        // F8: Religion spread during cultural exchange
+        if (v1 && v2) {
+          if (checkReligionSpread(v1, v2)) {
+            spreadReligion(v1, v2);
+            events.push(createEvent(world.gameId, 'discovery', world.tick,
+              [opp.agent1.identity.id],
+              `${v1.name}の宗教「${v1.culture.religion?.name}」が${v2.name}に伝播した`,
+              { type: 'religion_spread', fromVillage: v1.id, toVillage: v2.id },
+            ));
+          } else if (checkReligionSpread(v2, v1)) {
+            spreadReligion(v2, v1);
+            events.push(createEvent(world.gameId, 'discovery', world.tick,
+              [opp.agent2.identity.id],
+              `${v2.name}の宗教「${v2.culture.religion?.name}」が${v1.name}に伝播した`,
+              { type: 'religion_spread', fromVillage: v2.id, toVillage: v1.id },
+            ));
+          }
         }
       }
     } catch (err) {
@@ -280,6 +362,8 @@ export async function tick(world: WorldState): Promise<TickResult> {
           [agent.identity.id],
           `${agent.identity.name}が長老になった`,
         ));
+        // F10c: Extract elder wisdom to village pool
+        extractElderWisdom(agent, world);
       }
     }
 
@@ -388,6 +472,78 @@ export async function tick(world: WorldState): Promise<TickResult> {
         ce.gameId = world.gameId;
         events.push(ce);
       }
+
+      // F10e: Governance drift — if >60% of adults share different governance philosophy
+      evaluateGovernanceDrift(village, members);
+
+      // F8: Religion emergence check
+      if (canReligionEmerge(village, members)) {
+        const religion = await generateReligion(village);
+        village.culture.religion = religion;
+        events.push(createEvent(world.gameId, 'discovery', world.tick,
+          [], `${village.name}で宗教「${religion.name}」が誕生した`,
+          { type: 'religion_emergence', villageName: village.name, religionName: religion.name },
+        ));
+      }
+
+      // F8: Orthodoxy drift
+      processOrthodoxy(village, members);
+
+      // F10d: Agent reflection (every 100 ticks)
+      for (const member of members) {
+        if (shouldReflect(member, world.tick)) {
+          try {
+            const memMgr = new MemoryManager(member.identity.id, world.gameId);
+            const topMemories = memMgr.getTopMemories(world.tick, 10);
+
+            // Look up blueprint context for reflection
+            let memberSoul: string | undefined;
+            let memberRules: string[] | undefined;
+            let memberBackstory: string | undefined;
+            if (member.identity.blueprintId) {
+              const bp = world.blueprints.get(member.identity.blueprintId);
+              if (bp) {
+                memberSoul = bp.soul;
+                memberRules = bp.rules.length > 0 ? bp.rules : undefined;
+                memberBackstory = bp.backstory ?? undefined;
+              }
+            }
+
+            const reflectionCtx: ReflectionContext = {
+              agent: member,
+              recentMemories: topMemories,
+              soulText: memberSoul,
+              behaviorRules: memberRules,
+              backstory: memberBackstory,
+            };
+            const reflectionResult = await generateReflection(reflectionCtx);
+
+            // Apply belief change if present
+            if (reflectionResult.beliefChange) {
+              if (reflectionResult.beliefChange.governance) {
+                member.identity.philosophy.governance = reflectionResult.beliefChange.governance;
+              }
+              if (reflectionResult.beliefChange.economics) {
+                member.identity.philosophy.economics = reflectionResult.beliefChange.economics;
+              }
+              if (reflectionResult.beliefChange.values) {
+                member.identity.philosophy.values = reflectionResult.beliefChange.values;
+              }
+              if (reflectionResult.beliefChange.worldview) {
+                member.identity.philosophy.worldview = reflectionResult.beliefChange.worldview;
+              }
+            }
+
+            // Store reflection as memory
+            memMgr.addMemory(reflectionResult.reflection, 0.7, world.tick, 'longterm', ['reflection']);
+            if (reflectionResult.newInsight) {
+              memMgr.addMemory(reflectionResult.newInsight, 0.8, world.tick, 'longterm', ['insight']);
+            }
+          } catch {
+            // Reflection failed (budget exceeded, etc.) — skip silently
+          }
+        }
+      }
     }
   }
 
@@ -407,6 +563,31 @@ export async function tick(world: WorldState): Promise<TickResult> {
   // 12. Expire old intentions
   world.intentions = world.intentions.filter(i => i.expiresAtTick > world.tick);
 
+  // 13. F7: Homeless agent recruitment
+  if (world.tick % 100 === 0) {
+    const recruitResults = checkHomelessRecruitment(world.livingAgents, world.villages, world.villageStates4X);
+    for (const { agentId, villageId } of recruitResults) {
+      const agent = world.agents.get(agentId);
+      const village = world.villages.get(villageId);
+      if (!agent || !village) continue;
+      agent.villageId = villageId;
+      if (!village.population.includes(agentId)) {
+        village.population.push(agentId);
+      }
+      events.push(createEvent(world.gameId, 'discovery', world.tick,
+        [agentId],
+        `${agent.identity.name}が${village.name}に勧誘された`,
+        { type: 'recruitment', villageId },
+      ));
+    }
+  }
+
+  // 14. F9: Prune old information (every 200 ticks)
+  if (world.tick % 200 === 0) {
+    world.agentKnowledge.pruneAll(world.tick, 200);
+    world.informationPool = world.informationPool.filter(info => world.tick - info.originTick < 200);
+  }
+
   // === Phase B: 4X Strategy Engine ===
   const strategyEvents = await run4XTick(world);
   events.push(...strategyEvents);
@@ -414,10 +595,361 @@ export async function tick(world: WorldState): Promise<TickResult> {
   return { tick: world.tick, actions, events, changedChunks };
 }
 
+// === F1: Army Movement ===
+
+function processArmyMovement(world: WorldState, events: GameEvent[]): void {
+  for (const [villageId, vs] of world.villageStates4X) {
+    for (const army of vs.armies) {
+      if (army.status !== 'moving' || !army.targetPosition) continue;
+
+      // Compute/cache path
+      if (!army.cachedPath || army.cachedPath.length === 0 || world.tick % ARMY_PATH_RECOMPUTE_INTERVAL === 0) {
+        army.cachedPath = findPath(world.map.tiles, army.position, army.targetPosition, 500) ?? undefined;
+      }
+
+      if (!army.cachedPath || army.cachedPath.length <= 1) {
+        army.status = 'idle';
+        army.cachedPath = undefined;
+        continue;
+      }
+
+      // Move: advance by minimum unit speed (at least 1 step per tick)
+      const minSpeed = Math.max(1, Math.min(...army.units.map(u => {
+        const def = (globalThis as any).__UNIT_DEFS__?.[u.defId];
+        return def?.speed ?? 1;
+      })));
+      const stepsThisTick = Math.min(minSpeed, army.cachedPath.length - 1);
+
+      for (let step = 0; step < stepsThisTick; step++) {
+        army.cachedPath.shift(); // remove current position
+        if (army.cachedPath.length > 0) {
+          army.position = { ...army.cachedPath[0] };
+        }
+      }
+
+      // Check arrival
+      const distToTarget = Math.abs(army.position.x - army.targetPosition.x) +
+                           Math.abs(army.position.y - army.targetPosition.y);
+
+      if (distToTarget <= ARMY_ATTACK_TRIGGER_RANGE) {
+        // Check if arrived at enemy village
+        for (const [enemyVid, enemyVs] of world.villageStates4X) {
+          if (enemyVid === villageId) continue;
+          const enemyDist = Math.abs(army.position.x - enemyVs.centerPosition.x) +
+                           Math.abs(army.position.y - enemyVs.centerPosition.y);
+          if (enemyDist <= ARMY_ATTACK_TRIGGER_RANGE && areAtWar(world.diplomacy, villageId, enemyVid)) {
+            // Auto-trigger combat
+            const terrain = (world.map.tiles[army.position.y]?.[army.position.x]?.terrain ?? 'plains') as any;
+            const result = resolveCombat(vs, enemyVs, army.units, [...enemyVs.garrison], terrain);
+            result.position = army.position;
+
+            if (result.attackerWon && enemyVs.garrison.filter(u => u.count > 0).length === 0) {
+              conquerVillage(vs, enemyVs);
+            }
+            enemyVs.garrison = enemyVs.garrison.filter(u => u.count > 0);
+
+            events.push(createEvent(world.gameId, 'war', world.tick, [],
+              `軍隊が${enemyVid}に到着し戦闘が発生`, { combatResult: result }));
+
+            army.status = 'idle';
+            army.cachedPath = undefined;
+            break;
+          }
+        }
+
+        if (army.status === 'moving') {
+          army.status = 'idle';
+          army.cachedPath = undefined;
+        }
+      }
+    }
+
+    // Clean up armies with no units
+    vs.armies = vs.armies.filter(a => a.units.some(u => u.count > 0));
+  }
+}
+
+// === F2: Territory Expansion ===
+
+function processTerritoryExpansion(world: WorldState, events: GameEvent[]): void {
+  if (world.tick % TERRITORY_EXPANSION_CHECK_INTERVAL !== 0) return;
+
+  for (const [villageId, vs] of world.villageStates4X) {
+    if (vs.culturePoints < TERRITORY_EXPANSION_CULTURE_THRESHOLD) continue;
+
+    // Find best adjacent tile not in territory
+    const territorySet = new Set(vs.territory.map(p => `${p.x},${p.y}`));
+    let bestTile: Position | null = null;
+    let bestYield = -1;
+
+    for (const pos of vs.territory) {
+      for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]]) {
+        const nx = pos.x + dx;
+        const ny = pos.y + dy;
+        if (nx < 0 || nx >= world.map.size || ny < 0 || ny >= world.map.size) continue;
+        if (territorySet.has(`${nx},${ny}`)) continue;
+
+        const tile = world.map.tiles[ny][nx];
+        if (tile.terrain === 'water') continue;
+
+        // Check within MAX_TERRITORY_RADIUS
+        const distToCenter = Math.abs(nx - vs.centerPosition.x) + Math.abs(ny - vs.centerPosition.y);
+        if (distToCenter > MAX_TERRITORY_RADIUS) continue;
+
+        // Compute yield score
+        const tileYield = Object.values(tile.resources).reduce((sum, v) => sum + (v ?? 0), 0) + tile.fertility * 5;
+        if (tileYield > bestYield) {
+          bestYield = tileYield;
+          bestTile = { x: nx, y: ny };
+        }
+      }
+    }
+
+    if (bestTile) {
+      vs.territory.push(bestTile);
+      vs.culturePoints -= TERRITORY_EXPANSION_CULTURE_THRESHOLD;
+
+      // Check contested territory
+      for (const [otherVid, otherVs] of world.villageStates4X) {
+        if (otherVid === villageId) continue;
+        if (otherVs.territory.some(p => p.x === bestTile!.x && p.y === bestTile!.y)) {
+          world.diplomacy.adjustTension(villageId, otherVid, TERRITORY_CONTEST_TENSION_GAIN);
+        }
+      }
+
+      events.push(createEvent(world.gameId, 'discovery', world.tick, [],
+        `村${villageId}が領土を拡張 (${bestTile.x},${bestTile.y})`,
+        { villageId, position: bestTile }));
+    }
+
+    // Outpost claim: check newly completed outposts
+    for (const building of vs.buildings) {
+      if (building.defId !== 'outpost') continue;
+      // Only claim once (check if area already claimed)
+      const pos = building.position;
+      const alreadyClaimed = vs.territory.some(p =>
+        Math.abs(p.x - pos.x) <= 1 && Math.abs(p.y - pos.y) <= 1);
+      if (alreadyClaimed) continue;
+
+      // Claim diamond area around outpost
+      for (let dx = -OUTPOST_CLAIM_RADIUS; dx <= OUTPOST_CLAIM_RADIUS; dx++) {
+        for (let dy = -OUTPOST_CLAIM_RADIUS; dy <= OUTPOST_CLAIM_RADIUS; dy++) {
+          if (Math.abs(dx) + Math.abs(dy) > OUTPOST_CLAIM_RADIUS) continue;
+          const nx = pos.x + dx;
+          const ny = pos.y + dy;
+          if (nx < 0 || nx >= world.map.size || ny < 0 || ny >= world.map.size) continue;
+          if (world.map.tiles[ny][nx].terrain === 'water') continue;
+          if (!territorySet.has(`${nx},${ny}`)) {
+            vs.territory.push({ x: nx, y: ny });
+            territorySet.add(`${nx},${ny}`);
+          }
+        }
+      }
+    }
+  }
+}
+
+// === F4: Natural Disasters ===
+
+function processDisasters(world: WorldState, events: GameEvent[]): void {
+  // Tick down active disasters
+  for (let i = world.activeDisasters.length - 1; i >= 0; i--) {
+    const disaster = world.activeDisasters[i];
+    disaster.remainingTicks--;
+
+    if (disaster.remainingTicks <= 0) {
+      world.activeDisasters.splice(i, 1);
+      events.push(createEvent(world.gameId, 'disaster', world.tick, [],
+        `災害「${disaster.type}」が終息した`, { disasterType: disaster.type }));
+      continue;
+    }
+
+    // Apply per-tick effects to affected villages
+    for (const vid of disaster.affectedVillageIds) {
+      const vs = world.villageStates4X.get(vid);
+      if (!vs) continue;
+
+      switch (disaster.type) {
+        case 'drought': {
+          // Reduce fertility of tiles in radius
+          for (const pos of vs.territory) {
+            const dist = Math.abs(pos.x - disaster.centerPosition.x) + Math.abs(pos.y - disaster.centerPosition.y);
+            if (dist <= disaster.radius) {
+              const tile = world.map.tiles[pos.y]?.[pos.x];
+              if (tile) tile.fertility = Math.max(0, tile.fertility - 0.005 * disaster.severity);
+            }
+          }
+          break;
+        }
+        case 'plague': {
+          // Population loss per tick
+          const loss = Math.max(0, Math.floor(vs.population * 0.01 * disaster.severity));
+          if (loss > 0) vs.population = Math.max(1, vs.population - loss);
+          break;
+        }
+        case 'locust': {
+          // Food destruction per tick
+          const foodLoss = Math.floor(5 * disaster.severity);
+          vs.resources.food = Math.max(0, vs.resources.food - foodLoss);
+          break;
+        }
+        // flood and earthquake are one-shot (handled at creation)
+      }
+    }
+  }
+
+  // Check for new disasters
+  if (world.tick % DISASTER_CHECK_INTERVAL !== 0) return;
+  if (Math.random() > DISASTER_BASE_PROBABILITY) return;
+
+  // Pick a random village as center
+  const villageIds = [...world.villageStates4X.keys()];
+  if (villageIds.length === 0) return;
+  const targetVid = villageIds[Math.floor(Math.random() * villageIds.length)];
+  const targetVs = world.villageStates4X.get(targetVid);
+  if (!targetVs) return;
+
+  const types: DisasterType[] = ['drought', 'flood', 'plague', 'locust', 'earthquake'];
+  const type = types[Math.floor(Math.random() * types.length)];
+  const severity = 0.5 + Math.random() * 0.5;
+  const radius = 5 + Math.floor(Math.random() * 5);
+
+  // Find affected villages
+  const affectedVillageIds: string[] = [];
+  for (const [vid, vs] of world.villageStates4X) {
+    const dist = Math.abs(vs.centerPosition.x - targetVs.centerPosition.x) +
+                 Math.abs(vs.centerPosition.y - targetVs.centerPosition.y);
+    if (dist <= radius) affectedVillageIds.push(vid);
+  }
+
+  const disaster: Disaster = {
+    id: `dis_${crypto.randomUUID()}`,
+    type,
+    centerPosition: { ...targetVs.centerPosition },
+    radius,
+    remainingTicks: type === 'flood' || type === 'earthquake' ? 1 : 50 + Math.floor(Math.random() * 50),
+    severity,
+    affectedVillageIds,
+  };
+
+  // One-shot effects for flood/earthquake
+  if (type === 'flood') {
+    for (const vid of affectedVillageIds) {
+      const vs = world.villageStates4X.get(vid);
+      if (!vs) continue;
+      // Destroy buildings near water/swamp tiles
+      vs.buildings = vs.buildings.filter(b => {
+        const tile = world.map.tiles[b.position.y]?.[b.position.x];
+        if (tile && (tile.terrain === 'swamp') && Math.random() < severity * 0.3) {
+          return false; // destroyed
+        }
+        return true;
+      });
+    }
+  } else if (type === 'earthquake') {
+    for (const vid of affectedVillageIds) {
+      const vs = world.villageStates4X.get(vid);
+      if (!vs) continue;
+      // Damage buildings near mountain tiles
+      for (const b of vs.buildings) {
+        const tile = world.map.tiles[b.position.y]?.[b.position.x];
+        if (tile && tile.terrain === 'mountain' && Math.random() < severity * 0.4) {
+          b.health = Math.max(0, b.health - Math.floor(40 * severity));
+        }
+      }
+      vs.buildings = vs.buildings.filter(b => b.health > 0);
+    }
+  }
+
+  world.activeDisasters.push(disaster);
+  events.push(createEvent(world.gameId, 'disaster', world.tick, [],
+    `災害「${type}」が発生！（${targetVs.centerPosition.x},${targetVs.centerPosition.y}付近）`,
+    { disasterType: type, severity, affectedVillages: affectedVillageIds }));
+}
+
+// === F5: Derive diplomatic status for a village ===
+
+function deriveVillageDiplomaticStatus(world: WorldState, villageId: string): string | undefined {
+  const allRelations = world.diplomacy.getAllRelations();
+  for (const rel of allRelations) {
+    if ((rel.villageId1 === villageId || rel.villageId2 === villageId) && rel.status === 'war') {
+      return 'war';
+    }
+  }
+  return undefined;
+}
+
+// === F10a: Village-influenced child philosophy ===
+// === F10b: Generational rebellion ===
+
+function computePhilosophyVariance(members: AgentState[]): number {
+  if (members.length < 2) return 0;
+  const govCounts: Record<string, number> = {};
+  for (const m of members) {
+    govCounts[m.identity.philosophy.governance] = (govCounts[m.identity.philosophy.governance] ?? 0) + 1;
+  }
+  const maxCount = Math.max(...Object.values(govCounts));
+  return 1 - maxCount / members.length;
+}
+
+// === F10c: Elder wisdom pool ===
+
+function extractElderWisdom(agent: AgentState, world: WorldState): void {
+  if (!agent.villageId) return;
+  const memMgr = new MemoryManager(agent.identity.id, world.gameId);
+  const topMemories = memMgr.getTopMemories(world.tick, 3)
+    .filter(m => m.tier === 'longterm');
+
+  if (topMemories.length === 0) return;
+
+  const existing = world.villageWisdom.get(agent.villageId) ?? [];
+  existing.push(...topMemories);
+  // Cap at 20
+  while (existing.length > 20) existing.shift();
+  world.villageWisdom.set(agent.villageId, existing);
+}
+
+// === F10d: Reflection check ===
+
+function shouldReflect(agent: AgentState, tick: number): boolean {
+  return agent.identity.status !== 'dead' &&
+         agent.identity.status !== 'child' &&
+         tick % 100 === 0;
+}
+
+// === F10e: Governance drift ===
+
+function evaluateGovernanceDrift(village: Village, members: AgentState[]): void {
+  if (members.length < 3) return;
+  const livingAdults = members.filter(a => a.identity.status === 'adult' || a.identity.status === 'elder');
+  if (livingAdults.length < 3) return;
+
+  const govCounts: Record<string, number> = {};
+  for (const a of livingAdults) {
+    govCounts[a.identity.philosophy.governance] = (govCounts[a.identity.philosophy.governance] ?? 0) + 1;
+  }
+
+  for (const [gov, count] of Object.entries(govCounts)) {
+    if (count / livingAdults.length > 0.6 && gov !== village.governance.type) {
+      village.governance.type = gov as any;
+      break;
+    }
+  }
+}
+
 // --- 4X Strategy Tick ---
 
 async function run4XTick(world: WorldState): Promise<GameEvent[]> {
   const events: GameEvent[] = [];
+
+  // F1: Process army movement first
+  processArmyMovement(world, events);
+
+  // F2: Territory expansion
+  processTerritoryExpansion(world, events);
+
+  // F4: Natural disasters
+  processDisasters(world, events);
 
   // Process each village's 4X state
   for (const [villageId, vs] of world.villageStates4X) {
@@ -436,13 +968,16 @@ async function run4XTick(world: WorldState): Promise<GameEvent[]> {
       .map(pos => world.map.tiles[pos.y]?.[pos.x])
       .filter((t): t is NonNullable<typeof t> => !!t);
 
+    // F5: Derive diplomatic status for this village
+    const dipStatus = deriveVillageDiplomaticStatus(world, villageId);
+
     // Run economic tick (with Autonomous World state for Layer 1-3 effects)
     // Dojo: オンチェーン実行 → フォールバック
     const tickResultRaw = world.dojoBridge?.isEnabled()
       ? await world.dojoBridge.executeVillageTick(
           villageId, vs, territoryTiles, world.autonomousWorld, world.tick,
         )
-      : processVillageTick(vs, territoryTiles, world.autonomousWorld, world.tick);
+      : processVillageTick(vs, territoryTiles, world.autonomousWorld, world.tick, dipStatus);
 
     const tickResult = tickResultRaw;
 
@@ -1004,6 +1539,47 @@ function executeAction(world: WorldState, agent: AgentState, action: AgentAction
       return {};
     }
 
+    case 'migrate': {
+      // F7: Multi-tick pathfinding toward target village
+      const targetVillage = world.villages.get(action.targetVillageId);
+      if (!targetVillage || targetVillage.territory.length === 0) {
+        agent.currentAction = '移住先が見つからず';
+        return {};
+      }
+      const targetPos = targetVillage.territory[0];
+      const dist = Math.abs(agent.position.x - targetPos.x) + Math.abs(agent.position.y - targetPos.y);
+
+      if (dist <= 3) {
+        // Arrived: leave old village, join new one
+        if (agent.villageId) {
+          const oldVillage = world.villages.get(agent.villageId);
+          if (oldVillage) leaveVillage(agent, oldVillage);
+        }
+        agent.villageId = targetVillage.id;
+        if (!targetVillage.population.includes(agent.identity.id)) {
+          targetVillage.population.push(agent.identity.id);
+        }
+        agent.currentAction = `${targetVillage.name}に移住完了`;
+
+        // Write migration memory
+        const memMgr = new MemoryManager(agent.identity.id, world.gameId);
+        memMgr.addMemory(`${targetVillage.name}に移住した`, 0.8, world.tick, 'episodic', ['migration']);
+
+        return {
+          event: createEvent(world.gameId, 'discovery', world.tick,
+            [agent.identity.id],
+            `${agent.identity.name}が${targetVillage.name}に移住した`,
+            { type: 'migration', targetVillageId: targetVillage.id }),
+        };
+      }
+
+      // Walk toward target
+      const nextPos = getNextStep(world.map.tiles, agent.position, targetPos);
+      agent.position = nextPos;
+      agent.currentAction = `${targetVillage.name}へ移住中`;
+      return { changedChunk: chunkKey(agent.position) };
+    }
+
     case 'explore': {
       // Random walk
       const dx = Math.round(Math.random() * 2 - 1);
@@ -1087,9 +1663,19 @@ function buildDecisionContext(world: WorldState, agent: AgentState): DecisionCon
     }
   }
 
+  // F10c: Inject elder wisdom for young adults
+  const memMgr = new MemoryManager(agent.identity.id, world.gameId);
+  if (agent.villageId && agent.identity.status === 'adult' && agent.identity.age < 200) {
+    const wisdomPool = world.villageWisdom.get(agent.villageId) ?? [];
+    const wisdomSample = wisdomPool.sort(() => Math.random() - 0.5).slice(0, 3);
+    for (const wisdom of wisdomSample) {
+      memMgr.addMemory(`[長老の教え] ${wisdom.content}`, 0.6, world.tick, 'longterm', ['elder_wisdom']);
+    }
+  }
+
   return {
     agent,
-    memories: new MemoryManager(agent.identity.id, world.gameId),
+    memories: memMgr,
     relationships,
     agentNames,
     village,
@@ -1146,8 +1732,22 @@ async function checkReproduction(world: WorldState): Promise<GameEvent[]> {
         ? (world.villages.get(a1.villageId)?.culture.namingStyle ?? '和風')
         : '和風';
 
+      // F10a: Village governance influence on child philosophy
+      const childVillage = a1.villageId ? world.villages.get(a1.villageId) : null;
+      const villageGov = childVillage?.governance.type;
+
+      // F10b: Generational rebellion — low variance → higher mutation
+      let mutMult = 1.0;
+      if (childVillage) {
+        const villageMembers = childVillage.population
+          .map(id => world.agents.get(id))
+          .filter((a): a is AgentState => !!a && a.identity.status !== 'dead');
+        const variance = computePhilosophyVariance(villageMembers);
+        if (variance < 0.2) mutMult = 2.5;
+      }
+
       try {
-        const child = await createChildAgent(a1, a2, namingStyle);
+        const child = await createChildAgent(a1, a2, namingStyle, villageGov, mutMult);
         world.agents.set(child.identity.id, child as AgentState);
 
         // Set up family relationships

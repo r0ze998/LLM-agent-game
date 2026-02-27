@@ -40,6 +40,7 @@ export interface World4XRef {
   setDiplomacy: (v1: string, v2: string, status: string) => void;
   tick: number;
   generateId: () => string;
+  getVillageCenter?: (villageId: string) => Position | null;  // F6: Spatial trade
 }
 
 // --- コマンド処理 ---
@@ -360,17 +361,32 @@ function processTrade(
     return { success: false, command: cmd, message: 'Target does not have requested resources' };
   }
 
-  // 交易実行
+  // F6: Spatial trade efficiency
+  let efficiency = 1.0;
+  if (world.getVillageCenter) {
+    const center1 = world.getVillageCenter(cmd.villageId);
+    const center2 = world.getVillageCenter(cmd.targetVillageId);
+    if (center1 && center2) {
+      const dist = Math.abs(center1.x - center2.x) + Math.abs(center1.y - center2.y);
+      efficiency = 1 / (1 + dist * 0.05);
+      // Road bonus: count road buildings in source village
+      const roadCount = village.buildings.filter(b => b.defId === 'road').length;
+      const roadBonus = Math.min(0.30, roadCount * 0.02);
+      efficiency = Math.min(1, efficiency + roadBonus);
+    }
+  }
+
+  // 交易実行 (sender pays full, receiver gets scaled by efficiency)
   for (const res of RESOURCE_TYPES_4X) {
     const offered = cmd.offer[res] || 0;
     const requested = cmd.request[res] || 0;
     village.resources[res] -= offered;
-    target.resources[res] += offered;
+    target.resources[res] += Math.floor(offered * efficiency);
     target.resources[res] -= requested;
-    village.resources[res] += requested;
+    village.resources[res] += Math.floor(requested * efficiency);
   }
 
-  return { success: true, command: cmd, message: 'Trade completed' };
+  return { success: true, command: cmd, message: `Trade completed (efficiency: ${Math.round(efficiency * 100)}%)` };
 }
 
 // --- 取り壊し ---
