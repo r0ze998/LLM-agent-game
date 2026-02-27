@@ -1328,7 +1328,7 @@
   },
   "contracts": [
     {
-      "address": "0x2bde98ca51ce959ebc373202143faf09fac91330b851b171e8e4140979ac113",
+      "address": "0x7360cdf4bb91fe882f7dae58cfa6ba07918ed210ad621b011ef04a3f8263860",
       "class_hash": "0x6a86eabdf4d2d58e3c0bb62a4b6bc68c58b99e979a3203c6a1be8e5571fd00b",
       "abi": [
         {
@@ -1532,7 +1532,7 @@
       ]
     },
     {
-      "address": "0x32a30dab98567e8b2f7088de08fc1907157bec2b19b6f4f329a2593c987ecf2",
+      "address": "0x2de775d06f620e2279f7d2dc3681054f8453fa78abad21f9d1c7b6b2f2a660a",
       "class_hash": "0x5a81337e84349b58dbcff33923762303fab38cd9f70a7ae87f9df6114c2cfb2",
       "abi": [
         {
@@ -2200,7 +2200,7 @@
       ]
     },
     {
-      "address": "0x4dde4facfda6a34be5e752a1b4f46101bf915676bbf868efb17192f4c900bab",
+      "address": "0x574e9f838d229be21f0c4579cd8d517ea38e6cc952d0d667242fd5b1e9242d1",
       "class_hash": "0x16b6a7fde048293d12342244dd7c30190f124714a68bb85985853bcd0443028",
       "abi": [
         {
@@ -3371,7 +3371,347 @@
       ]
     },
     {
-      "address": "0x6c846ba9bee86789df306fe20b3298d14d06f70a83e7c223ce92f825c24697a",
+      "address": "0x6c8e399756c98dff0d1c18b4fc04ad11efad82919a5419a0ae7d0eb22172816",
+      "class_hash": "0x4f5b501840db81f86e75c62df024b637de7d7dfa13aca140667bd1b78e9276b",
+      "abi": [
+        {
+          "type": "impl",
+          "name": "trade_sys__ContractImpl",
+          "interface_name": "dojo::contract::interface::IContract"
+        },
+        {
+          "type": "interface",
+          "name": "dojo::contract::interface::IContract",
+          "items": []
+        },
+        {
+          "type": "impl",
+          "name": "trade_sys__DeployedContractImpl",
+          "interface_name": "dojo::meta::interface::IDeployedResource"
+        },
+        {
+          "type": "struct",
+          "name": "core::byte_array::ByteArray",
+          "members": [
+            {
+              "name": "data",
+              "type": "core::array::Array::<core::bytes_31::bytes31>"
+            },
+            {
+              "name": "pending_word",
+              "type": "core::felt252"
+            },
+            {
+              "name": "pending_word_len",
+              "type": "core::integer::u32"
+            }
+          ]
+        },
+        {
+          "type": "interface",
+          "name": "dojo::meta::interface::IDeployedResource",
+          "items": [
+            {
+              "type": "function",
+              "name": "dojo_name",
+              "inputs": [],
+              "outputs": [
+                {
+                  "type": "core::byte_array::ByteArray"
+                }
+              ],
+              "state_mutability": "view"
+            }
+          ]
+        },
+        {
+          "type": "impl",
+          "name": "TradeImpl",
+          "interface_name": "autonomous_world::systems::trade::ITrade"
+        },
+        {
+          "type": "interface",
+          "name": "autonomous_world::systems::trade::ITrade",
+          "items": [
+            {
+              "type": "function",
+              "name": "propose_trade",
+              "inputs": [
+                {
+                  "name": "from_village",
+                  "type": "core::integer::u32"
+                },
+                {
+                  "name": "to_village",
+                  "type": "core::integer::u32"
+                },
+                {
+                  "name": "offer_food",
+                  "type": "core::integer::u128"
+                },
+                {
+                  "name": "offer_wood",
+                  "type": "core::integer::u128"
+                },
+                {
+                  "name": "offer_stone",
+                  "type": "core::integer::u128"
+                },
+                {
+                  "name": "offer_iron",
+                  "type": "core::integer::u128"
+                },
+                {
+                  "name": "offer_gold",
+                  "type": "core::integer::u128"
+                },
+                {
+                  "name": "request_food",
+                  "type": "core::integer::u128"
+                },
+                {
+                  "name": "request_wood",
+                  "type": "core::integer::u128"
+                },
+                {
+                  "name": "request_stone",
+                  "type": "core::integer::u128"
+                },
+                {
+                  "name": "request_iron",
+                  "type": "core::integer::u128"
+                },
+                {
+                  "name": "request_gold",
+                  "type": "core::integer::u128"
+                }
+              ],
+              "outputs": [],
+              "state_mutability": "external"
+            },
+            {
+              "type": "function",
+              "name": "accept_trade",
+              "inputs": [
+                {
+                  "name": "trade_id",
+                  "type": "core::integer::u32"
+                }
+              ],
+              "outputs": [],
+              "state_mutability": "external"
+            },
+            {
+              "type": "function",
+              "name": "cancel_trade",
+              "inputs": [
+                {
+                  "name": "trade_id",
+                  "type": "core::integer::u32"
+                }
+              ],
+              "outputs": [],
+              "state_mutability": "external"
+            },
+            {
+              "type": "function",
+              "name": "create_trade_route",
+              "inputs": [
+                {
+                  "name": "from_village",
+                  "type": "core::integer::u32"
+                },
+                {
+                  "name": "to_village",
+                  "type": "core::integer::u32"
+                },
+                {
+                  "name": "send_food",
+                  "type": "core::integer::u128"
+                },
+                {
+                  "name": "send_wood",
+                  "type": "core::integer::u128"
+                },
+                {
+                  "name": "send_stone",
+                  "type": "core::integer::u128"
+                },
+                {
+                  "name": "send_iron",
+                  "type": "core::integer::u128"
+                },
+                {
+                  "name": "send_gold",
+                  "type": "core::integer::u128"
+                },
+                {
+                  "name": "recv_food",
+                  "type": "core::integer::u128"
+                },
+                {
+                  "name": "recv_wood",
+                  "type": "core::integer::u128"
+                },
+                {
+                  "name": "recv_stone",
+                  "type": "core::integer::u128"
+                },
+                {
+                  "name": "recv_iron",
+                  "type": "core::integer::u128"
+                },
+                {
+                  "name": "recv_gold",
+                  "type": "core::integer::u128"
+                }
+              ],
+              "outputs": [],
+              "state_mutability": "external"
+            },
+            {
+              "type": "function",
+              "name": "execute_trade_tick",
+              "inputs": [
+                {
+                  "name": "route_ids",
+                  "type": "core::array::Array::<core::integer::u32>"
+                }
+              ],
+              "outputs": [],
+              "state_mutability": "external"
+            }
+          ]
+        },
+        {
+          "type": "function",
+          "name": "dojo_init",
+          "inputs": [],
+          "outputs": [],
+          "state_mutability": "view"
+        },
+        {
+          "type": "impl",
+          "name": "WorldProviderImpl",
+          "interface_name": "dojo::contract::components::world_provider::IWorldProvider"
+        },
+        {
+          "type": "struct",
+          "name": "dojo::world::iworld::IWorldDispatcher",
+          "members": [
+            {
+              "name": "contract_address",
+              "type": "core::starknet::contract_address::ContractAddress"
+            }
+          ]
+        },
+        {
+          "type": "interface",
+          "name": "dojo::contract::components::world_provider::IWorldProvider",
+          "items": [
+            {
+              "type": "function",
+              "name": "world_dispatcher",
+              "inputs": [],
+              "outputs": [
+                {
+                  "type": "dojo::world::iworld::IWorldDispatcher"
+                }
+              ],
+              "state_mutability": "view"
+            }
+          ]
+        },
+        {
+          "type": "impl",
+          "name": "UpgradeableImpl",
+          "interface_name": "dojo::contract::components::upgradeable::IUpgradeable"
+        },
+        {
+          "type": "interface",
+          "name": "dojo::contract::components::upgradeable::IUpgradeable",
+          "items": [
+            {
+              "type": "function",
+              "name": "upgrade",
+              "inputs": [
+                {
+                  "name": "new_class_hash",
+                  "type": "core::starknet::class_hash::ClassHash"
+                }
+              ],
+              "outputs": [],
+              "state_mutability": "external"
+            }
+          ]
+        },
+        {
+          "type": "constructor",
+          "name": "constructor",
+          "inputs": []
+        },
+        {
+          "type": "event",
+          "name": "dojo::contract::components::upgradeable::upgradeable_cpt::Upgraded",
+          "kind": "struct",
+          "members": [
+            {
+              "name": "class_hash",
+              "type": "core::starknet::class_hash::ClassHash",
+              "kind": "data"
+            }
+          ]
+        },
+        {
+          "type": "event",
+          "name": "dojo::contract::components::upgradeable::upgradeable_cpt::Event",
+          "kind": "enum",
+          "variants": [
+            {
+              "name": "Upgraded",
+              "type": "dojo::contract::components::upgradeable::upgradeable_cpt::Upgraded",
+              "kind": "nested"
+            }
+          ]
+        },
+        {
+          "type": "event",
+          "name": "dojo::contract::components::world_provider::world_provider_cpt::Event",
+          "kind": "enum",
+          "variants": []
+        },
+        {
+          "type": "event",
+          "name": "autonomous_world::systems::trade::trade_sys::Event",
+          "kind": "enum",
+          "variants": [
+            {
+              "name": "UpgradeableEvent",
+              "type": "dojo::contract::components::upgradeable::upgradeable_cpt::Event",
+              "kind": "nested"
+            },
+            {
+              "name": "WorldProviderEvent",
+              "type": "dojo::contract::components::world_provider::world_provider_cpt::Event",
+              "kind": "nested"
+            }
+          ]
+        }
+      ],
+      "init_calldata": [],
+      "tag": "aw-trade_sys",
+      "selector": "0x5a582901cd3f8ba855a7d2902fd9e7188aff55bd63468a1290c5f759050d649",
+      "systems": [
+        "propose_trade",
+        "accept_trade",
+        "cancel_trade",
+        "create_trade_route",
+        "execute_trade_tick",
+        "upgrade"
+      ]
+    },
+    {
+      "address": "0x186f02b810da5bc186596379a8764741314534136f5d665f41fd2808282504a",
       "class_hash": "0x67a8fb660418ba06bb38194b13a9d08d908f7f4d0e5fe8f974f0d1d2dbe071e",
       "abi": [
         {
@@ -3575,7 +3915,7 @@
       ]
     },
     {
-      "address": "0x12eb8cc473bd77e37bc3d39dea02c783628627ca7ea56feceb7186f1bcf0e72",
+      "address": "0x581dc98dba986e4251f008c7743c0c3580bf87d453cab94836d0d4da4359bbe",
       "class_hash": "0x7cdba23ec6d11389a27e854dd92d17bae5e8b4ea807147341bcbd43149d8654",
       "abi": [
         {
@@ -3964,6 +4304,24 @@
     },
     {
       "members": [],
+      "class_hash": "0x3a7c32dc15f1df5db37494f9c4ae4acafa1de19e65167abda503aec2f34e302",
+      "tag": "aw-TradeCounter",
+      "selector": "0x4b8daef5c569ca67472d0ed8508e257d1e0e43b683c99aa1275bed6de8970b2"
+    },
+    {
+      "members": [],
+      "class_hash": "0x779c3f0172a4284f3cd6f8a64dd38d0dbd14484f4a00d996e5f0e1a901e4719",
+      "tag": "aw-TradeOffer",
+      "selector": "0x2ad7461ae6e75536d988f982c9b14a3d9ee8d08469517c528ffcb4005720e75"
+    },
+    {
+      "members": [],
+      "class_hash": "0x3ec04f54b1e21457c8a01c8b8e39375e0f68bf6eeb1b05e38c1cb9926699e28",
+      "tag": "aw-TradeRoute",
+      "selector": "0x193b27427c86b8d538fa60c7aa2dd20f61efacf6e1646914d1e307b3630aa58"
+    },
+    {
+      "members": [],
       "class_hash": "0x16ce68723bcd2aa794c23b590195ec97a18fbce2b08c9a666360f31cb81d33f",
       "tag": "aw-TrainQueue",
       "selector": "0x467e144080c79c8f6831c5ea2b91a64a9be1f0ea17d71988ab48fd6f28763cd"
@@ -4047,6 +4405,24 @@
       "class_hash": "0x329b09085361d2743b086f7cdd2732a2fe107f37d630ea23e0625cc6d0451d",
       "tag": "aw-KnowledgeSpread",
       "selector": "0x69de301be56d6fa79703e89fe73b12edb2ee59a5ff091099d55e15a7ed557b5"
+    },
+    {
+      "members": [],
+      "class_hash": "0x1a9ada085ac64f29a2716b17a7e5fa8523ee986c854fa90f3e3ab2584d61b8d",
+      "tag": "aw-TradeAccepted",
+      "selector": "0x2a25df119d48bbc564e03aa6c3c78b635e073618e812497550bda7683abb607"
+    },
+    {
+      "members": [],
+      "class_hash": "0x3fe99ac4a01d72724c170aad8852e25429c46d525ad2853db0e0427f64d4056",
+      "tag": "aw-TradeExecuted",
+      "selector": "0x2d44e30fa7a3fd3a35428760f03331cac79f27b022b0500d5b3a2f7086ee09"
+    },
+    {
+      "members": [],
+      "class_hash": "0x501f1f61ec23cb88b89b8cebb71dedfd31bbad3890ef9dce0d56b57c2b4685a",
+      "tag": "aw-TradeProposed",
+      "selector": "0x515ad35fc38f280b34fa7229378f4969a3cc4c388604bcf0de554453879bcc9"
     },
     {
       "members": [],
