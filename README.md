@@ -65,21 +65,23 @@ sozo execute aw-setup register_all
 cd packages/server
 bun run dev
 
-# Start frontend (port 3000) — in a separate terminal
+# Start frontend (port 5176) — in a separate terminal
 cd packages/frontend
 bun run dev
 ```
 
-Open http://localhost:3000 and click "はじめる" to start a new game.
+Open http://localhost:5176 and click "始める" to start a new game.
 
 ### Environment Variables
 
 Copy `.env.example` to `.env` in the project root:
 
 ```bash
-PORT=3001                        # Server port
-CORS_ORIGIN=http://localhost:3000
-ANTHROPIC_API_KEY=sk-ant-xxx     # Required for agent AI
+PORT=3001                              # Server port
+CORS_ORIGIN=http://localhost:5176      # Frontend origin
+ANTHROPIC_API_KEY=sk-ant-xxx           # Required for agent AI
+HEADLESS=true                          # Auto-start game without browser
+HEADLESS_SPEED=1                       # Simulation speed multiplier
 ```
 
 Without `ANTHROPIC_API_KEY`, agents will use fallback daily plans instead of LLM-generated decisions.
@@ -150,7 +152,11 @@ packages/
 │       │   ├── institutionEngine.ts   Layer 3: institution lifecycle
 │       │   └── victoryChecker.ts      Victory condition evaluation
 │       ├── world/                 World simulation
-│       │   ├── simulation.ts          Main tick loop (12 phases)
+│       │   ├── simulation.ts          Orchestrator: main tick loop + types
+│       │   ├── tickPhases.ts          Agent needs, decision context, reproduction
+│       │   ├── actionExecutor.ts      13 agent action types
+│       │   ├── strategy4X.ts          Army, territory, disasters, AI strategy, victory
+│       │   ├── socialTick.ts          Elder wisdom, reflection, governance drift
 │       │   ├── map.ts                 Perlin noise terrain generation
 │       │   ├── pathfinding.ts         A* pathfinding
 │       │   ├── resources.ts           Resource gathering & regeneration
@@ -160,18 +166,25 @@ packages/
 │       │   ├── relationships.ts       Sentiment, trust, familiarity
 │       │   ├── conversation.ts        Autonomous LLM-generated dialogue
 │       │   ├── culture.ts             Cultural evolution
-│       │   └── diplomacy.ts           Inter-village relations, trade
+│       │   ├── diplomacy.ts           Inter-village relations, trade
+│       │   ├── migration.ts           F7: Dissatisfaction-driven migration
+│       │   ├── religion.ts            F8: Religion emergence & spread
+│       │   └── information.ts         F9: Knowledge propagation network
 │       ├── services/              Runtime services
 │       │   ├── tickService.ts         Simulation loop & WebSocket broadcast
 │       │   ├── wsManager.ts           WebSocket management
 │       │   ├── saveService.ts         JSON save/load
 │       │   ├── eventStore.ts          Event persistence
-│       │   └── statsService.ts        World statistics
+│       │   ├── statsService.ts        World statistics
+│       │   └── dojo/                  On-chain bridge
+│       │       ├── dojoBridge.ts          Starknet transaction submitter
+│       │       └── dojoConfig.ts          Dojo configuration loader
 │       └── routes/                REST API
 │           ├── game.ts                Game CRUD, save/load, stats
 │           ├── world.ts               Map chunks, village data
 │           ├── agent.ts               Agent details
 │           ├── player.ts              Player intentions
+│           ├── blueprint.ts           Agent blueprint deployment
 │           └── strategy.ts            4X strategy API
 │
 └── frontend/        React + Vite UI
@@ -184,25 +197,40 @@ packages/
         │   │   ├── AgentSprite.ts      Agent rendering (animated)
         │   │   └── BuildingSprite.ts   Building rendering
         │   └── ui/
-        │       ├── DashboardPanel.tsx   Statistics
-        │       ├── AgentInspector.tsx    Agent status
-        │       ├── AgentDeployer.tsx     Deploy new agents with soul/rules
-        │       ├── VillagePanel.tsx      Village list
-        │       ├── IntentionPanel.tsx    Voice of god input
-        │       ├── TimelinePanel.tsx     Event chronicle
-        │       ├── DialogueBox.tsx       JRPG-style text box
-        │       ├── SpeedControl.tsx      Playback speed
-        │       └── Minimap.tsx           World overview
+        │       ├── DashboardPanel.tsx       Statistics
+        │       ├── AgentInspector.tsx        Agent status
+        │       ├── AgentDeployer.tsx         Deploy new agents with soul/rules
+        │       ├── VillagePanel.tsx          Village list
+        │       ├── IntentionPanel.tsx        Voice of god input
+        │       ├── TimelinePanel.tsx         Event chronicle
+        │       ├── DialogueBox.tsx           JRPG-style text box
+        │       ├── SpeedControl.tsx          Playback speed
+        │       ├── Minimap.tsx               World overview
+        │       ├── DemoOverlay.tsx           Demo mode overlay
+        │       ├── StrategyPanel.tsx         4X strategy controls
+        │       ├── TechTreeViewer.tsx        Technology tree viewer
+        │       ├── DiplomacyOverlay.tsx      Diplomatic relations
+        │       ├── SocialNetworkGraph.tsx    Social network visualization
+        │       ├── NotificationToasts.tsx    Event notifications
+        │       ├── BattleReportPopup.tsx     Combat results
+        │       ├── VictoryPanel.tsx          Victory conditions tracker
+        │       ├── VictoryAnnouncement.tsx   Victory celebration
+        │       ├── AutonomousWorldPanel.tsx  Covenant/Invention/Institution panel
+        │       └── WalletConnect.tsx         Starknet wallet integration
         ├── hooks/
         │   ├── useWorldState.ts    WebSocket state sync
         │   ├── useViewport.ts      Camera & viewport
         │   └── useAgentFocus.ts    Agent tracking
         ├── store/
         │   ├── gameStore.ts        Zustand: simulation state
-        │   └── uiStore.ts          Zustand: UI state
+        │   ├── uiStore.ts          Zustand: UI state
+        │   ├── notificationStore.ts Zustand: notification queue
+        │   └── walletStore.ts      Zustand: wallet connection
         └── services/
             ├── api.ts              REST API client
-            └── wsClient.ts         WebSocket client
+            ├── wsClient.ts         WebSocket client
+            ├── starknetProvider.tsx Starknet React provider
+            └── starknetTx.ts       Starknet transaction helpers
 ```
 
 ## Game Systems
@@ -217,6 +245,25 @@ packages/
 | **L1** | Covenants (契約) | 村の法律・条約。13種条項（税率、徴兵、建設禁止、祭りなど）→ エフェクト変換 |
 | **L2** | Inventions (発明) | プレイヤー/AIが定義する新しい建物・技術・ユニット。物理検証付き |
 | **L3** | Institutions (制度) | 村横断組織（ギルド、宗教、同盟、学院）。入会条件付き |
+
+### Environmental & Spatial Systems
+
+| Feature | Description |
+|---------|-------------|
+| **F1: Army Movement** | A*パスファインディングによる軍隊移動。到着時に自動戦闘発生 |
+| **F2: Territory Expansion** | 文化ポイント消費で隣接タイルを獲得。前哨基地によるダイヤモンド形領地主張 |
+| **F3a: Environmental Integration** | 地形タイプ（平地・森・山・水・沼）に基づく資源生成と移動コスト |
+| **F4: Natural Disasters** | 干ばつ・洪水・疫病・蝗害・地震。周期的にランダム発生し村に被害 |
+| **F6: Trade Routes** | Dojo on-chain経由の村間交易。距離と道路ボーナスによるコスト計算 |
+
+### Social Dynamics
+
+| Feature | Description |
+|---------|-------------|
+| **F7: Migration** | 不満度が閾値を超えるとエージェントが他村へ移住。マルチティック経路探索 |
+| **F8: Religion** | 条件を満たすと宗教が自然発生。文化交流で伝播、正統性のドリフト |
+| **F9: Information Network** | 会話による情報交換・伝播。エージェントごとの知識ストア。200tick で自動剪定 |
+| **F10: Generational Systems** | (a) 村の統治思想が子の哲学に影響 (b) 低多様性で反乱率上昇 (c) 長老の知恵プール (d) 定期内省で信念変化 (e) 60%超の住民が異なる統治思想 → 政体変化 |
 
 ### Agents — 自律会話システム
 
@@ -334,9 +381,10 @@ roles: ['parent', 'spouse', 'rival', ...]
 | Conversation (social) | Sonnet 4.6 | Medium |
 | Strategy (important) | Sonnet 4.6 | Medium |
 
+- **F11: Budget Control** — USD cost tracking per session with configurable caps
 - LRU caching for daily plans
 - Token bucket rate limiting
-- USD cost tracking per session
+- `LLMBudgetExceeded` error when cap is reached; agents gracefully degrade to instinct mode
 
 ## API Endpoints
 
@@ -361,7 +409,7 @@ roles: ['parent', 'spouse', 'rival', ...]
 **Server → Client**: `tick`, `agents_update`, `chunk_update`, `event`, `dialogue`, `village_update`, `stats_update`
 
 **Client → Server**: `subscribe_chunks`, `unsubscribe_chunks`
-111
+
 ## On-chain Architecture
 
 全てのゲームルール・状態・検証はStarknetスマートコントラクト上に存在する。LLMエージェントはオフチェーンで思考し、トランザクションを送信するだけ — 改ざん不可能。
