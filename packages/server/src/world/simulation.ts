@@ -39,7 +39,6 @@ import { AgentKnowledgeStore, parseConversationInformation, transferInformation 
 import { LLMBudgetExceeded } from '../agent/llmClient.ts';
 import { generateReflection } from '../agent/decisionEngine.ts';
 import type { DojoBridge } from '../services/dojo/dojoBridge.ts';
-import type { AgentPaymentClient } from '../services/x402/agentPaymentClient.ts';
 import type { World4XRef } from '../engine/commandProcessor.ts';
 
 // Extracted modules
@@ -86,9 +85,6 @@ export interface WorldState {
 
   // Dojo on-chain bridge (optional)
   dojoBridge?: DojoBridge;
-
-  // x402 payment client (optional)
-  agentPaymentClient?: AgentPaymentClient;
 
   get livingAgents(): AgentState[];
 }
@@ -138,7 +134,6 @@ export function buildWorld4XRef(world: WorldState): World4XRef {
       const vs = world.villageStates4X.get(villageId);
       return vs?.centerPosition ?? null;
     },
-    agentPaymentClient: world.agentPaymentClient,
   };
 }
 
@@ -535,7 +530,7 @@ export async function tick(world: WorldState): Promise<TickResult> {
 
   // 10. Diplomacy between villages (every 50 ticks)
   if (world.tick % 50 === 0 && world.villages.size >= 2) {
-    const dipEvents = await processDiplomacy(world.diplomacy, world.villages, world.agents, world.gameId, world.tick, world.agentPaymentClient);
+    const dipEvents = await processDiplomacy(world.diplomacy, world.villages, world.agents, world.gameId, world.tick);
     events.push(...dipEvents);
   }
 

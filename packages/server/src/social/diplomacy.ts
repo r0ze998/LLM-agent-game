@@ -2,9 +2,7 @@ import type {
   Village, DiplomaticRelation, DiplomaticStatus, TradeAgreement,
   ResourceType, GameEvent, AgentState,
 } from '@murasato/shared';
-import { X402_DEFAULT_TRADE_FEE_USD, X402_ALLIANCE_FEE_USD } from '@murasato/shared';
 import { callLLM, extractJSON } from '../agent/llmClient.ts';
-import type { AgentPaymentClient } from '../services/x402/agentPaymentClient.ts';
 
 function generateId(): string {
   return `trade_${crypto.randomUUID()}`;
@@ -102,7 +100,7 @@ export class DiplomacyManager {
 
   // --- Execute trades ---
 
-  executeTrades(villages: Map<string, Village>, tick: number, agentPaymentClient?: AgentPaymentClient): GameEvent[] {
+  executeTrades(villages: Map<string, Village>, tick: number): GameEvent[] {
     const events: GameEvent[] = [];
 
     for (const trade of this.trades) {
@@ -156,15 +154,6 @@ export class DiplomacyManager {
         description: `${fromVillage.name}と${toVillage.name}が交易を行った`,
         data: { offer: trade.offer, request: trade.request },
       });
-
-      // x402: 交易決済を記録
-      if (agentPaymentClient) {
-        const tradeValue = estimateTradeValueUSD(trade.offer);
-        agentPaymentClient.pay(
-          trade.fromVillageId, trade.toVillageId,
-          tradeValue, 'agent_trade', tick, trade.id,
-        );
-      }
     }
 
     return events;
@@ -344,17 +333,10 @@ export function formAlliance(
   v1: Village,
   v2: Village,
   tick: number,
-  agentPaymentClient?: AgentPaymentClient,
 ): GameEvent {
   diplomacy.setStatus(v1.id, v2.id, 'allied');
   const rel = diplomacy.getRelation(v1.id, v2.id);
   rel.tension = 5;
-
-  // x402: 同盟締結手数料
-  if (agentPaymentClient) {
-    agentPaymentClient.pay(v1.id, v2.id, X402_ALLIANCE_FEE_USD, 'agent_alliance', tick);
-    agentPaymentClient.pay(v2.id, v1.id, X402_ALLIANCE_FEE_USD, 'agent_alliance', tick);
-  }
 
   return {
     id: `evt_${crypto.randomUUID()}`,
@@ -397,12 +379,11 @@ export async function processDiplomacy(
   agents: Map<string, AgentState>,
   gameId: string,
   tick: number,
-  agentPaymentClient?: AgentPaymentClient,
 ): Promise<GameEvent[]> {
   const events: GameEvent[] = [];
 
   // Execute active trades
-  const tradeEvents = diplomacy.executeTrades(villages, tick, agentPaymentClient);
+  const tradeEvents = diplomacy.executeTrades(villages, tick);
   for (const e of tradeEvents) { e.gameId = gameId; events.push(e); }
 
   // Check for diplomatic events between village pairs
@@ -428,7 +409,7 @@ export async function processDiplomacy(
       evt.gameId = gameId;
       events.push(evt);
     } else if (rel.status === 'friendly' && rel.tension <= 10 && Math.random() < 0.05) {
-      const evt = formAlliance(diplomacy, village1, village2, tick, agentPaymentClient);
+      const evt = formAlliance(diplomacy, village1, village2, tick);
       evt.gameId = gameId;
       events.push(evt);
     }
@@ -456,17 +437,4 @@ export async function processDiplomacy(
   }
 
   return events;
-}
-
-// --- x402: 資源量から USD 換算 ---
-
-function estimateTradeValueUSD(
-  resources: Partial<Record<ResourceType, number>>,
-): string {
-  const RESOURCE_PRICE = 0.00001;
-  let total = 0;
-  for (const amount of Object.values(resources)) {
-    total += amount ?? 0;
-  }
-  return (total * RESOURCE_PRICE).toFixed(6);
 }

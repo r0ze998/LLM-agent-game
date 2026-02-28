@@ -7,8 +7,6 @@ import { wsManager } from './wsManager.ts';
 import { computeWorldStats } from './statsService.ts';
 import { eventStore } from './eventStore.ts';
 import type { DojoBridge } from './dojo/dojoBridge.ts';
-import type { AgentPaymentClient } from './x402/agentPaymentClient.ts';
-import { paymentTracker } from './x402/paymentTracker.ts';
 
 class TickService {
   private worlds = new Map<string, WorldState>();
@@ -16,17 +14,11 @@ class TickService {
   private speeds = new Map<string, number>(); // multiplier
   private ticking = new Set<string>(); // prevent overlapping ticks
   private _dojoBridge?: DojoBridge;
-  private _agentPaymentClient?: AgentPaymentClient;
   private tickCounts = new Map<string, number>(); // for periodic logging
 
   /** DojoBridge をセット（index.ts から起動時に呼ばれる） */
   setDojoBridge(bridge: DojoBridge): void {
     this._dojoBridge = bridge;
-  }
-
-  /** AgentPaymentClient をセット（index.ts から起動時に呼ばれる） */
-  setAgentPaymentClient(client: AgentPaymentClient | null): void {
-    this._agentPaymentClient = client ?? undefined;
   }
 
   getWorld(gameId: string): WorldState | undefined {
@@ -42,11 +34,6 @@ class TickService {
     const bridge = dojoBridge ?? this._dojoBridge;
     const map = generateMap(config.seed, config.mapSize);
     const world = createWorldState(gameId, map, bridge);
-
-    // x402: 決済クライアントを注入
-    if (this._agentPaymentClient) {
-      world.agentPaymentClient = this._agentPaymentClient;
-    }
 
     // Spawn initial agents
     const spawnPositions = findSpawnPositions(map, config.initialAgents);
@@ -169,19 +156,6 @@ class TickService {
             type: 'relationships_update',
             relationships: relationshipsData,
           } as any);
-
-          // x402: Payment stats broadcast
-          if (this._agentPaymentClient) {
-            const recentPayments = paymentTracker.getRecent(5);
-            if (recentPayments.length > 0) {
-              wsManager.broadcastToGame(gameId, {
-                type: 'payment_event',
-                totalRevenue: paymentTracker.getTotalRevenue(),
-                totalPayments: paymentTracker.getCount(),
-                recentPayments,
-              } as any);
-            }
-          }
 
           // F19: Autonomous world data (covenants, inventions, institutions)
           const aw = world.autonomousWorld;

@@ -84,6 +84,7 @@ export class DojoStateSync {
         territory: existing?.territory ?? [],
         foundedAtTick: existing?.foundedAtTick ?? 0,
         score: onChain.score,
+        totalGoldEarned: existing?.totalGoldEarned ?? 0,
       };
 
       store.updateVillage4X(state);

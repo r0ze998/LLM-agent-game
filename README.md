@@ -12,7 +12,6 @@ AI自律JRPGビレッジビルダー — LLMエージェントが自律的に生
 | **Frontend** | React 19 + Vite + Zustand + Canvas2D |
 | **Server** | Hono + Bun + WebSocket |
 | **AI** | Anthropic Claude / OpenAI / Ollama (ローカル) |
-| **Payment** | x402 (Base Sepolia, optional) |
 | **CI/CD** | GitHub Actions |
 | **Shared** | TypeScript monorepo (Bun workspaces) |
 
@@ -117,18 +116,16 @@ packages/
 │       │                  migration, religion, information network
 │       ├── services/
 │       │   ├── tickService, wsManager, saveService, eventStore, statsService
-│       │   ├── dojo/      On-chain bridge (Starknet TX submitter)
-│       │   └── x402/      Payment layer (x402 protocol)
-│       └── routes/        REST API + payment endpoints
+│       │   └── dojo/      On-chain bridge (Starknet TX submitter)
+│       └── routes/        REST API endpoints
 │
 └── frontend/        React + Vite UI
     └── src/
         ├── components/
         │   ├── world/     Canvas2D map, tile/agent/building renderers
         │   └── ui/        Dashboard, AgentInspector, IntentionPanel, StrategyPanel,
-        │                  VictoryPanel, TechTreeViewer, DiplomacyOverlay, Minimap,
-        │                  EvmWalletConnect, PaymentDashboard, ...
-        ├── store/         Zustand: gameStore, uiStore, walletStore, evmWalletStore
+        │                  VictoryPanel, TechTreeViewer, DiplomacyOverlay, Minimap, ...
+        ├── store/         Zustand: gameStore, uiStore, walletStore
         └── services/      API client, WebSocket, Dojo state sync
 
 scripts/               E2E test scripts (test-onchain.ts)
@@ -228,8 +225,6 @@ docker-compose.yml     Docker deployment
 | GET | `/api/v1/game/:id/stats` | Get world statistics |
 | GET | `/api/v1/agent/:gameId/:agentId` | Get agent details |
 | POST | `/api/v1/player/:id/intention` | Send player intention |
-| GET | `/api/v1/payment/recent` | Recent x402 payments |
-| GET | `/api/v1/payment/stats` | Payment statistics |
 | WS | `/ws?gameId=xxx` | Real-time game updates |
 
 ## WebSocket Messages

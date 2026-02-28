@@ -10,8 +10,6 @@ export interface VictoryCheckContext {
   villageStates: Map<string, VillageState4X>;
   diplomacy: DiplomaticRelation[];
   tick: number;
-  /** 村ID → x402累計収益(USD) のマップ。経済勝利条件に使用 */
-  villageRevenueUSD?: Map<string, number>;
 }
 
 /** 全勝利条件をチェックし、達成した場合はVictoryEventを返す */
@@ -87,8 +85,8 @@ function computeMetric(
       return count;
     }
 
-    case 'x402_revenue_usd':
-      return ctx.villageRevenueUSD?.get(village.villageId) ?? 0;
+    case 'total_gold_earned':
+      return village.totalGoldEarned ?? 0;
 
     case 'tick_count':
       return ctx.tick;

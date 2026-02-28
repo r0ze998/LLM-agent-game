@@ -35,8 +35,8 @@ export const VICTORY_DEFS: VictoryConditionDef[] = [
     type: 'economic',
     name: 'Economic Victory',
     nameJa: '経済勝利',
-    description: 'x402決済で累計$0.10のUSDC収益を達成する',
-    check: { metric: 'x402_revenue_usd', threshold: 0.10, comparison: 'gte' },
+    description: '累計ゴールド獲得量10,000を達成する',
+    check: { metric: 'total_gold_earned', threshold: 10000, comparison: 'gte' },
   },
   {
     type: 'score',

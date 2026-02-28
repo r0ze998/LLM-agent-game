@@ -15,12 +15,6 @@ import { saveToFile } from './services/saveService.ts';
 import { INITIAL_AGENTS, MAP_SIZE, MAX_AGENTS, DEFAULT_TICK_INTERVAL_MS, TICKS_PER_YEAR } from '@murasato/shared';
 import { loadDojoConfig } from './services/dojo/dojoConfig.ts';
 import { DojoBridge } from './services/dojo/dojoBridge.ts';
-import { loadX402Config } from './services/x402/x402Config.ts';
-import { applyX402Middleware } from './services/x402/x402Server.ts';
-import { AgentWalletManager } from './services/x402/agentWalletManager.ts';
-import { AgentPaymentClient } from './services/x402/agentPaymentClient.ts';
-import { paymentTracker } from './services/x402/paymentTracker.ts';
-import { paymentRouter } from './routes/payment.ts';
 
 const PORT = Number(process.env.PORT ?? 3001);
 const CORS_ORIGIN = process.env.CORS_ORIGIN ?? 'http://localhost:3000';
@@ -35,26 +29,6 @@ app.use('*', cors({
 }));
 app.use('*', logger());
 
-// --- x402 payment layer initialization ---
-
-const x402Config = loadX402Config();
-let agentPaymentClient: AgentPaymentClient | null = null;
-
-if (x402Config.enabled) {
-  applyX402Middleware(app, x402Config);
-  if (x402Config.agentWalletMnemonic) {
-    const walletManager = new AgentWalletManager(x402Config.agentWalletMnemonic);
-    agentPaymentClient = new AgentPaymentClient(walletManager, x402Config);
-  }
-  tickService.setAgentPaymentClient(agentPaymentClient);
-  console.log('💰 x402 payment layer enabled');
-  console.log(`   Network    : ${x402Config.network}`);
-  console.log(`   Pay-to     : ${x402Config.payToAddress}`);
-  console.log(`   On-chain   : ${x402Config.onchainEnabled ? 'yes' : 'no (offchain only)'}`);
-} else {
-  console.log('💰 x402 payment layer disabled (set X402_ENABLED=true to enable)');
-}
-
 // Health check
 app.get('/health', (c) =>
   c.json({
@@ -62,12 +36,6 @@ app.get('/health', (c) =>
     connections: wsManager.count,
     llmCost: costTracker.estimatedCostUSD.toFixed(4),
     llmRequests: costTracker.requests,
-    x402: x402Config.enabled ? {
-      enabled: true,
-      network: x402Config.network,
-      totalRevenue: paymentTracker.getTotalRevenue().toFixed(6),
-      recentPayments: paymentTracker.getCount(),
-    } : { enabled: false },
   }),
 );
 
@@ -79,7 +47,6 @@ v1.route('/agent', agentRouter);
 v1.route('/player', playerRouter);
 v1.route('/blueprint', blueprintRouter);
 v1.route('/strategy', strategyRouter);
-v1.route('/payment', paymentRouter);
 app.route('/api/v1', v1);
 
 // --- Bun.serve with WebSocket ---

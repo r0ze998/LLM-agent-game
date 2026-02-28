@@ -119,7 +119,7 @@ export const SCORE_VICTORY_TICK = 12000;       // スコア勝利の判定ター
 export const CULTURE_VICTORY_THRESHOLD = 1000;
 export const DOMINATION_RATIO = 0.75;
 export const DIPLOMACY_ALLIANCE_RATIO = 0.60;
-export const ECONOMIC_VICTORY_REVENUE_USD = 0.10; // 経済勝利に必要な累計USDC収益
+export const ECONOMIC_VICTORY_GOLD_THRESHOLD = 10000; // 経済勝利に必要な累計ゴールド獲得量
 
 // AI Strategy
 export const AI_TICK_INTERVAL = 5;             // AI村のコマンド発行間隔
@@ -163,7 +163,3 @@ export const MIGRATION_WAR_COURAGE_THRESHOLD = 30;
 export const LLM_BUDGET_PER_HOUR_USD = 1.0;
 export const LLM_PAUSE_DURATION_MS = 300000;
 
-// === x402 Payment ===
-export const X402_DEFAULT_TRADE_FEE_USD = '0.0001';
-export const X402_ALLIANCE_FEE_USD = '0.001';
-export const X402_TRIBUTE_MIN_USD = '0.0005';

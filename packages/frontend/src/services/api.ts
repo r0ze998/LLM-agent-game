@@ -1,32 +1,9 @@
-import type { ApiResponse, GameState, AgentState, AgentBlueprint, DeployedBlueprintMeta, Chunk, Village, PlayerIntention, IntentionType, IntentionStrength, PlayerCommand, CommandResult, VillageState4XSerialized, WorldStats, X402PaymentRecord } from '@murasato/shared';
-import { wrapFetchWithPayment, x402Client } from '@x402/fetch';
-import { registerExactEvmScheme } from '@x402/evm/exact/client';
-import { toClientEvmSigner } from '@x402/evm';
-import type { PrivateKeyAccount } from 'viem/accounts';
-import { createPublicClient, http } from 'viem';
-import { baseSepolia } from 'viem/chains';
+import type { ApiResponse, GameState, AgentState, AgentBlueprint, DeployedBlueprintMeta, Chunk, Village, PlayerIntention, IntentionType, IntentionStrength, PlayerCommand, CommandResult, VillageState4XSerialized, WorldStats } from '@murasato/shared';
 
 const BASE_URL = '/api/v1';
 
-// x402 payment-aware fetch (default: normal fetch when EVM wallet not connected)
-let paymentFetch: typeof fetch = fetch;
-
-export function initializePaymentFetch(signer: PrivateKeyAccount): void {
-  const publicClient = createPublicClient({ chain: baseSepolia, transport: http() });
-  const evmSigner = toClientEvmSigner(signer, publicClient);
-  const client = new x402Client();
-  registerExactEvmScheme(client, { signer: evmSigner });
-  paymentFetch = wrapFetchWithPayment(fetch, client);
-  if (import.meta.env.DEV) console.log('[x402] Payment-aware fetch initialized');
-}
-
-export function resetPaymentFetch(): void {
-  paymentFetch = fetch;
-  if (import.meta.env.DEV) console.log('[x402] Payment fetch reset to normal fetch');
-}
-
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await paymentFetch(`${BASE_URL}${path}`, {
+  const res = await fetch(`${BASE_URL}${path}`, {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
@@ -114,11 +91,4 @@ export const api = {
   // Stats
   getGameStats: (gameId: string) =>
     request<WorldStats>(`/game/${gameId}/stats`),
-
-  // x402 Payments
-  getRecentPayments: (limit?: number) =>
-    request<X402PaymentRecord[]>(`/payment/recent${limit ? `?limit=${limit}` : ''}`),
-
-  getPaymentStats: () =>
-    request<{ totalRevenue: number; totalPayments: number }>('/payment/stats'),
 };

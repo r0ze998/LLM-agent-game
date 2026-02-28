@@ -103,6 +103,9 @@ export interface VillageState4X {
   // メタ
   foundedAtTick: number;
   score: number;
+
+  // 経済勝利用: 累計ゴールド獲得量
+  totalGoldEarned: number;
 }
 
 export function createDefaultVillageState4X(
@@ -135,6 +138,7 @@ export function createDefaultVillageState4X(
     territory,
     foundedAtTick: tick,
     score: 0,
+    totalGoldEarned: 0,
   };
 }
 

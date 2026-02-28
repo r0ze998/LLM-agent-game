@@ -304,6 +304,12 @@ export function processVillageTick(
     totalStorage[res] += agg.resourceStorage[res];
   }
 
+  // ゴールド累計追跡: 正の増加分を加算
+  const goldDelta = result.resourceDelta.gold;
+  if (goldDelta > 0) {
+    village.totalGoldEarned = (village.totalGoldEarned ?? 0) + goldDelta;
+  }
+
   for (const res of RESOURCE_TYPES_4X) {
     village.resources[res] += result.resourceDelta[res];
     village.resources[res] = Math.min(village.resources[res], totalStorage[res]);

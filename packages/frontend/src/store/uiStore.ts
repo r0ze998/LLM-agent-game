@@ -26,7 +26,6 @@ interface UIStore {
   showSocialGraph: boolean;
   showVictory: boolean;
   showAutonomousWorld: boolean;
-  showPaymentDashboard: boolean;
   speed: number;
   isPaused: boolean;
   isWalletConnected: boolean;
@@ -49,7 +48,6 @@ interface UIStore {
   toggleSocialGraph: () => void;
   toggleVictory: () => void;
   toggleAutonomousWorld: () => void;
-  togglePaymentDashboard: () => void;
   setSpeed: (speed: number) => void;
   setIsPaused: (paused: boolean) => void;
   setWalletConnected: (connected: boolean) => void;
@@ -74,7 +72,6 @@ export const useUIStore = create<UIStore>((set) => ({
   showSocialGraph: false,
   showVictory: false,
   showAutonomousWorld: false,
-  showPaymentDashboard: false,
   speed: 1,
   isPaused: true,
   isWalletConnected: false,
@@ -97,7 +94,6 @@ export const useUIStore = create<UIStore>((set) => ({
   toggleSocialGraph: () => set((s) => ({ showSocialGraph: !s.showSocialGraph })),
   toggleVictory: () => set((s) => ({ showVictory: !s.showVictory })),
   toggleAutonomousWorld: () => set((s) => ({ showAutonomousWorld: !s.showAutonomousWorld })),
-  togglePaymentDashboard: () => set((s) => ({ showPaymentDashboard: !s.showPaymentDashboard })),
   setSpeed: (speed) => set({ speed, isPaused: speed === 0 }),
   setIsPaused: (isPaused) => set({ isPaused }),
   setWalletConnected: (isWalletConnected) => set({ isWalletConnected }),

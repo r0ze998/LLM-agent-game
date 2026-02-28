@@ -293,7 +293,7 @@ export type WSServerMessage =
   | { type: 'diplomacy_update'; relations: DiplomaticRelation[] }
   | { type: 'relationships_update'; relationships: { agentId: string; relations: Relationship[] }[] }
   | { type: 'autonomous_world_update'; covenants: Covenant[]; inventions: Invention[]; institutions: Institution[] }
-  | { type: 'payment_event'; payment: X402PaymentRecord };
+;
 
 export interface DialogueLine {
   speakerId: string;
@@ -388,35 +388,6 @@ export interface DeployedBlueprintMeta {
   rules: string[];
   backstory: string | null;
   deployedAtTick: number;
-}
-
-// === x402 Payment Types ===
-
-export interface X402PaymentRecord {
-  id: string;
-  fromAddress: string;
-  toAddress: string;
-  amount: string;
-  network: string;
-  purpose: X402PaymentPurpose;
-  relatedEntityId?: string;
-  tick: number;
-  timestamp: number;
-}
-
-export type X402PaymentPurpose =
-  | 'player_intention'
-  | 'chronicle_generation'
-  | 'biography_generation'
-  | 'blueprint_deploy'
-  | 'agent_trade'
-  | 'agent_alliance'
-  | 'agent_tribute';
-
-export interface AgentEvmWallet {
-  agentId: string;
-  evmAddress: string;
-  balanceUSDC: string;
 }
 
 // === API Response Types ===

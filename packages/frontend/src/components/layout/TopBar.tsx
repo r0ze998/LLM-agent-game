@@ -3,7 +3,6 @@ import { useGameStore } from '../../store/gameStore.ts';
 import { useUIStore } from '../../store/uiStore.ts';
 import { TICKS_PER_DAY, TICKS_PER_YEAR } from '@murasato/shared';
 import { WalletConnect } from '../ui/WalletConnect.tsx';
-import { EvmWalletConnect } from '../ui/EvmWalletConnect.tsx';
 
 export function TopBar() {
   const tick = useGameStore((s) => s.game?.tick ?? 0);
@@ -19,7 +18,6 @@ export function TopBar() {
   const toggleSocialGraph = useUIStore((s) => s.toggleSocialGraph);
   const toggleVictory = useUIStore((s) => s.toggleVictory);
   const toggleAutonomousWorld = useUIStore((s) => s.toggleAutonomousWorld);
-  const togglePaymentDashboard = useUIStore((s) => s.togglePaymentDashboard);
 
   const day = Math.floor((tick % TICKS_PER_YEAR) / TICKS_PER_DAY) + 1;
   const year = Math.floor(tick / TICKS_PER_YEAR) + 1;
@@ -62,7 +60,6 @@ export function TopBar() {
           { label: '年代記', onClick: toggleTimeline },
           { label: '統計', onClick: toggleDashboard },
           { label: '社会', onClick: toggleSocialGraph },
-          { label: '決済', onClick: togglePaymentDashboard },
         ]} />
         {gameMode === 'player' && (
           <>
@@ -70,7 +67,6 @@ export function TopBar() {
             <HeaderButton onClick={toggleIntention}>天の声</HeaderButton>
           </>
         )}
-        <EvmWalletConnect />
         <WalletConnect />
       </div>
     </div>
