@@ -24,6 +24,7 @@ import { areAtWar } from '../social/diplomacy.ts';
 import { processVillageTick } from '../engine/ruleEngine.ts';
 import { processCommand, type World4XRef } from '../engine/commandProcessor.ts';
 import { checkVictory } from '../engine/victoryChecker.ts';
+import { paymentTracker } from '../services/x402/paymentTracker.ts';
 import {
   generateAICommands,
   generateCovenantCommand,
@@ -690,10 +691,12 @@ export async function run4XTick(world: WorldState): Promise<GameEvent[]> {
   }
 
   // Victory check
+  const villageRevenueUSD = paymentTracker.getRevenueByEntity();
   const victoryResult = checkVictory({
     villageStates: world.villageStates4X,
     diplomacy: world.diplomacy.getAllRelations(),
     tick: world.tick,
+    villageRevenueUSD,
   });
 
   if (victoryResult) {

@@ -30,6 +30,7 @@ import { RESOURCE_TYPES_4X, createDefaultVillageState4X } from '@murasato/shared
 import { aggregateEffects } from './ruleEngine.ts';
 import { resolveCombat, conquerVillage } from './combatEngine.ts';
 import type { Position, DiplomaticRelation } from '@murasato/shared';
+import type { AgentPaymentClient } from '../services/x402/agentPaymentClient.ts';
 
 // --- 4X世界への参照インターフェース ---
 
@@ -41,6 +42,7 @@ export interface World4XRef {
   tick: number;
   generateId: () => string;
   getVillageCenter?: (villageId: string) => Position | null;  // F6: Spatial trade
+  agentPaymentClient?: AgentPaymentClient;  // x402: エージェント間決済
 }
 
 // --- コマンド処理 ---
@@ -384,6 +386,18 @@ function processTrade(
     target.resources[res] += Math.floor(offered * efficiency);
     target.resources[res] -= requested;
     village.resources[res] += Math.floor(requested * efficiency);
+  }
+
+  // x402: 交易決済を記録
+  if (world.agentPaymentClient) {
+    const totalUnits = RESOURCE_TYPES_4X.reduce(
+      (sum, r) => sum + (cmd.offer[r] || 0) + (cmd.request[r] || 0), 0,
+    );
+    const tradeValue = (totalUnits * 0.00001).toFixed(6);
+    world.agentPaymentClient.pay(
+      cmd.villageId, cmd.targetVillageId,
+      tradeValue, 'agent_trade', world.tick,
+    );
   }
 
   return { success: true, command: cmd, message: `Trade completed (efficiency: ${Math.round(efficiency * 100)}%)` };

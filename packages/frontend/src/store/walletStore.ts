@@ -49,7 +49,7 @@ export const useWalletStore = create<WalletStore>((set) => ({
     const devAccount = KATANA_DEV_ACCOUNTS[accountIndex] ?? KATANA_DEV_ACCOUNTS[0];
     const provider = new RpcProvider({ nodeUrl: KATANA_RPC_URL });
     const account = new Account(provider, devAccount.address, devAccount.privateKey);
-    console.log(`[Wallet] Connected to Katana: ${devAccount.address.slice(0, 10)}...`);
+    if (import.meta.env.DEV) console.log(`[Wallet] Connected to Katana: ${devAccount.address.slice(0, 10)}...`);
     set({
       address: devAccount.address,
       isConnected: true,

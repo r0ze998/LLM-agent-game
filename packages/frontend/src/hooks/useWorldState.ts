@@ -20,6 +20,7 @@ export function useWorldState(gameId: string | null) {
     updateTick, setAgents, updateChunk, addEvent, addDialogue,
     updateVillage, setStats, updateVillage4X, setBattleResult, setVictoryEvent,
     setGame, setDiplomaticRelations, setAgentRelationships, setAutonomousWorld,
+    setPaymentStats,
   } = useGameStore();
   const addNotification = useNotificationStore((s) => s.addNotification);
 
@@ -29,14 +30,16 @@ export function useWorldState(gameId: string | null) {
     // Fetch initial state via REST so we don't depend on tick timing
     (async () => {
       try {
-        const [gameState, agents, stats] = await Promise.all([
+        const [gameState, agents, stats, pStats] = await Promise.all([
           api.getGame(gameId),
           api.getAgents(gameId),
           api.getGameStats(gameId).catch(() => null),
+          api.getPaymentStats().catch(() => null),
         ]);
         setGame(gameState);
         setAgents(agents);
         if (stats) setStats(stats);
+        if (pStats) setPaymentStats(pStats);
       } catch (err) {
         console.error('Failed to fetch initial state:', err);
       }
@@ -119,6 +122,16 @@ export function useWorldState(gameId: string | null) {
             covenants: msg.covenants,
             inventions: msg.inventions,
             institutions: msg.institutions,
+          });
+          break;
+        case 'payment_event':
+          // Payment occurred — refresh payment stats
+          api.getPaymentStats().then(setPaymentStats).catch(() => {});
+          addNotification({
+            type: 'payment',
+            title: '決済',
+            description: `$${parseFloat(msg.payment.amount).toFixed(4)} USDC`,
+            color: '#4fc3f7',
           });
           break;
       }

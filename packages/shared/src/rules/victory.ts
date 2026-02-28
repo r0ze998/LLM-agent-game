@@ -32,6 +32,13 @@ export const VICTORY_DEFS: VictoryConditionDef[] = [
     check: { metric: 'branch_mastery_count', threshold: 1, comparison: 'gte' },
   },
   {
+    type: 'economic',
+    name: 'Economic Victory',
+    nameJa: '経済勝利',
+    description: 'x402決済で累計$0.10のUSDC収益を達成する',
+    check: { metric: 'x402_revenue_usd', threshold: 0.10, comparison: 'gte' },
+  },
+  {
     type: 'score',
     name: 'Score Victory',
     nameJa: 'スコア勝利',

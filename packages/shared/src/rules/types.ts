@@ -117,7 +117,7 @@ export interface UnitDef {
 
 // --- Victory Condition ---
 
-export type VictoryType = 'domination' | 'culture' | 'diplomacy' | 'technology' | 'score';
+export type VictoryType = 'domination' | 'culture' | 'diplomacy' | 'technology' | 'economic' | 'score';
 
 export interface VictoryConditionDef {
   type: VictoryType;

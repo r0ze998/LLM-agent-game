@@ -1,7 +1,7 @@
 // F18: Victory Progress Tracker — 勝利進捗パネル
 import { useGameStore } from '../../store/gameStore.ts';
 import { useUIStore } from '../../store/uiStore.ts';
-import { VICTORY_DEFS, SCORE_VICTORY_TICK, TECH_DEFS } from '@murasato/shared';
+import { VICTORY_DEFS, SCORE_VICTORY_TICK, TECH_DEFS, ECONOMIC_VICTORY_REVENUE_USD } from '@murasato/shared';
 
 const TECH_BRANCHES: Record<string, string[]> = {
   agriculture: ['agriculture', 'irrigation', 'animal_husbandry', 'crop_rotation', 'watermill', 'guilds', 'banking', 'economics', 'industrialization', 'agriculture_mastery'],
@@ -17,6 +17,7 @@ export function VictoryPanel() {
   const villages = useGameStore((s) => s.villages);
   const game = useGameStore((s) => s.game);
   const diplomaticRelations = useGameStore((s) => s.diplomaticRelations);
+  const paymentStats = useGameStore((s) => s.paymentStats);
 
   if (!showVictory) return null;
 
@@ -77,6 +78,11 @@ export function VictoryPanel() {
           current = bestBranch;
           target = bestBranchTotal;
         }
+        break;
+      }
+      case 'economic': {
+        current = paymentStats?.totalRevenue ?? 0;
+        target = ECONOMIC_VICTORY_REVENUE_USD;
         break;
       }
       case 'score': {

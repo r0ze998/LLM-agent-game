@@ -87,9 +87,8 @@ export class DojoStateSync {
       };
 
       store.updateVillage4X(state);
-      console.log(`${LOG_PREFIX} Synced village ${villageUuid} (u32=${u32Id})`);
     } catch (err) {
-      console.warn(`${LOG_PREFIX} Failed to sync ${villageUuid}:`, err);
+      console.warn(`${LOG_PREFIX} Sync failed (${villageUuid}):`, err);
     }
   }
 

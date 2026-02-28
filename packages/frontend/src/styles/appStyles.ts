@@ -276,3 +276,29 @@ export const errorStyle: React.CSSProperties = {
   fontSize: 12,
   marginBottom: 12,
 };
+
+// ---- Phase text (cinematic intro) ----
+
+export const phaseTextStyle: React.CSSProperties = {
+  position: 'absolute',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  fontSize: 16,
+  color: '#7a9ec7',
+  letterSpacing: '0.2em',
+  fontFamily: '"M PLUS 1p", "Hiragino Kaku Gothic ProN", monospace',
+  pointerEvents: 'none',
+  zIndex: 1,
+};
+
+export const skipHintStyle: React.CSSProperties = {
+  position: 'absolute',
+  bottom: 24,
+  right: 24,
+  fontSize: 11,
+  color: 'rgba(122,184,255,0.3)',
+  fontFamily: '"M PLUS 1p", "Hiragino Kaku Gothic ProN", monospace',
+  pointerEvents: 'none',
+  zIndex: 1,
+};

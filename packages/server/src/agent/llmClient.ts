@@ -1,13 +1,30 @@
 import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import { DAILY_PLAN_MODEL, SOCIAL_MODEL, IMPORTANT_MODEL, LLM_MAX_RETRIES, LLM_BUDGET_PER_HOUR_USD } from '@murasato/shared';
 
-const client = new Anthropic();
+// --- Provider selection ---
+
+type LLMProvider = 'anthropic' | 'openai' | 'ollama';
+
+const LLM_PROVIDER: LLMProvider = (process.env.LLM_PROVIDER as LLMProvider) ??
+  (process.env.OPENAI_API_KEY ? 'openai' : 'anthropic');
+
+const anthropicClient = LLM_PROVIDER === 'anthropic' ? new Anthropic() : null;
+const openaiClient = LLM_PROVIDER === 'openai' ? new OpenAI() : null;
+const ollamaClient = LLM_PROVIDER === 'ollama' ? new OpenAI({
+  baseURL: process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434/v1',
+  apiKey: 'ollama',  // Ollama doesn't need a real key but OpenAI SDK requires one
+}) : null;
+
+// OpenAI / Ollama model (single model for all importance levels)
+const OPENAI_MODEL = process.env.OPENAI_MODEL ?? 'gpt-4o-mini';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? 'qwen2.5:3b';
+
+console.log(`[LLM] Provider: ${LLM_PROVIDER}${LLM_PROVIDER === 'openai' ? ` (model: ${OPENAI_MODEL})` : LLM_PROVIDER === 'ollama' ? ` (model: ${OLLAMA_MODEL})` : ''}`);
 
 // --- Concurrency limiter (semaphore) ---
-// New Anthropic accounts have low concurrent connection limits.
-// Queue requests so at most MAX_CONCURRENT are in-flight at once.
 
-const MAX_CONCURRENT = 2;
+const MAX_CONCURRENT = LLM_PROVIDER === 'ollama' ? 1 : LLM_PROVIDER === 'openai' ? 5 : 2;
 let inFlight = 0;
 const waitQueue: (() => void)[] = [];
 
@@ -28,9 +45,8 @@ function releaseConcurrency() {
 }
 
 // --- Rate limiter (token bucket) ---
-// Override: new Anthropic accounts have low output token limits (10k/min).
-// Limit to ~2 req/sec to avoid bursting through the limit.
-const EFFECTIVE_RATE_LIMIT = 2;
+
+const EFFECTIVE_RATE_LIMIT = LLM_PROVIDER === 'ollama' ? 1 : LLM_PROVIDER === 'openai' ? 10 : 2;
 
 let tokens = EFFECTIVE_RATE_LIMIT;
 let lastRefill = Date.now();
@@ -62,7 +78,6 @@ function getCached(key: string): string | null {
     cache.delete(key);
     return null;
   }
-  // refresh position
   cache.delete(key);
   cache.set(key, entry);
   return entry.result;
@@ -84,7 +99,12 @@ export const costTracker = {
   requests: 0,
 
   get estimatedCostUSD(): number {
-    // Haiku pricing approximation: $0.25/1M input, $1.25/1M output
+    if (LLM_PROVIDER === 'ollama') return 0; // local, free
+    if (LLM_PROVIDER === 'openai') {
+      // gpt-4o-mini pricing: $0.15/1M input, $0.60/1M output
+      return (this.inputTokens * 0.15 + this.outputTokens * 0.60) / 1_000_000;
+    }
+    // Haiku pricing: $0.25/1M input, $1.25/1M output
     return (this.inputTokens * 0.25 + this.outputTokens * 1.25) / 1_000_000;
   },
 
@@ -140,6 +160,62 @@ function selectModel(importance: DecisionImportance): string {
   }
 }
 
+// --- Provider-specific call implementations ---
+
+async function callAnthropic(model: string, system: string, userMessage: string, maxTokens: number) {
+  const response = await anthropicClient!.messages.create({
+    model,
+    max_tokens: maxTokens,
+    system,
+    messages: [{ role: 'user', content: userMessage }],
+  });
+
+  const inputTokens = response.usage.input_tokens;
+  const outputTokens = response.usage.output_tokens;
+  const text = response.content
+    .filter(block => block.type === 'text')
+    .map(block => block.text)
+    .join('');
+
+  return { text, inputTokens, outputTokens };
+}
+
+async function callOpenAI(model: string, system: string, userMessage: string, maxTokens: number) {
+  const openaiModel = OPENAI_MODEL;
+  const response = await openaiClient!.chat.completions.create({
+    model: openaiModel,
+    max_tokens: maxTokens,
+    messages: [
+      { role: 'system', content: system },
+      { role: 'user', content: userMessage },
+    ],
+  });
+
+  const text = response.choices[0]?.message?.content ?? '';
+  const inputTokens = response.usage?.prompt_tokens ?? 0;
+  const outputTokens = response.usage?.completion_tokens ?? 0;
+
+  return { text, inputTokens, outputTokens };
+}
+
+async function callOllama(model: string, system: string, userMessage: string, maxTokens: number) {
+  const response = await ollamaClient!.chat.completions.create({
+    model: OLLAMA_MODEL,
+    max_tokens: maxTokens,
+    response_format: { type: 'json_object' },
+    messages: [
+      { role: 'system', content: system + '\n\nIMPORTANT: You MUST respond with valid JSON only. No extra text.' },
+      { role: 'user', content: userMessage },
+    ],
+  });
+
+  const text = response.choices[0]?.message?.content ?? '';
+  const inputTokens = response.usage?.prompt_tokens ?? 0;
+  const outputTokens = response.usage?.completion_tokens ?? 0;
+
+  return { text, inputTokens, outputTokens };
+}
+
 // --- Main call ---
 
 export interface LLMCallOptions {
@@ -171,34 +247,30 @@ export async function callLLM(options: LLMCallOptions): Promise<string> {
   try {
     for (let attempt = 0; attempt < LLM_MAX_RETRIES; attempt++) {
       try {
-        const response = await client.messages.create({
-          model,
-          max_tokens: maxTokens,
-          system,
-          messages: [{ role: 'user', content: userMessage }],
-        });
+        const result = LLM_PROVIDER === 'ollama'
+          ? await callOllama(model, system, userMessage, maxTokens)
+          : LLM_PROVIDER === 'openai'
+          ? await callOpenAI(model, system, userMessage, maxTokens)
+          : await callAnthropic(model, system, userMessage, maxTokens);
 
-        costTracker.inputTokens += response.usage.input_tokens;
-        costTracker.outputTokens += response.usage.output_tokens;
+        costTracker.inputTokens += result.inputTokens;
+        costTracker.outputTokens += result.outputTokens;
         costTracker.requests += 1;
 
         // F11: Track cost in hourly budget
-        const callCostUSD = (response.usage.input_tokens * 0.25 + response.usage.output_tokens * 1.25) / 1_000_000;
+        const pricingInput = LLM_PROVIDER === 'openai' ? 0.15 : 0.25;
+        const pricingOutput = LLM_PROVIDER === 'openai' ? 0.60 : 1.25;
+        const callCostUSD = (result.inputTokens * pricingInput + result.outputTokens * pricingOutput) / 1_000_000;
         budgetTracker.addCost(callCostUSD);
 
-        const text = response.content
-          .filter(block => block.type === 'text')
-          .map(block => block.text)
-          .join('');
-
-        if (cacheKey) setCache(cacheKey, text);
-        return text;
+        if (cacheKey) setCache(cacheKey, result.text);
+        return result.text;
       } catch (err) {
         lastError = err as Error;
         const msg = (err as Error).message ?? '';
         console.error(`LLM call attempt ${attempt + 1} failed:`, msg.slice(0, 120));
-        // Don't retry on billing/auth errors (400/401/403) - fail fast
-        if (msg.includes('credit balance') || msg.includes('401') || msg.includes('403')) {
+        // Don't retry on billing/auth errors - fail fast
+        if (msg.includes('credit balance') || msg.includes('401') || msg.includes('403') || msg.includes('quota')) {
           break;
         }
         if (attempt < LLM_MAX_RETRIES - 1) {

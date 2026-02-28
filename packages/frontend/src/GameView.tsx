@@ -21,6 +21,7 @@ import { BattleReportPopup } from './components/ui/BattleReportPopup.tsx';
 import { VictoryPanel } from './components/ui/VictoryPanel.tsx';
 import { VictoryAnnouncement } from './components/ui/VictoryAnnouncement.tsx';
 import { AutonomousWorldPanel } from './components/ui/AutonomousWorldPanel.tsx';
+import { PaymentDashboard } from './components/ui/PaymentDashboard.tsx';
 
 export function GameView() {
   const gameId = useGameStore((s) => s.game?.id ?? null);
@@ -49,6 +50,7 @@ export function GameView() {
       <VictoryPanel />
       <VictoryAnnouncement />
       <AutonomousWorldPanel />
+      <PaymentDashboard />
     </div>
   );
 }

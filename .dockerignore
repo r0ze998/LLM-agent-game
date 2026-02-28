@@ -1,0 +1,9 @@
+node_modules
+.git
+.github
+*.md
+.env*
+!.env.example
+packages/frontend
+packages/server/node_modules
+packages/shared/node_modules

@@ -18,6 +18,7 @@ interface GameStore {
   covenants: Covenant[];
   inventions: Invention[];
   institutions: Institution[];
+  paymentStats: { totalRevenue: number; totalPayments: number } | null;
 
   // Actions
   setGame: (game: GameState) => void;
@@ -36,6 +37,7 @@ interface GameStore {
   setDiplomaticRelations: (relations: DiplomaticRelation[]) => void;
   setAgentRelationships: (data: { agentId: string; relations: Relationship[] }[]) => void;
   setAutonomousWorld: (data: { covenants: Covenant[]; inventions: Invention[]; institutions: Institution[] }) => void;
+  setPaymentStats: (stats: { totalRevenue: number; totalPayments: number }) => void;
   reset: () => void;
 }
 
@@ -55,6 +57,7 @@ const initialState = {
   covenants: [] as Covenant[],
   inventions: [] as Invention[],
   institutions: [] as Institution[],
+  paymentStats: null as { totalRevenue: number; totalPayments: number } | null,
 };
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -136,6 +139,8 @@ export const useGameStore = create<GameStore>((set) => ({
     institutions: data.institutions,
   }),
 
+  setPaymentStats: (stats) => set({ paymentStats: stats }),
+
   reset: () => set({
     ...initialState,
     agents: new Map(), chunks: new Map(), villages: new Map(),
@@ -143,5 +148,6 @@ export const useGameStore = create<GameStore>((set) => ({
     lastBattleResult: null, victoryEvent: null,
     diplomaticRelations: [], agentRelationships: new Map(),
     covenants: [], inventions: [], institutions: [],
+    paymentStats: null,
   }),
 }));

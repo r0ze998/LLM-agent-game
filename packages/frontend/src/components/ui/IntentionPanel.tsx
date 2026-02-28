@@ -3,6 +3,7 @@ import type { IntentionType, IntentionStrength } from '@murasato/shared';
 import { useGameStore } from '../../store/gameStore.ts';
 import { useUIStore } from '../../store/uiStore.ts';
 import { api } from '../../services/api.ts';
+import { useEvmWalletStore } from '../../store/evmWalletStore.ts';
 
 const panelStyle: React.CSSProperties = {
   position: 'fixed',
@@ -31,6 +32,9 @@ export function IntentionPanel() {
   const [type, setType] = useState<IntentionType>('guide');
   const [strength, setStrength] = useState<IntentionStrength>('suggestion');
   const [sending, setSending] = useState(false);
+  const evmConnected = useEvmWalletStore((s) => s.isConnected);
+
+  const INTENTION_COST_USD = '$0.001';
 
   if (gameMode === 'observer' || !show || !game) return null;
 
@@ -87,6 +91,25 @@ export function IntentionPanel() {
         ))}
       </div>
 
+      {/* Cost indicator */}
+      {evmConnected && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          marginBottom: 8,
+          padding: '4px 8px',
+          background: 'rgba(79, 195, 247, 0.1)',
+          border: '1px solid rgba(79, 195, 247, 0.3)',
+          borderRadius: 4,
+          fontSize: 11,
+        }}>
+          <span style={{ color: '#4fc3f7' }}>USDC</span>
+          <span style={{ color: '#aaa' }}>コスト: {INTENTION_COST_USD} / コマンド</span>
+          <span style={{ color: '#666', marginLeft: 'auto' }}>Base</span>
+        </div>
+      )}
+
       {/* Text input */}
       <div style={{ display: 'flex', gap: 8 }}>
         <input
@@ -98,7 +121,7 @@ export function IntentionPanel() {
           style={inputStyle}
         />
         <button onClick={handleSend} disabled={sending || !message.trim()} style={sendBtn}>
-          {sending ? '...' : '送信'}
+          {sending ? '...' : evmConnected ? `送信 (${INTENTION_COST_USD})` : '送信'}
         </button>
       </div>
     </div>

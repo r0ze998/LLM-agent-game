@@ -9,10 +9,14 @@
   },
   "dependencies": {
     "@murasato/shared": "workspace:*",
+    "@x402/core": "^2.5.0",
+    "@x402/evm": "^2.5.0",
+    "@x402/fetch": "^2.5.0",
     "get-starknet-core": "^3.3.5",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "starknet": "^6.23.1",
+    "viem": "^2.46.3",
     "zustand": "^5.0.0"
   },
   "devDependencies": {

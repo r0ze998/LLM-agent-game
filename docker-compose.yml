@@ -1,0 +1,55 @@
+version: "3.8"
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-3001}:3001"
+    environment:
+      - PORT=3001
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # x402 (optional)
+      - X402_ENABLED=${X402_ENABLED:-false}
+      - X402_PAY_TO_ADDRESS=${X402_PAY_TO_ADDRESS:-}
+      - X402_NETWORK=${X402_NETWORK:-eip155:84532}
+      - X402_FACILITATOR_URL=${X402_FACILITATOR_URL:-https://x402.org/facilitator}
+      - X402_AGENT_MNEMONIC=${X402_AGENT_MNEMONIC:-}
+      - X402_ONCHAIN_ENABLED=${X402_ONCHAIN_ENABLED:-false}
+      - X402_RPC_URL=${X402_RPC_URL:-https://sepolia.base.org}
+      - X402_PRICE_INTENTION=${X402_PRICE_INTENTION:-$$0.001}
+      - X402_PRICE_CHRONICLE=${X402_PRICE_CHRONICLE:-$$0.005}
+      - X402_PRICE_BIOGRAPHY=${X402_PRICE_BIOGRAPHY:-$$0.003}
+      - X402_PRICE_BLUEPRINT=${X402_PRICE_BLUEPRINT:-$$0.01}
+      # Dojo (optional)
+      - KATANA_RPC_URL=${KATANA_RPC_URL:-}
+      - TORII_GRAPHQL_URL=${TORII_GRAPHQL_URL:-}
+    restart: unless-stopped
+    depends_on:
+      katana:
+        condition: service_started
+        required: false
+
+  katana:
+    image: ghcr.io/dojoengine/katana:v1.5.2
+    command: --dev --dev.seed 0 --dev.no-fee --http.port 5050 --http.addr 0.0.0.0
+    ports:
+      - "5050:5050"
+    profiles:
+      - dojo
+
+  torii:
+    image: ghcr.io/dojoengine/torii:v1.5.2
+    command: >
+      --world ${DOJO_WORLD_ADDRESS:-0x0}
+      --rpc http://katana:5050
+      --http.port 8080
+      --http.addr 0.0.0.0
+    ports:
+      - "8080:8080"
+    depends_on:
+      - katana
+    profiles:
+      - dojo
