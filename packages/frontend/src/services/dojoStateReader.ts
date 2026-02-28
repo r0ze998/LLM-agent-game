@@ -3,9 +3,13 @@
  *
  * サーバーの dojoStateReader.ts からポート。
  * RpcProvider.callContract() で Dojo World からモデルデータを読み取る。
+ *
+ * Dojo v1.5 では entity() に Layout パラメータが必要。
+ * Layout はモデルコントラクトの layout() 関数を呼んで動的に取得する。
  */
 
-import { RpcProvider, hash } from 'starknet';
+import { RpcProvider } from 'starknet';
+import { MODEL_SELECTORS } from './dojoConfig.ts';
 
 // ── Types ──
 
@@ -44,31 +48,36 @@ export interface ArmyUnit {
 export class DojoStateReader {
   private provider: RpcProvider;
   private worldAddress: string;
-  private namespace: string;
+  /** Cache: model selector → layout calldata (from model contract's layout()) */
+  private layoutCache: Map<string, string[]> = new Map();
+  /** Cache: model selector → model contract address */
+  private modelAddrCache: Map<string, string> = new Map();
 
-  constructor(provider: RpcProvider, worldAddress: string, namespace = 'aw') {
+  constructor(provider: RpcProvider, worldAddress: string) {
     this.provider = provider;
     this.worldAddress = worldAddress;
-    this.namespace = namespace;
   }
 
   async readVillage(villageId: number): Promise<OnChainVillage | null> {
     try {
       const result = await this.getEntity('Village', [villageId]);
-      if (!result || result.length < 10) return null;
+      // Village fields (19): owner(0), food(1)..gold(5), storage(6..10),
+      // population(11), housing(12), research(13), culture(14), total_culture(15),
+      // score(16), founded_at(17), last_tick(18)
+      if (!result || result.length < 17) return null;
 
       return {
         villageId,
-        population: Number(result[0]),
-        housing: Number(result[1]),
-        food: this.fromFixed1000(result[2]),
-        wood: this.fromFixed1000(result[3]),
-        stone: this.fromFixed1000(result[4]),
-        iron: this.fromFixed1000(result[5]),
-        gold: this.fromFixed1000(result[6]),
-        researchPoints: this.fromFixed1000(result[7]),
-        culturePoints: this.fromFixed1000(result[8]),
-        score: Number(result[9]),
+        population: Number(result[11]),
+        housing: Number(result[12]),
+        food: this.fromFixed1000(result[1]),
+        wood: this.fromFixed1000(result[2]),
+        stone: this.fromFixed1000(result[3]),
+        iron: this.fromFixed1000(result[4]),
+        gold: this.fromFixed1000(result[5]),
+        researchPoints: this.fromFixed1000(result[13]),
+        culturePoints: this.fromFixed1000(result[14]),
+        score: Number(result[16]),
       };
     } catch {
       return null;
@@ -141,10 +150,11 @@ export class DojoStateReader {
   async readGameConfig(): Promise<{ currentTick: number; initialized: boolean }> {
     try {
       const result = await this.getEntity('GameConfig', [0]);
-      if (result && result.length >= 2) {
+      // GameConfig fields (4): current_tick(0), tick_interval(1), max_villages(2), initialized(3)
+      if (result && result.length >= 4) {
         return {
           currentTick: Number(result[0]),
-          initialized: Number(result[1]) === 1,
+          initialized: Number(result[3]) === 1,
         };
       }
     } catch {
@@ -217,22 +227,64 @@ export class DojoStateReader {
 
   // ── Internal ──
 
+  /** Fetch the Layout calldata from model contract's layout() function */
+  private async fetchModelLayout(modelSelector: string): Promise<string[]> {
+    const cached = this.layoutCache.get(modelSelector);
+    if (cached) return cached;
+
+    // Step 1: Get model contract address from world.resource(selector)
+    let modelAddr = this.modelAddrCache.get(modelSelector);
+    if (!modelAddr) {
+      const resourceRaw = await this.provider.callContract({
+        contractAddress: this.worldAddress,
+        entrypoint: 'resource',
+        calldata: [modelSelector],
+      });
+      const resourceResult: string[] = Array.isArray(resourceRaw)
+        ? resourceRaw
+        : (resourceRaw as any).result ?? [];
+      modelAddr = resourceResult[1];
+      this.modelAddrCache.set(modelSelector, modelAddr);
+    }
+
+    // Step 2: Call layout() on the model contract
+    const layoutRaw = await this.provider.callContract({
+      contractAddress: modelAddr,
+      entrypoint: 'layout',
+      calldata: [],
+    });
+    const layout: string[] = Array.isArray(layoutRaw)
+      ? layoutRaw
+      : (layoutRaw as any).result ?? [];
+
+    this.layoutCache.set(modelSelector, layout);
+    return layout;
+  }
+
   private async getEntity(
     modelName: string,
     keys: number[],
   ): Promise<string[] | null> {
     try {
-      const modelSelector = this.computeModelSelector(modelName);
+      const modelSelector = MODEL_SELECTORS[modelName as keyof typeof MODEL_SELECTORS];
+      if (!modelSelector) return null;
+
       const keysAsHex = keys.map((k) => `0x${k.toString(16)}`);
+      const layout = await this.fetchModelLayout(modelSelector);
+
+      // Dojo v1.5 entity(model_selector, ModelIndex::Keys, Layout)
+      // ModelIndex::Keys = enum variant 0 + Span<felt252>
+      // Layout = raw output from model.layout() (already serialized)
+      const calldata = [
+        modelSelector,
+        '0', keysAsHex.length.toString(), ...keysAsHex,  // ModelIndex::Keys(keys)
+        ...layout,                                        // Layout (from model contract)
+      ];
 
       const raw = await this.provider.callContract({
         contractAddress: this.worldAddress,
         entrypoint: 'entity',
-        calldata: [
-          modelSelector,
-          keysAsHex.length.toString(),
-          ...keysAsHex,
-        ],
+        calldata,
       });
 
       const result: string[] = Array.isArray(raw) ? raw : (raw as any).result ?? [];
@@ -244,11 +296,6 @@ export class DojoStateReader {
     } catch {
       return null;
     }
-  }
-
-  private computeModelSelector(modelName: string): string {
-    const tag = `${this.namespace}-${modelName}`;
-    return hash.getSelectorFromName(tag);
   }
 
   private fromFixed1000(hex: string | bigint): number {

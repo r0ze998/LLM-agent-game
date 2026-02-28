@@ -36,12 +36,40 @@ export const SYSTEM_ADDRESSES = {
 
 export type SystemName = keyof typeof SYSTEM_ADDRESSES;
 
+/** Model selectors (from manifest_dev.json, NOT getSelectorFromName) */
+export const MODEL_SELECTORS = {
+  Village:
+    "0x74425c1bbc578b3efc3e70f01c511b66edc0484246d311af104c16c9c10b9f1",
+  Building:
+    "0x58ddea2c8930eaf70f527152245effdddc1def1d4f628a3bbb076bee047575c",
+  BuildingCounter:
+    "0x124958d6aff4e4f06b9281ab814dc4f2afe4c65de3e4926d4a55c2f68735713",
+  GarrisonUnit:
+    "0x21e5d4b93260c076d899a7f5212f1625a0eeda2ef5e78fb236c2c1d0fa04f95",
+  ResearchedTech:
+    "0x3ba9c0392a0228646f7ee08df1d74fb897655ca288aa973c1bba59ef3ab1704",
+  GameConfig:
+    "0x28e8dae0a1ea29fc03b1e601ab2e483024d53d1ccf29a167c35182dc8745008",
+  BuildQueue:
+    "0x1d24fa0217e6bf1fb847e5a2358d09a6f3bbf5ebf285c512332691c1862b1dc",
+  BuildQueueCounter:
+    "0x73334ea5071162c191691fcdfc4f24bb49ad12b64a8fc472ac5be985def0e29",
+  ResearchQueue:
+    "0x56767df8ee97a72582a12c2ac9342d8b5041040faa66cec58be1cd1c2d4f0fa",
+  TrainQueue:
+    "0x467e144080c79c8f6831c5ea2b91a64a9be1f0ea17d71988ab48fd6f28763cd",
+  TrainQueueCounter:
+    "0x27b151323b8ff6b85aaa2b2ab7cd3f1d04f587c4fad47ea5aefe466fa31582a",
+} as const;
+
+
 /** Katana dev accounts (seed 0) */
+/** Katana dev accounts (seed 0, first prefunded account = deployer) */
 export const KATANA_DEV_ACCOUNTS = [
   {
     address:
-      "0xb3ff441a68610b30fd5e2abbf3a1548eb6ba6f3559f2862bf2dc757e5828ca",
+      "0x127fd5f1fe78a71f8bcd1fec63e3fe2f0486b6ecd5c86a0466c3a21fa5cfcec",
     privateKey:
-      "0x2bbf4f9fd0bbb2e60b0316c1fe0b76cf7a4d0198571b55369d141b49d25e1e",
+      "0xc5b2fcab997346f3ea1c00b002ecf6f382c5f9c9659a3894eb783c5320f912",
   },
 ] as const;
