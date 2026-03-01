@@ -5,5 +5,12 @@
     "packages/shared",
     "packages/server",
     "packages/frontend"
-  ]
+  ],
+  "scripts": {
+    "dev": "cd packages/server && bun --watch src/index.ts",
+    "dev:front": "cd packages/frontend && bun run dev",
+    "build": "cd packages/frontend && bun run build",
+    "typecheck": "cd packages/shared && bunx tsc --noEmit && cd ../server && bunx tsc --noEmit && cd ../frontend && bunx tsc --noEmit",
+    "test": "cd packages/server && bun test"
+  }
 }

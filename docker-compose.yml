@@ -9,11 +9,14 @@ services:
       - "${PORT:-3001}:3001"
     environment:
       - PORT=3001
-      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      # Dojo (optional)
-      - KATANA_RPC_URL=${KATANA_RPC_URL:-}
-      - TORII_GRAPHQL_URL=${TORII_GRAPHQL_URL:-}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5176}
+      - LLM_PROVIDER=${LLM_PROVIDER:-anthropic}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-}
+      # Dojo on-chain bridge (optional)
+      - DOJO_ENABLED=${DOJO_ENABLED:-false}
+      - DOJO_RPC_URL=${DOJO_RPC_URL:-http://katana:5050}
     restart: unless-stopped
     depends_on:
       katana:
