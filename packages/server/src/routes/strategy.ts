@@ -6,6 +6,7 @@ import { tickService } from '../services/tickService.ts';
 import { processCommand } from '../engine/commandProcessor.ts';
 import { buildWorld4XRef } from '../world/simulation.ts';
 import { computeScoreRanking } from '../engine/victoryChecker.ts';
+import { loadDojoConfig } from '../services/dojo/dojoConfig.ts';
 import type { PlayerCommand } from '@murasato/shared';
 
 export const strategyRouter = new Hono();
@@ -82,4 +83,22 @@ strategyRouter.post('/command', async (c) => {
   const result = processCommand(body.command, body.playerId, worldRef);
 
   return c.json({ ok: result.success, data: result });
+});
+
+// --- GET Dojo config (for frontend browser wallet) ---
+
+strategyRouter.get('/dojo-config/:gameId', (c) => {
+  const dojoConfig = loadDojoConfig();
+  if (!dojoConfig.enabled) {
+    return c.json({ ok: false, error: 'Dojo bridge is disabled' }, 503);
+  }
+
+  return c.json({
+    ok: true,
+    data: {
+      worldAddress: dojoConfig.worldAddress,
+      systemAddresses: dojoConfig.contracts,
+      modelSelectors: dojoConfig.modelSelectors,
+    },
+  });
 });

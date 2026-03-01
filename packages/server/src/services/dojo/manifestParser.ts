@@ -26,6 +26,12 @@ interface ManifestContract {
   [key: string]: unknown;
 }
 
+interface ManifestModel {
+  tag: string;
+  selector: string;
+  [key: string]: unknown;
+}
+
 interface ManifestJson {
   world: {
     address: string;
@@ -33,13 +39,15 @@ interface ManifestJson {
     [key: string]: unknown;
   };
   contracts: ManifestContract[];
+  models?: ManifestModel[];
   [key: string]: unknown;
 }
 
-/** Extract system addresses from manifest file */
+/** Extract system addresses and model selectors from manifest file */
 export function parseManifest(manifestPath: string): {
   worldAddress: string;
   contracts: ManifestContracts;
+  modelSelectors: Record<string, string>;
 } {
   const raw = readFileSync(manifestPath, "utf-8");
   const manifest: ManifestJson = JSON.parse(raw);
@@ -81,8 +89,18 @@ export function parseManifest(manifestPath: string): {
     );
   }
 
+  // Extract model selectors (tag format: "aw-ModelName" → "ModelName")
+  const modelSelectors: Record<string, string> = {};
+  if (manifest.models) {
+    for (const model of manifest.models) {
+      const name = model.tag.replace(/^aw-/, "");
+      modelSelectors[name] = model.selector;
+    }
+  }
+
   return {
     worldAddress,
     contracts: contracts as ManifestContracts,
+    modelSelectors,
   };
 }

@@ -3,6 +3,9 @@
  *
  * Shares txService, stateReader, tickAdvancer, stateSync via React Context.
  * Services are only active when walletStore.isOnChain is true.
+ *
+ * On initialization, fetches system addresses + model selectors from the server
+ * so that DojoTxService / DojoStateReader work with both Katana and Sepolia.
  */
 
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
@@ -13,7 +16,7 @@ import { DojoStateSync } from './dojoStateSync.ts';
 import { DojoTickAdvancer } from './dojoTickAdvancer.ts';
 import { VillageIdMapper } from './dojoSync.ts';
 import { initTxService } from './starknetTx.ts';
-import { WORLD_ADDRESS } from './dojoConfig.ts';
+import { WORLD_ADDRESS, fetchDojoConfig } from './dojoConfig.ts';
 
 export interface DojoContextValue {
   txService: DojoTxService | null;
@@ -38,10 +41,11 @@ export function useDojoContext(): DojoContextValue {
 }
 
 interface StarknetProviderProps {
+  gameId?: string;
   children: React.ReactNode;
 }
 
-export function StarknetProvider({ children }: StarknetProviderProps) {
+export function StarknetProvider({ gameId, children }: StarknetProviderProps) {
   const account = useWalletStore((s) => s.account);
   const provider = useWalletStore((s) => s.provider);
   const isOnChain = useWalletStore((s) => s.isOnChain);
@@ -69,28 +73,47 @@ export function StarknetProvider({ children }: StarknetProviderProps) {
       return;
     }
 
-    const txService = new DojoTxService(account, provider);
-    const stateReader = new DojoStateReader(provider, WORLD_ADDRESS);
-    const stateSync = new DojoStateSync(stateReader, mapperRef.current);
-    const tickAdvancer = new DojoTickAdvancer(txService, mapperRef.current);
+    let cancelled = false;
 
-    // Initialize the global TX service (used by starknetTx.ts)
-    initTxService(account, provider, mapperRef.current);
+    async function init() {
+      // Fetch system addresses + model selectors from server (falls back to hardcoded dev defaults)
+      const serverBaseUrl = import.meta.env.VITE_SERVER_URL || `${window.location.protocol}//${window.location.hostname}:3001`;
+      if (gameId) {
+        await fetchDojoConfig(serverBaseUrl, gameId);
+      }
 
-    setValue({
-      txService,
-      stateReader,
-      stateSync,
-      tickAdvancer,
-      villageMapper: mapperRef.current,
-      isReady: true,
+      if (cancelled) return;
+
+      const txService = new DojoTxService(account!, provider!);
+      const stateReader = new DojoStateReader(provider!, WORLD_ADDRESS);
+      const stateSync = new DojoStateSync(stateReader, mapperRef.current);
+      const tickAdvancer = new DojoTickAdvancer(txService, mapperRef.current);
+
+      // Initialize the global TX service (used by starknetTx.ts)
+      initTxService(account!, provider!, mapperRef.current);
+
+      setValue({
+        txService,
+        stateReader,
+        stateSync,
+        tickAdvancer,
+        villageMapper: mapperRef.current,
+        isReady: true,
+      });
+    }
+
+    init().catch((err) => {
+      console.error('[StarknetProvider] Initialization failed:', err);
     });
 
     return () => {
-      tickAdvancer.stop();
-      stateSync.stopPolling();
+      cancelled = true;
+      // Clean up previous services
+      const prev = value;
+      if (prev.tickAdvancer) prev.tickAdvancer.stop();
+      if (prev.stateSync) prev.stateSync.stopPolling();
     };
-  }, [isOnChain, account, provider]);
+  }, [isOnChain, account, provider, gameId]);
 
   return (
     <DojoContext.Provider value={value}>

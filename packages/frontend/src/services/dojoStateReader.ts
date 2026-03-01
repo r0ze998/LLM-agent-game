@@ -9,7 +9,7 @@
  */
 
 import { RpcProvider } from 'starknet';
-import { MODEL_SELECTORS } from './dojoConfig.ts';
+import { getModelSelector } from './dojoConfig.ts';
 
 // ── Types ──
 
@@ -266,7 +266,7 @@ export class DojoStateReader {
     keys: number[],
   ): Promise<string[] | null> {
     try {
-      const modelSelector = MODEL_SELECTORS[modelName as keyof typeof MODEL_SELECTORS];
+      const modelSelector = getModelSelector(modelName);
       if (!modelSelector) return null;
 
       const keysAsHex = keys.map((k) => `0x${k.toString(16)}`);

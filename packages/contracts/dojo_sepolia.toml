@@ -1,0 +1,42 @@
+[world]
+name = "Autonomous World"
+seed = "autonomous_world"
+
+[namespace]
+default = "aw"
+mappings = { "aw" = [
+    "physics", "village_tick", "commands", "combat",
+    "covenant_sys", "invention_sys", "institution_sys", "victory", "setup",
+    "Village", "Building", "BuildingDef", "BuildingDefEffect",
+    "BuildQueue", "BuildingCounter", "BuildQueueCounter",
+    "ResearchedTech", "TechDef", "TechDefEffect", "ResearchQueue",
+    "GarrisonUnit", "UnitDef", "TrainQueue", "TrainQueueCounter",
+    "Covenant", "CovenantClause", "CovenantCounter", "VillageCovenantCount",
+    "Invention", "InventionEffect", "InventionKnowledge", "InventionCounter", "VillageInventionCount",
+    "Institution", "InstitutionEffect", "InstitutionMembership", "InstitutionCounter", "VillageInstitutionCount",
+    "JoinRequirement",
+    "DiplomaticRelation", "AggregatedEffect",
+    "PhysicsConfig", "GameConfig", "GameCounter",
+] }
+
+[env]
+rpc_url = "https://starknet-sepolia.public.blastapi.io"
+account_address = "0x<YOUR_FUNDED_SEPOLIA_ACCOUNT>"
+private_key = "0x<YOUR_SEPOLIA_PRIVATE_KEY>"
+
+[writers]
+"aw" = ["aw-physics", "aw-village_tick", "aw-commands", "aw-combat", "aw-covenant_sys", "aw-invention_sys", "aw-institution_sys", "aw-victory", "aw-setup"]
+
+[owners]
+"aw" = ["aw-physics", "aw-village_tick", "aw-commands", "aw-combat", "aw-covenant_sys", "aw-invention_sys", "aw-institution_sys", "aw-victory", "aw-setup"]
+
+[init_call_args]
+"aw-physics" = []
+"aw-village_tick" = []
+"aw-commands" = []
+"aw-combat" = []
+"aw-covenant_sys" = []
+"aw-invention_sys" = []
+"aw-institution_sys" = []
+"aw-victory" = []
+"aw-setup" = []

@@ -16,6 +16,7 @@ export interface DojoConfig {
   privateKey: string;
   worldAddress: string;
   contracts: ManifestContracts;
+  modelSelectors: Record<string, string>;
   toriiUrl?: string;
 }
 
@@ -40,6 +41,7 @@ export function loadDojoConfig(): DojoConfig {
       privateKey: "",
       worldAddress: "",
       contracts: {} as ManifestContracts,
+      modelSelectors: {},
       toriiUrl: undefined,
     };
   }
@@ -58,7 +60,7 @@ export function loadDojoConfig(): DojoConfig {
       resolve(thisDir, "../../../../contracts/manifest_dev.json"),
   );
 
-  const { worldAddress, contracts } = parseManifest(manifestPath);
+  const { worldAddress, contracts, modelSelectors } = parseManifest(manifestPath);
 
   console.log(`[DojoConfig] Loaded manifest from ${manifestPath}`);
   console.log(`[DojoConfig] World: ${worldAddress}`);
@@ -76,6 +78,7 @@ export function loadDojoConfig(): DojoConfig {
     privateKey,
     worldAddress,
     contracts,
+    modelSelectors,
     toriiUrl,
   };
 }

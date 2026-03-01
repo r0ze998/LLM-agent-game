@@ -6,7 +6,7 @@
  */
 
 import type { Account, RpcProvider, Call } from 'starknet';
-import { SYSTEM_ADDRESSES, type SystemName } from './dojoConfig.ts';
+import { getSystemAddress, type SystemName } from './dojoConfig.ts';
 
 // ── Enums matching on-chain ──
 
@@ -135,7 +135,7 @@ export class DojoTxService {
 
     // advance_tick
     calls.push({
-      contractAddress: SYSTEM_ADDRESSES.commands,
+      contractAddress: getSystemAddress('commands'),
       entrypoint: 'advance_tick',
       calldata: [],
     });
@@ -143,7 +143,7 @@ export class DojoTxService {
     // village ticks
     for (const id of villageIds) {
       calls.push({
-        contractAddress: SYSTEM_ADDRESSES.village_tick,
+        contractAddress: getSystemAddress('village_tick'),
         entrypoint: 'tick',
         calldata: [id.toString()],
       });
@@ -152,7 +152,7 @@ export class DojoTxService {
     // trade tick (if any routes)
     if (tradeRouteIds.length > 0) {
       calls.push({
-        contractAddress: SYSTEM_ADDRESSES.trade_sys,
+        contractAddress: getSystemAddress('trade_sys'),
         entrypoint: 'execute_trade_tick',
         calldata: flattenCalldata([tradeRouteIds.map((id) => id.toString())]),
       });
@@ -176,7 +176,7 @@ export class DojoTxService {
     fn_name: string,
     calldata: (string | string[])[],
   ): Promise<string> {
-    const contractAddress = SYSTEM_ADDRESSES[system];
+    const contractAddress = getSystemAddress(system);
     const flat = flattenCalldata(calldata);
 
     const call: Call = {
