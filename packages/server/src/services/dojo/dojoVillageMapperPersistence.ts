@@ -1,8 +1,8 @@
 /**
- * dojoVillageMapperPersistence.ts — VillageIdMapper の JSON 永続化
+ * dojoVillageMapperPersistence.ts — VillageIdMapper JSON persistence
  *
- * `saves/village_mapper.json` に UUID ↔ u32 マッピングを保存・復元する。
- * サーバー再起動時にマッピングが失われないことを保証する。
+ * Saves/restores UUID <-> u32 mappings to `saves/village_mapper.json`.
+ * Guarantees that mappings are not lost on server restart.
  */
 
 import { existsSync, mkdirSync } from "node:fs";

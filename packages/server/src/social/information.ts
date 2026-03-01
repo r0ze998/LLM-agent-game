@@ -70,16 +70,16 @@ export function parseConversationInformation(
 
 function classifyInformation(content: string): InformationType {
   const lower = content.toLowerCase();
-  if (lower.includes('災害') || lower.includes('嵐') || lower.includes('地震') || lower.includes('疫病')) {
+  if (lower.includes('disaster') || lower.includes('storm') || lower.includes('earthquake') || lower.includes('plague')) {
     return 'disaster_warning';
   }
-  if (lower.includes('資源') || lower.includes('鉱脈') || lower.includes('食料')) {
+  if (lower.includes('resource') || lower.includes('vein') || lower.includes('food')) {
     return 'resource_location';
   }
-  if (lower.includes('戦争') || lower.includes('戦闘') || lower.includes('攻撃')) {
+  if (lower.includes('war') || lower.includes('battle') || lower.includes('attack')) {
     return 'war_status';
   }
-  if (lower.includes('村') || lower.includes('繁栄') || lower.includes('飢餓')) {
+  if (lower.includes('village') || lower.includes('prosper') || lower.includes('famine')) {
     return 'village_condition';
   }
   return 'rumor';
@@ -95,7 +95,7 @@ export function shouldInfluenceMigration(
   if (info.reliability < 0.3) return false;
   // If info is about a prosperous village different from current
   if (info.originVillageId && info.originVillageId !== agentVillageId) {
-    return info.content.includes('繁栄') || info.content.includes('豊') || info.content.includes('食料が豊富');
+    return info.content.includes('prosper') || info.content.includes('abundant') || info.content.includes('plentiful food');
   }
   return false;
 }

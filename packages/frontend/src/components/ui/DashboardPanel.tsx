@@ -43,18 +43,18 @@ const ECON_COLORS: Record<EconomicsType, string> = {
 };
 
 const GOV_LABELS: Record<GovernanceType, string> = {
-  democratic: '民主制',
-  meritocratic: '実力主義',
-  authoritarian: '権威主義',
-  anarchist: '無政府',
-  theocratic: '神権政治',
+  democratic: 'Democratic',
+  meritocratic: 'Meritocratic',
+  authoritarian: 'Authoritarian',
+  anarchist: 'Anarchist',
+  theocratic: 'Theocratic',
 };
 
 const ECON_LABELS: Record<EconomicsType, string> = {
-  collectivist: '共同体',
-  market: '市場経済',
-  gift_economy: '贈与経済',
-  feudal: '封建制',
+  collectivist: 'Collectivist',
+  market: 'Market',
+  gift_economy: 'Gift Economy',
+  feudal: 'Feudal',
 };
 
 export function DashboardPanel() {
@@ -71,50 +71,50 @@ export function DashboardPanel() {
     <div style={{ ...PANEL_STYLE, animation: 'slideDown 0.2s ease' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <span style={{ fontWeight: 'bold', fontSize: 16, color: '#7ab8ff' }}>社会実験ダッシュボード</span>
+        <span style={{ fontWeight: 'bold', fontSize: 16, color: '#7ab8ff' }}>Society Dashboard</span>
         <button onClick={toggle} style={{
           background: 'transparent', border: '1px solid #555', borderRadius: 4,
           color: '#999', cursor: 'pointer', padding: '2px 8px', fontSize: 12, fontFamily: 'inherit',
-        }}>閉じる</button>
+        }}>Close</button>
       </div>
 
       {/* Population Overview */}
       <div style={SECTION_STYLE}>
-        <SectionTitle>人口概要</SectionTitle>
+        <SectionTitle>Population Overview</SectionTitle>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-          <StatBox label="総人口" value={stats?.population ?? agents.size} color="#7ab8ff" />
-          <StatBox label="生存者" value={stats?.livingCount ?? living.length} color="#5add5a" />
-          <StatBox label="死亡者" value={stats?.deadCount ?? (agents.size - living.length)} color="#dd5555" />
-          <StatBox label="村数" value={stats?.villageCount ?? 0} color="#ddaa55" />
+          <StatBox label="Total Pop" value={stats?.population ?? agents.size} color="#7ab8ff" />
+          <StatBox label="Alive" value={stats?.livingCount ?? living.length} color="#5add5a" />
+          <StatBox label="Dead" value={stats?.deadCount ?? (agents.size - living.length)} color="#dd5555" />
+          <StatBox label="Villages" value={stats?.villageCount ?? 0} color="#ddaa55" />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginTop: 8 }}>
-          <StatBox label="最大世代" value={stats?.generationMax ?? 0} color="#bb77dd" />
-          <StatBox label="現在ティック" value={stats?.tick ?? 0} color="#888" />
+          <StatBox label="Max Gen" value={stats?.generationMax ?? 0} color="#bb77dd" />
+          <StatBox label="Tick" value={stats?.tick ?? 0} color="#888" />
         </div>
       </div>
 
       {/* Population History Graph */}
       {stats && stats.populationHistory.length > 1 && (
         <div style={SECTION_STYLE}>
-          <SectionTitle>人口推移</SectionTitle>
+          <SectionTitle>Population History</SectionTitle>
           <PopulationGraph data={stats.populationHistory} />
         </div>
       )}
 
       {/* Average Needs */}
       <div style={SECTION_STYLE}>
-        <SectionTitle>平均ニーズ</SectionTitle>
+        <SectionTitle>Average Needs</SectionTitle>
         <div style={{ display: 'flex', gap: 16 }}>
-          <NeedBar label="空腹" value={stats?.avgHunger ?? 50} color="#dd8833" />
-          <NeedBar label="体力" value={stats?.avgEnergy ?? 50} color="#33aa55" />
-          <NeedBar label="社交" value={stats?.avgSocial ?? 50} color="#5588dd" />
+          <NeedBar label="Hunger" value={stats?.avgHunger ?? 50} color="#dd8833" />
+          <NeedBar label="Energy" value={stats?.avgEnergy ?? 50} color="#33aa55" />
+          <NeedBar label="Social" value={stats?.avgSocial ?? 50} color="#5588dd" />
         </div>
       </div>
 
       {/* Philosophy Distribution */}
       {stats && (
         <div style={SECTION_STYLE}>
-          <SectionTitle>統治思想分布</SectionTitle>
+          <SectionTitle>Governance Distribution</SectionTitle>
           <DistributionBars
             data={stats.philosophyDistribution}
             colors={GOV_COLORS}
@@ -126,7 +126,7 @@ export function DashboardPanel() {
       {/* Economics Distribution */}
       {stats && (
         <div style={SECTION_STYLE}>
-          <SectionTitle>経済思想分布</SectionTitle>
+          <SectionTitle>Economics Distribution</SectionTitle>
           <DistributionBars
             data={stats.economicsDistribution}
             colors={ECON_COLORS}
@@ -137,7 +137,7 @@ export function DashboardPanel() {
 
       {/* Generation Breakdown */}
       <div style={{ ...SECTION_STYLE, borderBottom: 'none' }}>
-        <SectionTitle>世代分布</SectionTitle>
+        <SectionTitle>Generation Breakdown</SectionTitle>
         <GenerationBreakdown agents={living} />
       </div>
     </div>
@@ -303,7 +303,7 @@ function GenerationBreakdown({ agents }: { agents: { identity: { generation: num
   const maxCount = Math.max(1, ...entries.map(([, c]) => c));
 
   if (entries.length === 0) {
-    return <div style={{ color: '#666' }}>データなし</div>;
+    return <div style={{ color: '#666' }}>No data</div>;
   }
 
   return (

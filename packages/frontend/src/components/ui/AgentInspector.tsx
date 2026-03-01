@@ -42,47 +42,47 @@ export function AgentInspector() {
       </div>
 
       {/* Basic info */}
-      <Section title="基本情報">
-        <Row label="世代" value={`第${identity.generation}世代`} />
-        <Row label="年齢" value={`${identity.age} / ${identity.lifespan}`} />
-        <Row label="状態" value={statusLabel(identity.status)} />
-        <Row label="位置" value={`(${position.x}, ${position.y})`} />
-        {currentAction && <Row label="行動" value={currentAction} />}
+      <Section title="Info">
+        <Row label="Gen" value={`Gen ${identity.generation}`} />
+        <Row label="Age" value={`${identity.age} / ${identity.lifespan}`} />
+        <Row label="Status" value={statusLabel(identity.status)} />
+        <Row label="Pos" value={`(${position.x}, ${position.y})`} />
+        {currentAction && <Row label="Action" value={currentAction} />}
       </Section>
 
       {/* Needs */}
-      <Section title="状態">
-        <Bar label="空腹" value={needs.hunger} color="#e05050" />
-        <Bar label="体力" value={needs.energy} color="#50b050" />
-        <Bar label="社交" value={needs.social} color="#5080e0" />
+      <Section title="Needs">
+        <Bar label="Hunger" value={needs.hunger} color="#e05050" />
+        <Bar label="Energy" value={needs.energy} color="#50b050" />
+        <Bar label="Social" value={needs.social} color="#5080e0" />
       </Section>
 
       {/* Personality radar (simple text) */}
-      <Section title="性格">
-        <Bar label="好奇心" value={p.openness} color="#ffa040" />
-        <Bar label="協調性" value={p.agreeableness} color="#40c040" />
-        <Bar label="勤勉性" value={p.conscientiousness} color="#4080ff" />
-        <Bar label="勇敢さ" value={p.courage} color="#ff4040" />
-        <Bar label="野心" value={p.ambition} color="#c040c0" />
+      <Section title="Personality">
+        <Bar label="Openness" value={p.openness} color="#ffa040" />
+        <Bar label="Agreeableness" value={p.agreeableness} color="#40c040" />
+        <Bar label="Conscientiousness" value={p.conscientiousness} color="#4080ff" />
+        <Bar label="Courage" value={p.courage} color="#ff4040" />
+        <Bar label="Ambition" value={p.ambition} color="#c040c0" />
       </Section>
 
       {/* Philosophy */}
-      <Section title="信条">
-        <Row label="統治" value={identity.philosophy.governance} />
-        <Row label="経済" value={identity.philosophy.economics} />
-        <Row label="価値観" value={identity.philosophy.values.join(', ')} />
+      <Section title="Philosophy">
+        <Row label="Governance" value={identity.philosophy.governance} />
+        <Row label="Economics" value={identity.philosophy.economics} />
+        <Row label="Values" value={identity.philosophy.values.join(', ')} />
         <div style={{ fontSize: 11, color: '#aaa', marginTop: 4, fontStyle: 'italic' }}>
-          「{identity.philosophy.worldview}」
+          "{identity.philosophy.worldview}"
         </div>
       </Section>
 
       {/* AI Thought & Plan */}
       {(agent as any)._cachedPlan && (
-        <Section title="💭 AI思考">
+        <Section title="AI Thought">
           <div style={{ fontSize: 12, color: '#d4c4f0', fontStyle: 'italic', marginBottom: 6, lineHeight: 1.5 }}>
-            「{(agent as any)._cachedPlan.innerThought}」
+            "{(agent as any)._cachedPlan.innerThought}"
           </div>
-          <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>今日の計画:</div>
+          <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>Today's plan:</div>
           {((agent as any)._cachedPlan.schedule as { slot: number; action: string; reason: string }[])
             .filter((_: any, i: number) => i < 8)
             .map((s: { slot: number; action: string; reason: string }) => (
@@ -97,7 +97,7 @@ export function AgentInspector() {
 
       {/* Inventory */}
       {Object.keys(inventory).length > 0 && (
-        <Section title="所持品">
+        <Section title="Inventory">
           {Object.entries(inventory).map(([resource, amount]) => (
             <Row key={resource} label={resource} value={String(amount)} />
           ))}
@@ -106,8 +106,8 @@ export function AgentInspector() {
 
       {/* Actions */}
       <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
-        <button onClick={() => followAgent(selectedId)} style={actionBtn}>追跡</button>
-        <button onClick={() => followAgent(null)} style={actionBtn}>追跡解除</button>
+        <button onClick={() => followAgent(selectedId)} style={actionBtn}>Follow</button>
+        <button onClick={() => followAgent(null)} style={actionBtn}>Unfollow</button>
       </div>
     </div>
   );
@@ -149,10 +149,10 @@ function Bar({ label, value, color }: { label: string; value: number; color: str
 
 function statusLabel(status: string): string {
   switch (status) {
-    case 'child': return '子供';
-    case 'adult': return '成人';
-    case 'elder': return '老人';
-    case 'dead': return '死亡';
+    case 'child': return 'Child';
+    case 'adult': return 'Adult';
+    case 'elder': return 'Elder';
+    case 'dead': return 'Dead';
     default: return status;
   }
 }

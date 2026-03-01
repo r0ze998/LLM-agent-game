@@ -1,7 +1,7 @@
-// === AI Strategy — LLM駆動の村長意思決定 + ルールベースフォールバック ===
+// === AI Strategy — LLM-driven village leader decisions + rule-based fallback ===
 //
-// 村長の性格・記憶・哲学に基づいてLLMが戦略を決定する。
-// LLM呼び出しが失敗した場合、従来のルールベースロジックにフォールバックする。
+// The LLM determines strategy based on the leader's personality, memories, and philosophy.
+// If the LLM call fails, it falls back to conventional rule-based logic.
 
 import {
   BUILDING_DEFS,
@@ -42,7 +42,7 @@ import { validateCovenant, getActiveCovenantCount } from './covenantEngine.ts';
 import { InventionRegistry } from './inventionRegistry.ts';
 import { validateInstitution, foundInstitution, joinInstitution, getVillageInstitutions } from './institutionEngine.ts';
 
-// --- 外部から渡す村長コンテキスト ---
+// --- Leader context passed from outside ---
 
 export interface LeaderContext {
   leader: AgentState;
@@ -54,9 +54,9 @@ export interface LeaderContext {
   behaviorRules?: string[];
 }
 
-// --- メインAIロジック ---
+// --- Main AI logic ---
 
-/** AI村のコマンドを生成する。村長がいる場合はLLMで判断、いなければルールベース */
+/** Generate commands for an AI village. Uses LLM if a leader is present, otherwise rule-based. */
 export async function generateAICommands(
   village: VillageState4X,
   allVillages: Map<string, VillageState4X>,
@@ -64,7 +64,7 @@ export async function generateAICommands(
   leaderCtx?: LeaderContext,
   allVillageNames?: Map<string, string>,
 ): Promise<PlayerCommand[]> {
-  // 村長がいる場合: LLM駆動
+  // If a leader is present: LLM-driven
   if (leaderCtx) {
     try {
       return await generateLLMCommands(village, allVillages, diplomacy, leaderCtx, allVillageNames);
@@ -73,12 +73,12 @@ export async function generateAICommands(
     }
   }
 
-  // フォールバック: ルールベース
+  // Fallback: rule-based
   return generateRuleBasedCommands(village, allVillages, diplomacy);
 }
 
 // ============================================================
-// LLM駆動戦略
+// LLM-driven strategy
 // ============================================================
 
 async function generateLLMCommands(
@@ -88,19 +88,19 @@ async function generateLLMCommands(
   leaderCtx: LeaderContext,
   allVillageNames?: Map<string, string>,
 ): Promise<PlayerCommand[]> {
-  // 1. 候補を収集（前提条件 + 資源チェックを通ったもののみ）
+  // 1. Collect candidates (only those passing prerequisite + resource checks)
   const availableBuildings = getAvailableBuildings(village);
   const availableTechs = getAvailableTechs(village);
   const availableUnits = getAvailableUnits(village);
   const neighborVillages = getNeighborInfo(village, allVillages, diplomacy, allVillageNames);
 
-  // 候補が何もなければスキップ（LLM呼び出し不要）
+  // Skip if no candidates (no LLM call needed)
   if (availableBuildings.length === 0 && availableTechs.length === 0
       && availableUnits.length === 0 && neighborVillages.length === 0) {
     return [];
   }
 
-  // 2. プロンプト構築
+  // 2. Build prompt
   const promptCtx: StrategyPromptContext = {
     leader: leaderCtx.leader,
     villageName: leaderCtx.villageName,
@@ -119,7 +119,7 @@ async function generateLLMCommands(
 
   const { system, user } = buildStrategyPrompt(promptCtx);
 
-  // 3. LLM呼び出し
+  // 3. Call LLM
   const raw = await callLLM({
     system,
     userMessage: user,
@@ -127,12 +127,12 @@ async function generateLLMCommands(
     maxTokens: 512,
   });
 
-  // 4. レスポンスをパースしてコマンドに変換
+  // 4. Parse response and convert to commands
   const decision = extractJSON<StrategyDecision>(raw);
   return decisionToCommands(decision, village, availableBuildings, availableTechs, availableUnits, neighborVillages);
 }
 
-// --- LLMの決定をPlayerCommandに変換 ---
+// --- Convert LLM decision to PlayerCommand ---
 
 function decisionToCommands(
   decision: StrategyDecision,
@@ -144,7 +144,7 @@ function decisionToCommands(
 ): PlayerCommand[] {
   const commands: PlayerCommand[] = [];
 
-  // 建設
+  // Build
   if (decision.build && village.buildQueue.length < 2) {
     const validBuilding = availableBuildings.find(b => b.id === decision.build);
     if (validBuilding) {
@@ -159,7 +159,7 @@ function decisionToCommands(
     }
   }
 
-  // 研究
+  // Research
   if (decision.research && village.researchQueue.length === 0) {
     const validTech = availableTechs.find(t => t.id === decision.research);
     if (validTech) {
@@ -171,7 +171,7 @@ function decisionToCommands(
     }
   }
 
-  // 訓練
+  // Train
   if (decision.train && village.trainQueue.length < 3) {
     const validUnit = availableUnits.find(u => u.id === decision.train);
     if (validUnit) {
@@ -184,7 +184,7 @@ function decisionToCommands(
     }
   }
 
-  // 外交
+  // Diplomacy
   if (decision.diplomacy) {
     const target = neighborVillages.find(nv => nv.villageId === decision.diplomacy!.targetVillageId);
     if (target) {
@@ -197,7 +197,7 @@ function decisionToCommands(
     }
   }
 
-  // 村長の独白をログ
+  // Log the leader's inner monologue
   if (decision.innerThought) {
     console.log(`[Strategy] ${village.villageId}: ${decision.innerThought}`);
   }
@@ -205,14 +205,14 @@ function decisionToCommands(
   return commands;
 }
 
-// --- 候補収集ヘルパー ---
+// --- Candidate collection helpers ---
 
 function getAvailableBuildings(village: VillageState4X): StrategyOption[] {
   return BUILDING_LIST
     .filter(def => canBuild(village, def))
     .map(def => ({
       id: def.id,
-      nameJa: def.nameJa,
+      name: def.name,
       description: describeBuildingEffects(def),
     }));
 }
@@ -224,8 +224,8 @@ function getAvailableTechs(village: VillageState4X): StrategyOption[] {
     if (tech.requires.tech && !village.researchedTechs.has(tech.requires.tech)) continue;
     result.push({
       id: tech.id,
-      nameJa: tech.nameJa,
-      description: `${tech.branch}系 tier${tech.tier} / コスト${tech.researchCost}RP`,
+      name: tech.name,
+      description: `${tech.branch} branch tier${tech.tier} / cost ${tech.researchCost}RP`,
     });
   }
   return result;
@@ -244,8 +244,8 @@ function getAvailableUnits(village: VillageState4X): StrategyOption[] {
     })
     .map(def => ({
       id: def.id,
-      nameJa: def.nameJa,
-      description: `攻${def.attack}/防${def.defense}/HP${def.hp}`,
+      name: def.name,
+      description: `ATK${def.attack}/DEF${def.defense}/HP${def.hp}`,
     }));
 }
 
@@ -288,25 +288,25 @@ function describeBuildingEffects(def: typeof BUILDING_LIST[0]): string {
         parts.push(`${eff.target.resource}+${eff.value}`);
         break;
       case 'housing':
-        parts.push(`住居+${eff.value}`);
+        parts.push(`Housing+${eff.value}`);
         break;
       case 'research_points':
-        parts.push(`研究+${eff.value}`);
+        parts.push(`Research+${eff.value}`);
         break;
       case 'culture_points':
-        parts.push(`文化+${eff.value}`);
+        parts.push(`Culture+${eff.value}`);
         break;
       case 'attack_bonus':
-        parts.push(`攻撃+${Math.round(eff.value * 100)}%`);
+        parts.push(`Attack+${Math.round(eff.value * 100)}%`);
         break;
       case 'defense_bonus':
-        parts.push(`防御+${Math.round(eff.value * 100)}%`);
+        parts.push(`Defense+${Math.round(eff.value * 100)}%`);
         break;
       case 'fortification':
-        parts.push(`要塞+${eff.value}`);
+        parts.push(`Fort+${eff.value}`);
         break;
       case 'resource_storage':
-        parts.push(`貯蔵+${eff.value}`);
+        parts.push(`Storage+${eff.value}`);
         break;
       default:
         parts.push(`${eff.type}`);
@@ -316,11 +316,11 @@ function describeBuildingEffects(def: typeof BUILDING_LIST[0]): string {
     .filter(r => (def.cost[r] || 0) > 0)
     .map(r => `${r}${def.cost[r]}`)
     .join(',');
-  return `${parts.join(', ')} [コスト: ${costStr}]`;
+  return `${parts.join(', ')} [Cost: ${costStr}]`;
 }
 
 // ============================================================
-// ルールベースフォールバック（村長不在 or LLM失敗時）
+// Rule-based fallback (no leader or LLM failure)
 // ============================================================
 
 type StrategyPriority = 'growth' | 'military' | 'research' | 'culture' | 'economy';
@@ -351,7 +351,7 @@ function generateRuleBasedCommands(
   return commands;
 }
 
-// --- 共通ユーティリティ ---
+// --- Common utilities ---
 
 export function computeMilitaryPower(village: VillageState4X): number {
   let power = 0;
@@ -370,7 +370,7 @@ export function computeMilitaryPower(village: VillageState4X): number {
   return power;
 }
 
-// --- ルールベース内部関数 ---
+// --- Rule-based internal functions ---
 
 interface ThreatAssessment {
   highestThreat: number;
@@ -509,10 +509,10 @@ function pickTrainCommand(village: VillageState4X): PlayerCommand | null {
 }
 
 // ============================================================
-// Autonomous World — Layer 1-3 コマンド生成
+// Autonomous World — Layer 1-3 command generation
 // ============================================================
 
-/** Layer 1: Covenant 提案を試みる */
+/** Layer 1: Attempt to propose a Covenant */
 export async function generateCovenantCommand(
   village: VillageState4X,
   leaderCtx: LeaderContext,
@@ -522,7 +522,7 @@ export async function generateCovenantCommand(
   allVillageNames: Map<string, string>,
   tick: number,
 ): Promise<PlayerCommand | null> {
-  // 契約数上限チェック
+  // Check covenant count limit
   if (getActiveCovenantCount(village.villageId, awState, tick) >= COVENANT_LIMITS.maxActiveCovenantsPerVillage) {
     return null;
   }
@@ -595,14 +595,14 @@ export async function generateCovenantCommand(
   return null;
 }
 
-/** Layer 2: 発明を試みる */
+/** Layer 2: Attempt an invention */
 export async function generateInventionCommand(
   village: VillageState4X,
   leaderCtx: LeaderContext,
   awState: AutonomousWorldState,
   tick: number,
 ): Promise<Invention | null> {
-  // 研究ポイントが足りなければスキップ
+  // Skip if not enough research points
   if (village.researchPoints < INVENTION_LIMITS.requiredResearchPoints) return null;
 
   const registry = new InventionRegistry(awState);
@@ -634,7 +634,6 @@ export async function generateInventionCommand(
         definition: {
           id: decision.invent.name,
           name: decision.invent.name,
-          nameJa: decision.invent.nameJa,
           ...decision.invent.definition,
         },
         inventedAtTick: tick,
@@ -644,7 +643,7 @@ export async function generateInventionCommand(
 
       const result = registry.register(invention);
       if (result.success) {
-        // 研究ポイントを消費
+        // Consume research points
         village.researchPoints -= INVENTION_LIMITS.requiredResearchPoints;
         console.log(`[Invention] ${leaderCtx.villageName} invented: ${invention.name} (${invention.type})`);
         return invention;
@@ -658,7 +657,7 @@ export async function generateInventionCommand(
   return null;
 }
 
-/** Layer 3: 制度創設・加入を試みる */
+/** Layer 3: Attempt to found or join an institution */
 export async function generateInstitutionCommand(
   village: VillageState4X,
   leaderCtx: LeaderContext,
@@ -701,7 +700,7 @@ export async function generateInstitutionCommand(
     const raw = await callLLM({ system, userMessage: user, importance: 'routine', maxTokens: 768 });
     const decision = extractJSON<InstitutionDecision>(raw);
 
-    // 制度創設
+    // Found institution
     if (decision.found) {
       return {
         type: 'found_institution',
@@ -715,7 +714,7 @@ export async function generateInstitutionCommand(
       };
     }
 
-    // 既存制度への加入
+    // Join existing institution
     if (decision.joinInstitutionId) {
       return {
         type: 'join_institution',

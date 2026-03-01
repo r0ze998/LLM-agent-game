@@ -106,7 +106,7 @@ export function processArmyMovement(world: WorldState, events: GameEvent[]): voi
             enemyVs.garrison = enemyVs.garrison.filter(u => u.count > 0);
 
             events.push(createEvent(world.gameId, 'war', world.tick, [],
-              `軍隊が${enemyVid}に到着し戦闘が発生`, { combatResult: result }));
+              `Army arrived at ${enemyVid} and combat occurred`, { combatResult: result }));
 
             army.status = 'idle';
             army.cachedPath = undefined;
@@ -175,7 +175,7 @@ export function processTerritoryExpansion(world: WorldState, events: GameEvent[]
       }
 
       events.push(createEvent(world.gameId, 'discovery', world.tick, [],
-        `村${villageId}が領土を拡張 (${bestTile.x},${bestTile.y})`,
+        `Village ${villageId} expanded territory (${bestTile.x},${bestTile.y})`,
         { villageId, position: bestTile }));
     }
 
@@ -217,7 +217,7 @@ export function processDisasters(world: WorldState, events: GameEvent[]): void {
     if (disaster.remainingTicks <= 0) {
       world.activeDisasters.splice(i, 1);
       events.push(createEvent(world.gameId, 'disaster', world.tick, [],
-        `災害「${disaster.type}」が終息した`, { disasterType: disaster.type }));
+        `Disaster "${disaster.type}" has ended`, { disasterType: disaster.type }));
       continue;
     }
 
@@ -320,7 +320,7 @@ export function processDisasters(world: WorldState, events: GameEvent[]): void {
 
   world.activeDisasters.push(disaster);
   events.push(createEvent(world.gameId, 'disaster', world.tick, [],
-    `災害「${type}」が発生！（${targetVs.centerPosition.x},${targetVs.centerPosition.y}付近）`,
+    `Disaster "${type}" occurred! (near ${targetVs.centerPosition.x},${targetVs.centerPosition.y})`,
     { disasterType: type, severity, affectedVillages: affectedVillageIds }));
 }
 
@@ -348,20 +348,20 @@ export function buildLeaderContext(world: WorldState, villageId: string): Leader
   const leader = world.agents.get(leaderId);
   if (!leader || leader.identity.status === 'dead') return null;
 
-  // 記憶を取得
+  // Get memories
   const memoryMgr = new MemoryManager(leaderId, world.gameId);
   const memories = memoryMgr.getTopMemories(world.tick, 10);
 
-  // 人間関係を取得
+  // Get relationships
   const relationships = world.relationships.get(leaderId) ?? [];
 
-  // 全エージェント名のマップ
+  // Map of all agent names
   const agentNames = new Map<string, string>();
   for (const [id, a] of world.agents) {
     agentNames.set(id, a.identity.name);
   }
 
-  // ブループリント情報（魂テキスト、行動規則）
+  // Blueprint info (soul text, behavior rules)
   let soulText: string | undefined;
   let behaviorRules: string[] | undefined;
   if (leader.identity.blueprintId) {
@@ -418,7 +418,7 @@ export async function run4XTick(world: WorldState): Promise<GameEvent[]> {
     const dipStatus = deriveVillageDiplomaticStatus(world, villageId);
 
     // Run economic tick (with Autonomous World state for Layer 1-3 effects)
-    // Dojo: オンチェーン実行 → フォールバック
+    // Dojo: On-chain execution -> fallback
     const tickResultRaw = world.dojoBridge?.isEnabled()
       ? await world.dojoBridge.executeVillageTick(
           villageId, vs, territoryTiles, world.autonomousWorld, world.tick,
@@ -440,12 +440,12 @@ export async function run4XTick(world: WorldState): Promise<GameEvent[]> {
     // Emit events for completed items
     for (const completedId of tickResult.queueCompleted) {
       events.push(createEvent(world.gameId, 'construction', world.tick,
-        [], `村${villageId}でキューアイテム完了: ${completedId}`, { villageId, itemId: completedId }));
+        [], `Queue item completed in village ${villageId}: ${completedId}`, { villageId, itemId: completedId }));
     }
 
     if (tickResult.starvation) {
       events.push(createEvent(world.gameId, 'death', world.tick,
-        [], `村${villageId}で飢餓が発生`, { villageId, populationLost: -tickResult.populationDelta }));
+        [], `Starvation occurred in village ${villageId}`, { villageId, populationLost: -tickResult.populationDelta }));
     }
   }
 
@@ -460,9 +460,9 @@ export async function run4XTick(world: WorldState): Promise<GameEvent[]> {
     }
 
     for (const [villageId, vs] of world.villageStates4X) {
-      if (vs.ownerId !== null) continue; // プレイヤー所有村はスキップ
+      if (vs.ownerId !== null) continue; // Skip player-owned villages
 
-      // 村長コンテキストを構築
+      // Build village leader context
       const leaderCtx = buildLeaderContext(world, villageId);
 
       const commands = await generateAICommands(
@@ -471,32 +471,32 @@ export async function run4XTick(world: WorldState): Promise<GameEvent[]> {
       );
 
       for (const cmd of commands) {
-        // Dojo: オンチェーンコマンド実行 → フォールバック
+        // Dojo: On-chain command execution -> fallback
         const result = world.dojoBridge?.isEnabled()
           ? await world.dojoBridge.executeCommand(cmd, villageId, worldRef)
           : processCommand(cmd, villageId, worldRef);
         if (!result.success) continue;
 
-        // 戦闘結果をイベント化
+        // Convert combat result to event
         if (cmd.type === 'attack' && result.data?.combatResult) {
           events.push(createEvent(world.gameId, 'war', world.tick,
-            [], `AI村${villageId}が戦闘を実行`, { combatResult: result.data.combatResult }));
+            [], `AI village ${villageId} engaged in combat`, { combatResult: result.data.combatResult }));
         }
       }
 
-      // 村長の戦略的思考をイベントとして記録
+      // Record the leader's strategic thinking as an event
       if (leaderCtx) {
         const leader = leaderCtx.leader;
         events.push(createEvent(world.gameId, 'diplomacy', world.tick,
           [leader.identity.id],
-          `${leader.identity.name}（${leaderCtx.villageName}村長）が戦略会議を行った`,
+          `${leader.identity.name} (village leader of ${leaderCtx.villageName}) held a strategy meeting`,
           { villageId, commandCount: commands.length },
         ));
 
-        // === Autonomous World: Layer 1-3 コマンド生成 ===
-        // 毎回ではなく確率的に発動（LLMコスト制御）
+        // === Autonomous World: Layer 1-3 command generation ===
+        // Triggered probabilistically, not every tick (LLM cost control)
 
-        // Layer 1: Covenant 提案 (20% chance per AI tick)
+        // Layer 1: Covenant proposal (20% chance per AI tick)
         if (Math.random() < 0.2) {
           const covenantCmd = await generateCovenantCommand(
             vs, leaderCtx, world.autonomousWorld, world.villageStates4X,
@@ -521,11 +521,11 @@ export async function run4XTick(world: WorldState): Promise<GameEvent[]> {
             world.autonomousWorld.covenants.set(covenant.id, covenant);
             events.push(createEvent(world.gameId, 'election', world.tick,
               [leader.identity.id],
-              `${leaderCtx.villageName}で「${covenant.name}」が制定された`,
+              `Covenant "${covenant.name}" was enacted in ${leaderCtx.villageName}`,
               { type: 'covenant_enacted', covenantId: covenant.id, covenantName: covenant.name },
             ));
 
-            // Dojo: オンチェーンにも提案
+            // Dojo: Also propose on-chain
             if (world.dojoBridge?.isEnabled()) {
               const scopeMap: Record<string, number> = { village: 0, bilateral: 1, global: 2 };
               world.dojoBridge.proposeCovenant(
@@ -537,7 +537,7 @@ export async function run4XTick(world: WorldState): Promise<GameEvent[]> {
           }
         }
 
-        // Layer 2: 発明 (10% chance per AI tick)
+        // Layer 2: Invention (10% chance per AI tick)
         if (Math.random() < 0.1) {
           const invention = await generateInventionCommand(
             vs, leaderCtx, world.autonomousWorld, world.tick,
@@ -545,11 +545,11 @@ export async function run4XTick(world: WorldState): Promise<GameEvent[]> {
           if (invention) {
             events.push(createEvent(world.gameId, 'discovery', world.tick,
               [leader.identity.id],
-              `${leaderCtx.villageName}で「${invention.name}」が発明された (${invention.type})`,
+              `"${invention.name}" was invented in ${leaderCtx.villageName} (${invention.type})`,
               { type: 'invention_registered', inventionId: invention.id, inventionName: invention.name },
             ));
 
-            // Dojo: オンチェーンにも登録
+            // Dojo: Also register on-chain
             if (world.dojoBridge?.isEnabled()) {
               const invTypeMap: Record<string, number> = { building: 0, tech: 1, unit: 2 };
               const def = invention.definition as Record<string, any>;
@@ -569,7 +569,7 @@ export async function run4XTick(world: WorldState): Promise<GameEvent[]> {
           }
         }
 
-        // Layer 3: 制度創設・加入 (10% chance per AI tick)
+        // Layer 3: Institution founding/joining (10% chance per AI tick)
         if (Math.random() < 0.1) {
           const instCmd = await generateInstitutionCommand(
             vs, leaderCtx, world.autonomousWorld, world.villageStates4X,
@@ -595,11 +595,11 @@ export async function run4XTick(world: WorldState): Promise<GameEvent[]> {
               if (result.success) {
                 events.push(createEvent(world.gameId, 'discovery', world.tick,
                   [leader.identity.id],
-                  `${leaderCtx.villageName}が「${inst.name}」を創設した`,
+                  `${leaderCtx.villageName} founded "${inst.name}"`,
                   { type: 'institution_founded', institutionId: inst.id, institutionName: inst.name },
                 ));
 
-                // Dojo: オンチェーンにも創設
+                // Dojo: Also found on-chain
                 if (world.dojoBridge?.isEnabled()) {
                   const instTypeMap: Record<string, number> = {
                     guild: 0, religion: 1, alliance: 2, academy: 3, custom: 4,
@@ -629,7 +629,7 @@ export async function run4XTick(world: WorldState): Promise<GameEvent[]> {
                 const inst = world.autonomousWorld.institutions.get(instCmd.institutionId);
                 events.push(createEvent(world.gameId, 'diplomacy', world.tick,
                   [leader.identity.id],
-                  `${leaderCtx.villageName}が「${inst?.name ?? instCmd.institutionId}」に加入した`,
+                  `${leaderCtx.villageName} joined "${inst?.name ?? instCmd.institutionId}"`,
                   { type: 'institution_joined', institutionId: instCmd.institutionId },
                 ));
               }
@@ -661,20 +661,20 @@ export async function run4XTick(world: WorldState): Promise<GameEvent[]> {
     }
   }
 
-  // === Autonomous World: ライフサイクル処理 ===
+  // === Autonomous World: Lifecycle processing ===
 
-  // Layer 1: Covenant relevance 減衰
+  // Layer 1: Covenant relevance decay
   decayCovenantRelevance(world.autonomousWorld);
 
-  // Layer 2: 発明 relevance 減衰 + 知識伝播
+  // Layer 2: Invention relevance decay + knowledge spread
   decayInventionRelevance(world.autonomousWorld);
   const inventionRegistry = new InventionRegistry(world.autonomousWorld);
   inventionRegistry.spreadKnowledge(world.villageStates4X, world.tick);
 
-  // Layer 3: 制度ライフサイクル（メンバー不在で衰退・解散）
+  // Layer 3: Institution lifecycle (decline and dissolution when no members)
   const dissolved = processInstitutionLifecycle(world.autonomousWorld);
 
-  // Dojo: オンチェーンでもdecay/lifecycle実行
+  // Dojo: Also execute decay/lifecycle on-chain
   if (world.dojoBridge?.isEnabled()) {
     Promise.all([
       world.dojoBridge.decayCovenants(),
@@ -684,7 +684,7 @@ export async function run4XTick(world: WorldState): Promise<GameEvent[]> {
   }
   for (const name of dissolved) {
     events.push(createEvent(world.gameId, 'discovery', world.tick,
-      [], `組織「${name}」が解散した`,
+      [], `Institution "${name}" has been dissolved`,
       { type: 'institution_dissolved', institutionName: name },
     ));
   }
@@ -698,10 +698,10 @@ export async function run4XTick(world: WorldState): Promise<GameEvent[]> {
 
   if (victoryResult) {
     events.push(createEvent(world.gameId, 'discovery', world.tick,
-      [], `勝利条件達成! ${victoryResult.victoryType} by ${victoryResult.winnerId}`,
+      [], `Victory achieved! ${victoryResult.victoryType} by ${victoryResult.winnerId}`,
       { victory: victoryResult }));
 
-    // Dojo: オンチェーンでも勝利チェック
+    // Dojo: Also check victory on-chain
     if (world.dojoBridge?.isEnabled()) {
       world.dojoBridge.checkVictory(victoryResult.villageId).catch(
         (err) => console.warn('[DojoBridge] checkVictory bg error:', err),

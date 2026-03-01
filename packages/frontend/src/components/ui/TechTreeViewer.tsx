@@ -4,9 +4,9 @@ import { wsClient } from '../../services/wsClient.ts';
 import { TECH_DEFS, getTechsByBranch } from '@murasato/shared';
 
 const BRANCH_CONFIG = {
-  agriculture: { color: '#5add5a', label: '農業' },
-  military: { color: '#dd5555', label: '軍事' },
-  culture: { color: '#bb77dd', label: '文化' },
+  agriculture: { color: '#5add5a', label: 'Agriculture' },
+  military: { color: '#dd5555', label: 'Military' },
+  culture: { color: '#bb77dd', label: 'Culture' },
 } as const;
 
 const BRANCHES = ['agriculture', 'military', 'culture'] as const;
@@ -77,9 +77,9 @@ export function TechTreeViewer() {
     <div style={overlayStyle} onClick={toggleTechTree}>
       <div style={containerStyle} onClick={(e) => e.stopPropagation()}>
         <div style={titleBarStyle}>
-          <span style={{ color: '#7ab8ff', fontWeight: 'bold', fontSize: 16 }}>技術ツリー</span>
+          <span style={{ color: '#7ab8ff', fontWeight: 'bold', fontSize: 16 }}>Tech Tree</span>
           {!selectedVillageId && (
-            <span style={{ color: '#888', fontSize: 11, marginLeft: 12 }}>村を選択してください</span>
+            <span style={{ color: '#888', fontSize: 11, marginLeft: 12 }}>Select a village</span>
           )}
           <button onClick={toggleTechTree} style={closeBtnStyle}>✕</button>
         </div>
@@ -159,7 +159,7 @@ export function TechTreeViewer() {
                       fontSize={11}
                       fontFamily='"M PLUS 1p", monospace'
                     >
-                      {tech.nameJa}
+                      {tech.name}
                     </text>
                     <text
                       x={pos.x + NODE_W / 2}
@@ -169,7 +169,7 @@ export function TechTreeViewer() {
                       fontSize={9}
                       fontFamily='"M PLUS 1p", monospace'
                     >
-                      {researched ? '✓ 研究済み' : researching ? '⏳ 研究中' : `コスト: ${tech.researchCost}`}
+                      {researched ? '✓ Researched' : researching ? '⏳ Researching' : `Cost: ${tech.researchCost}`}
                     </text>
                     {researched && (
                       <rect

@@ -16,18 +16,18 @@ const RESOURCE_COLORS: Record<ResourceType4X, string> = {
 };
 
 const RESOURCE_NAMES: Record<ResourceType4X, string> = {
-  food: '食料',
-  wood: '木材',
-  stone: '石材',
-  iron: '鉄',
-  gold: '金',
+  food: 'Food',
+  wood: 'Wood',
+  stone: 'Stone',
+  iron: 'Iron',
+  gold: 'Gold',
 };
 
 const CATEGORY_NAMES: Record<string, string> = {
-  economy: '経済',
-  military: '軍事',
-  culture: '文化',
-  infrastructure: 'インフラ',
+  economy: 'Economy',
+  military: 'Military',
+  culture: 'Culture',
+  infrastructure: 'Infra',
 };
 
 export function StrategyPanel() {
@@ -49,7 +49,7 @@ export function StrategyPanel() {
     return (
       <div style={panelStyle}>
         <Header name={village?.name ?? selectedVillageId} onClose={() => selectVillage(null)} />
-        <p style={{ color: '#888', fontSize: 12, padding: 8 }}>4X状態がまだ読み込まれていません</p>
+        <p style={{ color: '#888', fontSize: 12, padding: 8 }}>4X state not yet loaded</p>
       </div>
     );
   }
@@ -86,7 +86,7 @@ export function StrategyPanel() {
       />
 
       {/* Resources */}
-      <Section title="資源">
+      <Section title="Resources">
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
           {(['food', 'wood', 'stone', 'iron', 'gold'] as ResourceType4X[]).map((r) => (
             <ResourceBadge
@@ -98,33 +98,33 @@ export function StrategyPanel() {
           ))}
         </div>
         <div style={{ marginTop: 4, fontSize: 11, color: '#aaa' }}>
-          人口: {state.population} / {state.housingCapacity}
-          {' | '}研究: {Math.floor(state.researchPoints)}
-          {' | '}文化: {Math.floor(state.culturePoints)}
+          Pop: {state.population} / {state.housingCapacity}
+          {' | '}Research: {Math.floor(state.researchPoints)}
+          {' | '}Culture: {Math.floor(state.culturePoints)}
         </div>
       </Section>
 
       {/* Buildings */}
-      <Section title="建物">
+      <Section title="Buildings">
         <BuildingsSection buildings={state.buildings} />
       </Section>
 
       {/* Queues */}
       {(state.buildQueue.length > 0 || state.researchQueue.length > 0 || state.trainQueue.length > 0) && (
-        <Section title="キュー">
+        <Section title="Queue">
           <QueueSection items={[...state.buildQueue, ...state.researchQueue, ...state.trainQueue]} />
         </Section>
       )}
 
       {/* Military */}
       {state.garrison.length > 0 && (
-        <Section title="駐留軍">
+        <Section title="Garrison">
           <MilitarySection garrison={state.garrison} />
         </Section>
       )}
 
       {/* Actions */}
-      <Section title="アクション">
+      <Section title="Actions">
         {/* Build */}
         <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
           <select
@@ -132,10 +132,10 @@ export function StrategyPanel() {
             onChange={(e) => setBuildId(e.target.value)}
             style={selectStyle}
           >
-            <option value="">建設...</option>
+            <option value="">Build...</option>
             {Object.values(BUILDING_DEFS).map((b) => (
               <option key={b.id} value={b.id}>
-                {b.nameJa} ({Object.entries(b.cost).map(([r, v]) => `${RESOURCE_NAMES[r as ResourceType4X]}${v}`).join(', ')})
+                {b.name} ({Object.entries(b.cost).map(([r, v]) => `${RESOURCE_NAMES[r as ResourceType4X]}${v}`).join(', ')})
               </option>
             ))}
           </select>
@@ -148,7 +148,7 @@ export function StrategyPanel() {
               setBuildId('');
             }}
           >
-            建設
+            Build
           </button>
         </div>
 
@@ -163,12 +163,12 @@ export function StrategyPanel() {
             }}
             style={selectStyle}
           >
-            <option value="">研究...</option>
+            <option value="">Research...</option>
             {Object.values(TECH_DEFS)
               .filter((t) => !state.researchedTechs.includes(t.id))
               .map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.nameJa} (コスト: {t.researchCost})
+                  {t.name} (Cost: {t.researchCost})
                 </option>
               ))}
           </select>
@@ -181,10 +181,10 @@ export function StrategyPanel() {
             onChange={(e) => setTrainId(e.target.value)}
             style={selectStyle}
           >
-            <option value="">訓練...</option>
+            <option value="">Train...</option>
             {Object.values(UNIT_DEFS).map((u) => (
               <option key={u.id} value={u.id}>
-                {u.nameJa} ({Object.entries(u.trainCost).map(([r, v]) => `${RESOURCE_NAMES[r as ResourceType4X]}${v}`).join(', ')})
+                {u.name} ({Object.entries(u.trainCost).map(([r, v]) => `${RESOURCE_NAMES[r as ResourceType4X]}${v}`).join(', ')})
               </option>
             ))}
           </select>
@@ -205,7 +205,7 @@ export function StrategyPanel() {
               setTrainId('');
             }}
           >
-            訓練
+            Train
           </button>
         </div>
       </Section>
@@ -262,7 +262,7 @@ function ResourceBadge({ type, amount, max }: { type: ResourceType4X; amount: nu
 
 function BuildingsSection({ buildings }: { buildings: VillageState4XSerialized['buildings'] }) {
   if (buildings.length === 0) {
-    return <span style={{ color: '#666', fontSize: 11 }}>建物なし</span>;
+    return <span style={{ color: '#666', fontSize: 11 }}>No buildings</span>;
   }
   const grouped: Record<string, typeof buildings> = {};
   for (const b of buildings) {
@@ -280,7 +280,7 @@ function BuildingsSection({ buildings }: { buildings: VillageState4XSerialized['
             const def = BUILDING_DEFS[b.defId];
             return (
               <span key={i} style={{ color: '#ccc' }}>
-                {def?.nameJa ?? b.defId}
+                {def?.name ?? b.defId}
                 {i < blds.length - 1 ? ', ' : ''}
               </span>
             );
@@ -296,9 +296,9 @@ function QueueSection({ items }: { items: { defId: string; remainingTicks: numbe
     <div style={{ fontSize: 11 }}>
       {items.map((item, i) => {
         const def = BUILDING_DEFS[item.defId] ?? TECH_DEFS[item.defId] ?? UNIT_DEFS[item.defId];
-        const name = (def as any)?.nameJa ?? item.defId;
+        const name = (def as any)?.name ?? item.defId;
         const pct = Math.max(0, ((item.totalTicks - item.remainingTicks) / item.totalTicks) * 100);
-        const typeLabel = item.queueType === 'building' ? '建設' : item.queueType === 'research' ? '研究' : '訓練';
+        const typeLabel = item.queueType === 'building' ? 'Build' : item.queueType === 'research' ? 'Res' : 'Train';
         return (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
             <span style={{ color: '#888', fontSize: 10, width: 24 }}>{typeLabel}</span>
@@ -321,7 +321,7 @@ function MilitarySection({ garrison }: { garrison: VillageState4XSerialized['gar
         const def = UNIT_DEFS[u.defId];
         return (
           <div key={i} style={{ display: 'flex', gap: 8, color: '#ccc' }}>
-            <span>{def?.nameJa ?? u.defId}</span>
+            <span>{def?.name ?? u.defId}</span>
             <span style={{ color: '#ffd700' }}>×{u.count}</span>
             {u.veterancy > 0 && <span style={{ color: '#dd5555', fontSize: 10 }}>★{u.veterancy}</span>}
           </div>

@@ -79,7 +79,7 @@ const server = Bun.serve<WSData>({
   },
 });
 
-console.log(`🏘️  村里 server running on http://localhost:${server.port}`);
+console.log(`Murasato server running on http://localhost:${server.port}`);
 
 // --- Dojo on-chain bridge initialization ---
 
@@ -92,7 +92,7 @@ if (dojoConfig.enabled) {
   dojoBridge.initialize().then(async () => {
     console.log('⛓️  Dojo bridge initialized and ready');
 
-    // fullSync: 既存村のオンチェーン状態を同期
+    // fullSync: Sync existing villages' on-chain state
     const mapperEntries = dojoBridge!.getVillageMapperEntries();
     if (mapperEntries.length > 0) {
       console.log(`⛓️  Found ${mapperEntries.length} persisted village mappings, running fullSync...`);

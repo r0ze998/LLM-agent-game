@@ -55,23 +55,23 @@ export function IntentionPanel() {
   return (
     <div style={{ ...panelStyle, animation: 'slideDown 0.2s ease' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-        <span style={{ fontWeight: 'bold', color: '#d4a0ff' }}>天の声</span>
+        <span style={{ fontWeight: 'bold', color: '#d4a0ff' }}>Divine Voice</span>
         <button onClick={toggle} style={closeBtn}>✕</button>
       </div>
 
       <div style={{ marginBottom: 8, fontSize: 12, color: '#999' }}>
-        対象: {selectedAgentId ? `選択されたエージェント` : '全世界'}
+        Target: {selectedAgentId ? `Selected agent` : 'Entire world'}
       </div>
 
       {/* Type selector */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
         {(['guide', 'value', 'warning', 'question', 'name'] as IntentionType[]).map((t) => (
           <button key={t} onClick={() => setType(t)} style={type === t ? chipActive : chip}>
-            {t === 'guide' && '導き'}
-            {t === 'value' && '価値観'}
-            {t === 'warning' && '警告'}
-            {t === 'question' && '問い'}
-            {t === 'name' && '命名'}
+            {t === 'guide' && 'Guide'}
+            {t === 'value' && 'Values'}
+            {t === 'warning' && 'Warning'}
+            {t === 'question' && 'Question'}
+            {t === 'name' && 'Naming'}
           </button>
         ))}
       </div>
@@ -80,9 +80,9 @@ export function IntentionPanel() {
       <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
         {(['whisper', 'suggestion', 'decree'] as IntentionStrength[]).map((s) => (
           <button key={s} onClick={() => setStrength(s)} style={strength === s ? chipActive : chip}>
-            {s === 'whisper' && 'ささやき'}
-            {s === 'suggestion' && '提案'}
-            {s === 'decree' && '布告'}
+            {s === 'whisper' && 'Whisper'}
+            {s === 'suggestion' && 'Suggestion'}
+            {s === 'decree' && 'Decree'}
           </button>
         ))}
       </div>
@@ -94,11 +94,11 @@ export function IntentionPanel() {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-          placeholder="天の声を入力..."
+          placeholder="Enter your divine message..."
           style={inputStyle}
         />
         <button onClick={handleSend} disabled={sending || !message.trim()} style={sendBtn}>
-          {sending ? '...' : '送信'}
+          {sending ? '...' : 'Send'}
         </button>
       </div>
     </div>

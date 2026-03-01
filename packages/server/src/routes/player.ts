@@ -4,7 +4,7 @@ import { tickService } from '../services/tickService.ts';
 
 export const playerRouter = new Hono();
 
-// Send intention (天の声)
+// Send intention (Divine Voice)
 playerRouter.post('/:gameId/intention', async (c) => {
   const gameId = c.req.param('gameId');
   const world = tickService.getWorld(gameId);

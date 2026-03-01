@@ -1,8 +1,8 @@
 /**
- * dojoStateReader.ts — オンチェーン状態リーダー
+ * dojoStateReader.ts — On-chain state reader
  *
- * RpcProvider.callContract() で Dojo World からモデルデータを読み取り、
- * ×1000 固定小数点 → float 変換を行う。
+ * Reads model data from the Dojo World via RpcProvider.callContract()
+ * and converts x1000 fixed-point values to float.
  */
 
 import { RpcProvider, hash } from "starknet";
@@ -52,7 +52,7 @@ export class DojoStateReader {
     this.namespace = namespace;
   }
 
-  /** 村データを読み取り */
+  /** Read village data */
   async readVillage(villageId: number): Promise<OnChainVillage | null> {
     try {
       const result = await this.getEntity("Village", [villageId]);
@@ -76,7 +76,7 @@ export class DojoStateReader {
     }
   }
 
-  /** 村の建物一覧を取得 (BuildingCounter → Building を順次読み取り) */
+  /** Get village building list (read BuildingCounter -> Building sequentially) */
   async readBuildings(villageId: number): Promise<BuildingInstance[]> {
     const buildings: BuildingInstance[] = [];
     try {
@@ -102,10 +102,10 @@ export class DojoStateReader {
     return buildings;
   }
 
-  /** 駐留軍を取得 */
+  /** Get garrison units */
   async readGarrison(villageId: number): Promise<ArmyUnit[]> {
     const units: ArmyUnit[] = [];
-    // 10 ユニット定義 (ID 1-10)
+    // 10 unit definitions (ID 1-10)
     for (let unitDefId = 1; unitDefId <= 10; unitDefId++) {
       try {
         const result = await this.getEntity("GarrisonUnit", [villageId, unitDefId]);
@@ -127,10 +127,10 @@ export class DojoStateReader {
     return units;
   }
 
-  /** 研究済み技術を取得 */
+  /** Get researched technologies */
   async readResearchedTechs(villageId: number): Promise<Set<number>> {
     const techs = new Set<number>();
-    // 30 技術 (ID 1-30)
+    // 30 techs (ID 1-30)
     for (let techId = 1; techId <= 30; techId++) {
       try {
         const result = await this.getEntity("ResearchedTech", [villageId, techId]);
@@ -144,7 +144,7 @@ export class DojoStateReader {
     return techs;
   }
 
-  /** ゲーム設定読み取り */
+  /** Read game configuration */
   async readGameConfig(): Promise<{ currentTick: number; initialized: boolean }> {
     try {
       const result = await this.getEntity("GameConfig", [0]);

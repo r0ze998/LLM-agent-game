@@ -1,12 +1,12 @@
 /**
- * dojoSync.ts — UUID ↔ u32 マッピング管理
+ * dojoSync.ts — UUID <-> u32 mapping management
  *
- * オフチェーンは UUID (string)、オンチェーンは連番 u32 (number)。
- * 建物・技術・ユニットは静的マッピング (setup.cairo に一致)。
- * 村は動的マッピング (創設時に割り当て)。
+ * Off-chain uses UUID (string), on-chain uses sequential u32 (number).
+ * Buildings, techs, and units use static mappings (matching setup.cairo).
+ * Villages use dynamic mappings (assigned at creation).
  */
 
-// ── 建物定義 ID マッピング (25 buildings, matches setup.cairo) ──
+// ── Building definition ID mapping (25 buildings, matches setup.cairo) ──
 
 export const BUILDING_STR_TO_U32: Record<string, number> = {
   farm: 1,
@@ -40,7 +40,7 @@ export const BUILDING_U32_TO_STR: Record<number, string> = Object.fromEntries(
   Object.entries(BUILDING_STR_TO_U32).map(([k, v]) => [v, k]),
 );
 
-// ── 技術定義 ID マッピング (30 techs, 3 branches × 10 tiers) ──
+// ── Tech definition ID mapping (30 techs, 3 branches x 10 tiers) ──
 
 export const TECH_STR_TO_U32: Record<string, number> = {
   // Agriculture branch (1-10)
@@ -82,7 +82,7 @@ export const TECH_U32_TO_STR: Record<number, string> = Object.fromEntries(
   Object.entries(TECH_STR_TO_U32).map(([k, v]) => [v, k]),
 );
 
-// ── ユニット定義 ID マッピング (10 units) ──
+// ── Unit definition ID mapping (10 units) ──
 
 export const UNIT_STR_TO_U32: Record<string, number> = {
   militia: 1,
@@ -101,14 +101,14 @@ export const UNIT_U32_TO_STR: Record<number, string> = Object.fromEntries(
   Object.entries(UNIT_STR_TO_U32).map(([k, v]) => [v, k]),
 );
 
-// ── 村 UUID ↔ u32 動的マッピング ──
+// ── Village UUID <-> u32 dynamic mapping ──
 
 export class VillageIdMapper {
   private uuidToU32 = new Map<string, number>();
   private u32ToUuid = new Map<number, string>();
   private nextId = 1;
 
-  /** 新しい村を登録し、u32 ID を返す */
+  /** Register a new village and return its u32 ID */
   register(uuid: string): number {
     const existing = this.uuidToU32.get(uuid);
     if (existing !== undefined) return existing;
@@ -119,27 +119,27 @@ export class VillageIdMapper {
     return id;
   }
 
-  /** UUID → u32。未登録なら undefined */
+  /** UUID -> u32. Returns undefined if not registered */
   toU32(uuid: string): number | undefined {
     return this.uuidToU32.get(uuid);
   }
 
-  /** u32 → UUID。未登録なら undefined */
+  /** u32 -> UUID. Returns undefined if not registered */
   toUuid(u32: number): string | undefined {
     return this.u32ToUuid.get(u32);
   }
 
-  /** 登録済み村数 */
+  /** Number of registered villages */
   get size(): number {
     return this.uuidToU32.size;
   }
 
-  /** 全マッピングを返す (デバッグ用) */
+  /** Return all mappings (for debugging) */
   entries(): [string, number][] {
     return [...this.uuidToU32.entries()];
   }
 
-  /** シリアライズ用データを返す */
+  /** Return data for serialization */
   serialize(): { mappings: Array<{ uuid: string; u32: number }>; nextId: number } {
     return {
       mappings: this.entries().map(([uuid, u32]) => ({ uuid, u32 })),
@@ -147,7 +147,7 @@ export class VillageIdMapper {
     };
   }
 
-  /** 外部から復元する (永続化ファイルなどから) */
+  /** Restore from external source (e.g., persistence file) */
   restore(
     mappings: Array<{ uuid: string; u32: number }>,
     nextId: number,

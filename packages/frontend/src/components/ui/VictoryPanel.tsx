@@ -1,4 +1,4 @@
-// F18: Victory Progress Tracker — 勝利進捗パネル
+// F18: Victory Progress Tracker — victory progress panel
 import { useGameStore } from '../../store/gameStore.ts';
 import { useUIStore } from '../../store/uiStore.ts';
 import { VICTORY_DEFS, SCORE_VICTORY_TICK, TECH_DEFS, ECONOMIC_VICTORY_GOLD_THRESHOLD } from '@murasato/shared';
@@ -24,7 +24,7 @@ export function VictoryPanel() {
   const totalVillages = village4xStates.size;
 
   // Compute progress for each victory condition
-  type Progress = { name: string; nameJa: string; current: number; target: number; pct: number };
+  type Progress = { name: string; current: number; target: number; pct: number };
   const progresses: Progress[] = [];
 
   for (const def of VICTORY_DEFS) {
@@ -92,7 +92,7 @@ export function VictoryPanel() {
     }
 
     const pct = target > 0 ? Math.min(1, current / target) : 0;
-    progresses.push({ name: def.name, nameJa: def.nameJa, current, target, pct });
+    progresses.push({ name: def.name, current, target, pct });
   }
 
   return (
@@ -147,7 +147,7 @@ export function VictoryPanel() {
               marginBottom: 4,
             }}>
               <span style={{ fontSize: 12, fontWeight: 'bold', color: '#c8d8e8' }}>
-                {p.nameJa}
+                {p.name}
               </span>
               <span style={{ fontSize: 11, color: '#888' }}>
                 {p.current} / {p.target}

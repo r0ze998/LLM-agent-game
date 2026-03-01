@@ -1,4 +1,4 @@
-// === 勝利条件定義（5種） ===
+// === Victory Condition Definitions (6 types) ===
 
 import type { VictoryConditionDef } from './types.ts';
 
@@ -6,43 +6,37 @@ export const VICTORY_DEFS: VictoryConditionDef[] = [
   {
     type: 'domination',
     name: 'Domination Victory',
-    nameJa: '制覇勝利',
-    description: '全村の75%を征服する',
+    description: 'Conquer 75% of all villages',
     check: { metric: 'village_control_ratio', threshold: 0.75, comparison: 'gte' },
   },
   {
     type: 'culture',
     name: 'Culture Victory',
-    nameJa: '文化勝利',
-    description: '文化ポイントを1000蓄積する',
+    description: 'Accumulate 1,000 culture points',
     check: { metric: 'culture_points', threshold: 1000, comparison: 'gte' },
   },
   {
     type: 'diplomacy',
     name: 'Diplomacy Victory',
-    nameJa: '外交勝利',
-    description: '全村の60%と同盟を結ぶ',
+    description: 'Form alliances with 60% of all villages',
     check: { metric: 'alliance_ratio', threshold: 0.60, comparison: 'gte' },
   },
   {
     type: 'technology',
     name: 'Technology Victory',
-    nameJa: '技術勝利',
-    description: '1つの技術ブランチを完全制覇する',
+    description: 'Complete all techs in one branch',
     check: { metric: 'branch_mastery_count', threshold: 1, comparison: 'gte' },
   },
   {
     type: 'economic',
     name: 'Economic Victory',
-    nameJa: '経済勝利',
-    description: '累計ゴールド獲得量10,000を達成する',
+    description: 'Earn 10,000 cumulative gold',
     check: { metric: 'total_gold_earned', threshold: 10000, comparison: 'gte' },
   },
   {
     type: 'score',
     name: 'Score Victory',
-    nameJa: 'スコア勝利',
-    description: '500ターン経過時の最高スコアで勝利',
+    description: 'Win by highest score after 500 turns',
     check: { metric: 'tick_count', threshold: 500, comparison: 'gte' },
   },
 ];

@@ -1,4 +1,4 @@
-// === Rule Engine — Effect集約 + 資源/人口/研究/文化のtick処理 ===
+// === Rule Engine — Effect aggregation + resource/population/research/culture tick processing ===
 
 import {
   BUILDING_DEFS,
@@ -26,7 +26,7 @@ import { getActiveCovenantEffects } from './covenantEngine.ts';
 import { getInventionEffects } from './inventionRegistry.ts';
 import { getInstitutionEffects } from './institutionEngine.ts';
 
-// --- Effect集約結果 ---
+// --- Aggregated effect results ---
 
 export interface AggregatedEffects {
   resourceProduction: Resources4X;
@@ -35,9 +35,9 @@ export interface AggregatedEffects {
   researchPoints: number;
   culturePoints: number;
   tileYieldMods: Map<string, number>;     // key: `${terrain}_${resource}`
-  attackBonus: number;                     // 全体乗算
+  attackBonus: number;                     // global multiplier
   defenseBonus: number;
-  unitAttackBonus: Map<string, number>;    // unitType → bonus
+  unitAttackBonus: Map<string, number>;    // unitType -> bonus
   unitDefenseBonus: Map<string, number>;
   unitTrainingSpeed: number;
   buildSpeed: number;
@@ -76,7 +76,7 @@ function emptyAggregated(): AggregatedEffects {
   };
 }
 
-/** 村の全Effect（建物 + 研究済み技術 + Covenant + 発明 + 制度）を集約する */
+/** Aggregate all Effects for a village (buildings + researched techs + Covenants + inventions + institutions) */
 export function aggregateEffects(
   village: VillageState4X,
   awState?: AutonomousWorldState,
@@ -85,7 +85,7 @@ export function aggregateEffects(
 ): AggregatedEffects {
   const agg = emptyAggregated();
 
-  // Layer 0: ハードコード建物のEffect
+  // Layer 0: Hardcoded building Effects
   for (const bi of village.buildings) {
     const def = BUILDING_DEFS[bi.defId];
     if (!def) continue;
@@ -94,7 +94,7 @@ export function aggregateEffects(
     }
   }
 
-  // Layer 0: 研究済み技術のEffect
+  // Layer 0: Researched tech Effects
   for (const techId of village.researchedTechs) {
     const def = TECH_DEFS[techId];
     if (!def) continue;
@@ -107,19 +107,19 @@ export function aggregateEffects(
   if (awState) {
     const tick = currentTick ?? 0;
 
-    // Layer 1: アクティブな Covenant の Effect
+    // Layer 1: Active Covenant Effects
     const covenantEffects = getActiveCovenantEffects(village.villageId, awState, tick);
     for (const eff of covenantEffects) {
       applyEffect(agg, eff, village, diplomaticStatus);
     }
 
-    // Layer 2: 発明された建物・技術の Effect
+    // Layer 2: Invented building/tech Effects
     const inventionEffects = getInventionEffects(village, awState);
     for (const eff of inventionEffects) {
       applyEffect(agg, eff, village, diplomaticStatus);
     }
 
-    // Layer 3: 所属 Institution の memberEffects
+    // Layer 3: Affiliated Institution memberEffects
     const institutionEffects = getInstitutionEffects(village.villageId, awState);
     for (const eff of institutionEffects) {
       applyEffect(agg, eff, village, diplomaticStatus);
@@ -130,7 +130,7 @@ export function aggregateEffects(
 }
 
 function applyEffect(agg: AggregatedEffects, eff: Effect, village: VillageState4X, diplomaticStatus?: string): void {
-  // 条件チェック
+  // Condition check
   if (eff.condition) {
     if (!checkCondition(eff.condition, village, diplomaticStatus)) return;
   }
@@ -203,7 +203,7 @@ function applyEffect(agg: AggregatedEffects, eff: Effect, village: VillageState4
       if (eff.target.unitType) agg.unlockedUnits.add(eff.target.unitType);
       break;
     case 'unlock_building':
-      // 建物解放はBuildingDef.requiresで管理するため、ここでは特別処理不要
+      // Building unlock is managed by BuildingDef.requires, no special processing needed here
       break;
   }
 }
@@ -231,18 +231,18 @@ function checkCondition(
   }
 }
 
-// --- Tick処理 ---
+// --- Tick processing ---
 
 export interface TickResult {
   resourceDelta: Resources4X;
   populationDelta: number;
   researchGained: number;
   cultureGained: number;
-  queueCompleted: string[];    // 完了したキューアイテムのID
+  queueCompleted: string[];    // IDs of completed queue items
   starvation: boolean;
 }
 
-/** 村のtick処理: 資源生産 → 消費 → 人口 → 研究 → 文化 → キュー進行 */
+/** Village tick processing: resource production -> consumption -> population -> research -> culture -> queue progression */
 export function processVillageTick(
   village: VillageState4X,
   territoryTiles: Tile[],
@@ -260,7 +260,7 @@ export function processVillageTick(
     starvation: false,
   };
 
-  // 1. 地形産出 (領土タイルから)
+  // 1. Terrain yields (from territory tiles)
   for (const tile of territoryTiles) {
     const rule = TERRAIN_RULES[tile.terrain];
     if (!rule) continue;
@@ -274,17 +274,17 @@ export function processVillageTick(
     }
   }
 
-  // 2. 建物・技術からの資源生産
+  // 2. Resource production from buildings and techs
   for (const res of RESOURCE_TYPES_4X) {
     result.resourceDelta[res] += agg.resourceProduction[res];
     result.resourceDelta[res] += agg.tradeIncome[res];
   }
 
-  // 3. 人口消費 (食料)
+  // 3. Population food consumption
   const foodConsumption = village.population * FOOD_PER_POP_PER_TICK * (1 + agg.foodConsumptionMod);
   result.resourceDelta.food -= foodConsumption;
 
-  // 4. ユニット維持費
+  // 4. Unit upkeep costs
   const allUnits = [...village.garrison];
   for (const army of village.armies) {
     allUnits.push(...army.units);
@@ -298,13 +298,13 @@ export function processVillageTick(
     }
   }
 
-  // 5. 資源を村に適用 (上限チェック)
+  // 5. Apply resources to village (cap check)
   const totalStorage: Resources4X = { ...village.resourceStorage };
   for (const res of RESOURCE_TYPES_4X) {
     totalStorage[res] += agg.resourceStorage[res];
   }
 
-  // ゴールド累計追跡: 正の増加分を加算
+  // Gold cumulative tracking: add positive increments
   const goldDelta = result.resourceDelta.gold;
   if (goldDelta > 0) {
     village.totalGoldEarned = (village.totalGoldEarned ?? 0) + goldDelta;
@@ -316,18 +316,18 @@ export function processVillageTick(
     village.resources[res] = Math.max(village.resources[res], 0);
   }
 
-  // 6. 人口増減
-  const housingCap = agg.housing + 10; // 基本10 + 建物
+  // 6. Population growth/decline
+  const housingCap = agg.housing + 10; // base 10 + buildings
   village.housingCapacity = housingCap;
 
   if (village.resources.food <= 0) {
-    // 飢餓: 人口減少
+    // Starvation: population loss
     const loss = Math.max(1, Math.floor(village.population * POP_STARVATION_RATE));
     village.population = Math.max(1, village.population - loss);
     result.populationDelta = -loss;
     result.starvation = true;
   } else if (village.population < housingCap && village.resources.food > village.population * 2) {
-    // 成長: 食料余剰 + 住居あり
+    // Growth: food surplus + housing available
     const growthRate = POP_GROWTH_BASE_RATE + agg.populationGrowth;
     const growth = Math.max(0, Math.floor(village.population * growthRate));
     if (growth > 0) {
@@ -336,20 +336,20 @@ export function processVillageTick(
     }
   }
 
-  // 7. 研究ポイント
+  // 7. Research points
   const researchGained = agg.researchPoints + village.population * POP_RESEARCH_CONTRIBUTION;
   village.researchPoints += researchGained;
   result.researchGained = researchGained;
 
-  // 8. 文化ポイント
+  // 8. Culture points
   village.culturePoints += agg.culturePoints;
   village.totalCulturePoints += agg.culturePoints;
   result.cultureGained = agg.culturePoints;
 
-  // 9. キュー進行
+  // 9. Queue progression
   processQueues(village, agg, result, currentTick);
 
-  // 10. スコア計算
+  // 10. Score calculation
   village.score = computeScore(village);
 
   return result;
@@ -361,13 +361,13 @@ function processQueues(
   result: TickResult,
   currentTick?: number,
 ): void {
-  // 建設キュー
+  // Build queue
   if (village.buildQueue.length > 0) {
     const item = village.buildQueue[0];
     const speedMod = 1 + agg.buildSpeed;
     item.remainingTicks -= speedMod;
     if (item.remainingTicks <= 0) {
-      // 建設完了
+      // Construction complete
       const def = BUILDING_DEFS[item.defId];
       if (def && item.position) {
         village.buildings.push({
@@ -385,10 +385,10 @@ function processQueues(
     }
   }
 
-  // 研究キュー
+  // Research queue
   if (village.researchQueue.length > 0) {
     const item = village.researchQueue[0];
-    // 研究は蓄積ポイントで進行
+    // Research progresses via accumulated points
     const techDef = TECH_DEFS[item.defId];
     if (techDef && village.researchPoints >= techDef.researchCost) {
       village.researchPoints -= techDef.researchCost;
@@ -398,13 +398,13 @@ function processQueues(
     }
   }
 
-  // 訓練キュー
+  // Training queue
   if (village.trainQueue.length > 0) {
     const item = village.trainQueue[0];
     const speedMod = 1 + agg.unitTrainingSpeed;
     item.remainingTicks -= speedMod;
     if (item.remainingTicks <= 0) {
-      // 訓練完了: ガリソンに追加
+      // Training complete: add to garrison
       const existing = village.garrison.find(u => u.defId === item.defId);
       if (existing) {
         existing.count += 1;

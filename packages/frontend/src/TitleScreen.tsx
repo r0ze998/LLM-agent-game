@@ -59,7 +59,7 @@ function TitleHeader({ shrink }: { shrink: boolean }) {
           lineHeight: 1.2,
         }}
       >
-        村里
+        Murasato
       </h1>
       <p
         style={{
@@ -70,7 +70,7 @@ function TitleHeader({ shrink }: { shrink: boolean }) {
           opacity: shrink ? 0.7 : 1,
         }}
       >
-        AI自己繁殖JRPGビレッジビルダー
+        AI Self-Reproducing JRPG Village Builder
       </p>
     </div>
   );
@@ -107,10 +107,10 @@ function MainMenu({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center' }}>
       <button onClick={onStart} disabled={loading} style={primaryButtonGlassStyle}>
-        始める
+        Start
       </button>
       <button onClick={onObserve} disabled={loading} style={secondaryButtonGlassStyle}>
-        {loading ? '世界を創造中...' : '観察する'}
+        {loading ? 'Creating world...' : 'Observe'}
       </button>
     </div>
   );
@@ -129,23 +129,23 @@ function NameStep({
 }) {
   return (
     <div>
-      <h2 style={stepHeadingStyle}>名前を決める</h2>
+      <h2 style={stepHeadingStyle}>Choose a Name</h2>
       <p style={stepDescStyle}>
-        あなたの分身となるエージェントの名前を入力してください。
+        Enter a name for your agent avatar.
         <br />
-        空欄にするとAIが自動で名付けます。
+        Leave blank to let the AI name it.
       </p>
       <input
         value={agentName}
         onChange={(e) => setAgentName(e.target.value)}
-        placeholder="例: タロウ"
+        placeholder="e.g. Taro"
         style={glassInputStyle}
         autoFocus
         onKeyDown={(e) => { if (e.key === 'Enter') onNext(); }}
       />
       <div style={buttonRowStyle}>
-        <button onClick={onBack} style={wizardBackButtonStyle}>← 戻る</button>
-        <button onClick={onNext} style={nextButtonStyle}>次へ</button>
+        <button onClick={onBack} style={wizardBackButtonStyle}>← Back</button>
+        <button onClick={onNext} style={nextButtonStyle}>Next</button>
       </div>
     </div>
   );
@@ -165,16 +165,16 @@ function SoulStep({
   const canProceed = soul.trim().length >= 10;
   return (
     <div>
-      <h2 style={stepHeadingStyle}>魂を描く</h2>
+      <h2 style={stepHeadingStyle}>Describe the Soul</h2>
       <p style={stepDescStyle}>
-        エージェントの性格や価値観を自由に描写してください。
+        Freely describe your agent's personality and values.
         <br />
-        この文章がAIの行動指針となります。
+        This text becomes the AI's guiding principles.
       </p>
       <textarea
         value={soul}
         onChange={(e) => setSoul(e.target.value)}
-        placeholder="穏やかな農夫で、土地と季節のリズムを深く敬う。争いを嫌い、常に対話で解決しようとする。"
+        placeholder="A gentle farmer who deeply respects the land and the rhythm of the seasons. Avoids conflict and always tries to resolve things through dialogue."
         rows={5}
         style={glassTextareaStyle}
         autoFocus
@@ -184,11 +184,11 @@ function SoulStep({
           {soul.trim().length}/10
         </span>
         {!canProceed && soul.trim().length > 0 && (
-          <span style={{ fontSize: 11, color: '#a07070' }}>10文字以上必要です</span>
+          <span style={{ fontSize: 11, color: '#a07070' }}>At least 10 characters required</span>
         )}
       </div>
       <div style={buttonRowStyle}>
-        <button onClick={onBack} style={wizardBackButtonStyle}>← 戻る</button>
+        <button onClick={onBack} style={wizardBackButtonStyle}>← Back</button>
         <button
           onClick={onNext}
           disabled={!canProceed}
@@ -198,7 +198,7 @@ function SoulStep({
             cursor: canProceed ? 'pointer' : 'not-allowed',
           }}
         >
-          次へ
+          Next
         </button>
       </div>
     </div>
@@ -222,16 +222,16 @@ function PreviewStep({
 }) {
   return (
     <div>
-      <h2 style={stepHeadingStyle}>確認</h2>
-      <p style={stepDescStyle}>以下の内容で世界に降り立ちます。</p>
+      <h2 style={stepHeadingStyle}>Confirm</h2>
+      <p style={stepDescStyle}>You will enter the world with the following settings.</p>
 
       <div style={previewFieldStyle}>
-        <div style={previewLabelStyle}>名前</div>
-        <div style={previewValueStyle}>{agentName.trim() || '（AIが命名）'}</div>
+        <div style={previewLabelStyle}>Name</div>
+        <div style={previewValueStyle}>{agentName.trim() || '(AI will name)'}</div>
       </div>
 
       <div style={previewFieldStyle}>
-        <div style={previewLabelStyle}>魂の描写</div>
+        <div style={previewLabelStyle}>Soul Description</div>
         <div style={previewSoulStyle}>{soul.trim()}</div>
       </div>
 
@@ -246,11 +246,11 @@ function PreviewStep({
           cursor: loading ? 'wait' : 'pointer',
         }}
       >
-        {loading ? <LoadingIndicator text="世界を創造中" /> : '世界に降り立つ'}
+        {loading ? <LoadingIndicator text="Creating world" /> : 'Enter the World'}
       </button>
 
       <div style={{ marginTop: 12, textAlign: 'center' }}>
-        <button onClick={onBack} disabled={loading} style={wizardBackButtonStyle}>← 戻る</button>
+        <button onClick={onBack} disabled={loading} style={wizardBackButtonStyle}>← Back</button>
       </div>
     </div>
   );
@@ -288,10 +288,10 @@ function AutoJoinIndicator() {
           margin: 0,
         }}
       >
-        村里
+        Murasato
       </h1>
       <p style={{ color: '#7a9ec7', fontSize: 14, marginTop: 16 }}>
-        <LoadingIndicator text="接続中" />
+        <LoadingIndicator text="Connecting" />
       </p>
     </div>
   );
@@ -299,7 +299,7 @@ function AutoJoinIndicator() {
 
 // ---- Phase text overlay ----
 
-const PHASE_TEXTS = ['...', '大地を形成する', '文明の種を蒔く', '意識を吹き込む', ''];
+const PHASE_TEXTS = ['...', 'Shaping the land', 'Sowing seeds of civilization', 'Breathing in consciousness', ''];
 
 function PhaseTextOverlay({ phase }: { phase: number }) {
   const [displayPhase, setDisplayPhase] = useState(0);
@@ -452,7 +452,7 @@ export function TitleScreen() {
 
   const handleStartPlayer = useCallback(async () => {
     if (soul.trim().length < 10) {
-      setError('魂の描写は10文字以上必要です');
+      setError('Soul description requires at least 10 characters');
       return;
     }
     setLoading(true);
@@ -506,7 +506,7 @@ export function TitleScreen() {
       followAgent(agent.identity.id);
     } catch (err) {
       console.error('Failed to start game:', err);
-      setError(err instanceof Error ? err.message : 'ゲーム作成に失敗しました');
+      setError(err instanceof Error ? err.message : 'Failed to create game');
     }
     setLoading(false);
   }, [soul, agentName, setGame, setGameMode, selectAgent, followAgent]);
@@ -587,7 +587,7 @@ export function TitleScreen() {
           ...skipHintStyle,
           animation: 'phaseTextIn 0.6s ease-out forwards',
         }}>
-          クリックでスキップ
+          Click to skip
         </div>
       )}
 

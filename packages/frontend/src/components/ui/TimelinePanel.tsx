@@ -6,12 +6,12 @@ import type { GameEvent, DialogueLine } from '@murasato/shared';
 type FilterCategory = 'all' | 'conversation' | 'incident' | 'construction' | 'social' | 'onchain';
 
 const FILTER_TABS: { key: FilterCategory; label: string }[] = [
-  { key: 'all', label: '全て' },
-  { key: 'conversation', label: '会話' },
-  { key: 'incident', label: '事件' },
-  { key: 'construction', label: '建設' },
-  { key: 'social', label: '社会' },
-  { key: 'onchain', label: '鎖上' },
+  { key: 'all', label: 'All' },
+  { key: 'conversation', label: 'Conversations' },
+  { key: 'incident', label: 'Incidents' },
+  { key: 'construction', label: 'Construction' },
+  { key: 'social', label: 'Social' },
+  { key: 'onchain', label: 'On-chain' },
 ];
 
 const CATEGORY_MAP: Record<string, FilterCategory> = {
@@ -50,9 +50,9 @@ export function TimelinePanel() {
 
   function relativeTime(tick: number): string {
     const diff = currentTick - tick;
-    if (diff < 60) return '今';
-    if (diff < 1200) return `${Math.floor(diff / 60)}時間前`;
-    return `${Math.floor(diff / 1200)}日前`;
+    if (diff < 60) return 'now';
+    if (diff < 1200) return `${Math.floor(diff / 60)}h ago`;
+    return `${Math.floor(diff / 1200)}d ago`;
   }
 
   function getAgentName(id: string): string {
@@ -78,7 +78,7 @@ export function TimelinePanel() {
       fontSize: 12,
       zIndex: 85,
     }}>
-      <div style={{ fontWeight: 'bold', color: '#d4d47a', marginBottom: 8 }}>年代記</div>
+      <div style={{ fontWeight: 'bold', color: '#d4d47a', marginBottom: 8 }}>Timeline</div>
 
       {/* Filter tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 8, flexWrap: 'wrap' }}>
@@ -102,7 +102,7 @@ export function TimelinePanel() {
         ))}
       </div>
 
-      {filtered.length === 0 && <div style={{ color: '#888' }}>まだ記録がありません</div>}
+      {filtered.length === 0 && <div style={{ color: '#888' }}>No records yet</div>}
 
       <div style={{ display: 'flex', flexDirection: 'column-reverse', gap: 2 }}>
         {filtered.slice(-50).reverse().map((event) => {
@@ -144,7 +144,7 @@ export function TimelinePanel() {
                     background: 'rgba(139,139,255,0.15)',
                     borderRadius: 3,
                     padding: '1px 4px',
-                  }}>鎖</span>
+                  }}>chain</span>
                 )}
                 <span style={{ flex: 1 }}>{event.description}</span>
                 {hasDetail && (
@@ -244,10 +244,10 @@ function EventDetail({ event, getAgentName }: { event: GameEvent; getAgentName: 
       const village = event.data.villageName as string | undefined;
       return (
         <div style={{ fontSize: 11, color: '#caa' }}>
-          {cause && <div>原因: {cause}</div>}
-          {age != null && <div>享年: {age}</div>}
-          {role && <div>役割: {role}</div>}
-          {village && <div>所属: {village}</div>}
+          {cause && <div>Cause: {cause}</div>}
+          {age != null && <div>Age: {age}</div>}
+          {role && <div>Role: {role}</div>}
+          {village && <div>Village: {village}</div>}
         </div>
       );
     }
@@ -257,11 +257,11 @@ function EventDetail({ event, getAgentName }: { event: GameEvent; getAgentName: 
       const generation = event.data.generation as number | undefined;
       return (
         <div style={{ fontSize: 11, color: '#adc' }}>
-          {childId && <div>子: {getAgentName(childId)}</div>}
+          {childId && <div>Child: {getAgentName(childId)}</div>}
           {event.actorIds.length >= 2 && (
-            <div>両親: {getAgentName(event.actorIds[0])} & {getAgentName(event.actorIds[1])}</div>
+            <div>Parents: {getAgentName(event.actorIds[0])} & {getAgentName(event.actorIds[1])}</div>
           )}
-          {generation != null && <div>第{generation}世代</div>}
+          {generation != null && <div>Gen {generation}</div>}
         </div>
       );
     }
@@ -271,9 +271,9 @@ function EventDetail({ event, getAgentName }: { event: GameEvent; getAgentName: 
       const pos = event.data.position as { x: number; y: number } | undefined;
       return (
         <div style={{ fontSize: 11, color: '#dca' }}>
-          {type && <div>建造物: {type}</div>}
-          {pos && <div>座標: ({pos.x}, {pos.y})</div>}
-          {event.actorIds[0] && <div>建設者: {getAgentName(event.actorIds[0])}</div>}
+          {type && <div>Structure: {type}</div>}
+          {pos && <div>Position: ({pos.x}, {pos.y})</div>}
+          {event.actorIds[0] && <div>Builder: {getAgentName(event.actorIds[0])}</div>}
         </div>
       );
     }
@@ -284,9 +284,9 @@ function EventDetail({ event, getAgentName }: { event: GameEvent; getAgentName: 
       const covenantName = event.data.covenantName as string | undefined;
       return (
         <div style={{ fontSize: 11, color: '#daf' }}>
-          {law && <div>法律: {law}</div>}
-          {passed != null && <div>結果: {passed ? '可決' : '否決'}</div>}
-          {covenantName && <div>条約: {covenantName}</div>}
+          {law && <div>Law: {law}</div>}
+          {passed != null && <div>Result: {passed ? 'Passed' : 'Rejected'}</div>}
+          {covenantName && <div>Covenant: {covenantName}</div>}
         </div>
       );
     }
@@ -297,8 +297,8 @@ function EventDetail({ event, getAgentName }: { event: GameEvent; getAgentName: 
         <div style={{ fontSize: 11, color: '#faa' }}>
           {combatResult && (
             <>
-              {combatResult.winner && <div>勝者: {String(combatResult.winner)}</div>}
-              {combatResult.casualties != null && <div>犠牲者: {String(combatResult.casualties)}</div>}
+              {combatResult.winner && <div>Winner: {String(combatResult.winner)}</div>}
+              {combatResult.casualties != null && <div>Casualties: {String(combatResult.casualties)}</div>}
             </>
           )}
         </div>
@@ -309,7 +309,7 @@ function EventDetail({ event, getAgentName }: { event: GameEvent; getAgentName: 
       const commandCount = event.data.commandCount as number | undefined;
       return (
         <div style={{ fontSize: 11, color: '#adf' }}>
-          {commandCount != null && <div>発行命令数: {commandCount}</div>}
+          {commandCount != null && <div>Commands issued: {commandCount}</div>}
         </div>
       );
     }
@@ -320,9 +320,9 @@ function EventDetail({ event, getAgentName }: { event: GameEvent; getAgentName: 
       const institutionName = event.data.institutionName as string | undefined;
       return (
         <div style={{ fontSize: 11, color: '#dda' }}>
-          {dtype && <div>種別: {dtype}</div>}
-          {inventionName && <div>発明: {inventionName}</div>}
-          {institutionName && <div>組織: {institutionName}</div>}
+          {dtype && <div>Type: {dtype}</div>}
+          {inventionName && <div>Invention: {inventionName}</div>}
+          {institutionName && <div>Institution: {institutionName}</div>}
         </div>
       );
     }
@@ -352,18 +352,18 @@ function eventColor(type: string): string {
 
 function eventIcon(type: string): string {
   switch (type) {
-    case 'birth': return '誕';
-    case 'death': return '没';
-    case 'founding': return '建';
-    case 'construction': return '造';
-    case 'conversation': return '話';
-    case 'election': return '選';
-    case 'war': return '戦';
-    case 'reproduction': return '子';
-    case 'diplomacy': return '外';
-    case 'discovery': return '発';
-    case 'trade': return '商';
-    case 'alliance': return '盟';
-    default: return '記';
+    case 'birth': return '\u2727';
+    case 'death': return '\u2620';
+    case 'founding': return '\u2302';
+    case 'construction': return '\u2692';
+    case 'conversation': return '\u2661';
+    case 'election': return '\u2696';
+    case 'war': return '\u2694';
+    case 'reproduction': return '\u2640';
+    case 'diplomacy': return '\u2691';
+    case 'discovery': return '\u2605';
+    case 'trade': return '\u2619';
+    case 'alliance': return '\u2614';
+    default: return '\u2022';
   }
 }

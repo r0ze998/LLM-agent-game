@@ -1,11 +1,11 @@
 /**
- * dojoSync.ts — UUID ↔ u32 マッピング管理 (フロントエンド版)
+ * dojoSync.ts — UUID <-> u32 mapping manager (frontend version)
  *
- * サーバーの dojoSync.ts からポート。
- * オフチェーンは UUID (string)、オンチェーンは連番 u32 (number)。
+ * Ported from the server's dojoSync.ts.
+ * Off-chain uses UUID (string), on-chain uses sequential u32 (number).
  */
 
-// ── 建物定義 ID マッピング (25 buildings, matches setup.cairo) ──
+// ── Building definition ID mapping (25 buildings, matches setup.cairo) ──
 
 export const BUILDING_STR_TO_U32: Record<string, number> = {
   farm: 1,
@@ -39,7 +39,7 @@ export const BUILDING_U32_TO_STR: Record<number, string> = Object.fromEntries(
   Object.entries(BUILDING_STR_TO_U32).map(([k, v]) => [v, k]),
 );
 
-// ── 技術定義 ID マッピング (30 techs, 3 branches × 10 tiers) ──
+// ── Tech definition ID mapping (30 techs, 3 branches x 10 tiers) ──
 
 export const TECH_STR_TO_U32: Record<string, number> = {
   agriculture: 1,
@@ -78,7 +78,7 @@ export const TECH_U32_TO_STR: Record<number, string> = Object.fromEntries(
   Object.entries(TECH_STR_TO_U32).map(([k, v]) => [v, k]),
 );
 
-// ── ユニット定義 ID マッピング (10 units) ──
+// ── Unit definition ID mapping (10 units) ──
 
 export const UNIT_STR_TO_U32: Record<string, number> = {
   militia: 1,
@@ -97,7 +97,7 @@ export const UNIT_U32_TO_STR: Record<number, string> = Object.fromEntries(
   Object.entries(UNIT_STR_TO_U32).map(([k, v]) => [v, k]),
 );
 
-// ── 村 UUID ↔ u32 動的マッピング ──
+// ── Village UUID <-> u32 dynamic mapping ──
 
 export class VillageIdMapper {
   private uuidToU32 = new Map<string, number>();

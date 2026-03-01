@@ -24,7 +24,7 @@ export type AgentAction =
 const AVAILABLE_ACTIONS = [
   'move', 'gather', 'eat', 'sleep', 'build', 'farm',
   'craft', 'socialize', 'explore', 'rest', 'teach', 'heal',
-  // 4X-aware actions — エージェントが村の戦略状態に応じて選択
+  // 4X-aware actions — agents choose based on village strategic state
   'gather_iron', 'defend', 'patrol',
   // F7: Migration
   'migrate',
@@ -162,22 +162,22 @@ function createFallbackPlan(agent: AgentState): DailyPlan {
     if (i < 5) {
       action = 'sleep';
     } else if (i === 5 || i === 12 || i === 19) {
-      // 食事タイム: 食料があれば食べる、なければ採集
+      // Mealtime: eat if food available, otherwise gather
       action = (agent.inventory.food ?? 0) > 0 ? 'eat' : 'gather';
       if (action === 'gather') target = 'food';
     } else if (i >= 6 && i < 12) {
-      // 午前: メイン労働 — スキルに応じて分岐
+      // Morning: main work — branch based on skills
       action = pickWorkAction(agent);
       target = pickWorkTarget(agent, action);
     } else if (i >= 13 && i < 17) {
-      // 午後前半: 探索 + 資源収集
+      // Early afternoon: exploration + resource gathering
       action = i % 2 === 0 ? 'explore' : 'gather';
       if (action === 'gather') target = pickGatherTarget(agent);
     } else if (i >= 17 && i < 19) {
-      // 夕方: 社交
+      // Evening: socializing
       action = 'socialize';
     } else {
-      // 夜: 休憩
+      // Night: rest
       action = 'rest';
     }
 
@@ -185,7 +185,7 @@ function createFallbackPlan(agent: AgentState): DailyPlan {
   });
 
   return {
-    innerThought: '今日もやるべきことをやろう。',
+    innerThought: 'Another day — let me focus on what needs to be done.',
     schedule,
     socialIntentions: [],
   };
@@ -293,8 +293,8 @@ export async function generateConversation(ctx: ConversationContext): Promise<Co
   } catch {
     return {
       dialogue: [
-        { speakerId: ctx.agent1.identity.id, text: 'こんにちは。' },
-        { speakerId: ctx.agent2.identity.id, text: 'ああ、こんにちは。' },
+        { speakerId: ctx.agent1.identity.id, text: 'Hello there.' },
+        { speakerId: ctx.agent2.identity.id, text: 'Oh, hello.' },
       ],
       sentimentChange: { [ctx.agent1.identity.id]: 1, [ctx.agent2.identity.id]: 1 },
       newMemories: [],
@@ -317,7 +317,7 @@ export async function generateReflection(ctx: ReflectionContext): Promise<Reflec
     return extractJSON<ReflectionResult>(raw);
   } catch {
     return {
-      reflection: '色々あったが、前を向いて進もう。',
+      reflection: 'A lot has happened, but I will keep moving forward.',
     };
   }
 }

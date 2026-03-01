@@ -1,4 +1,4 @@
-// F19: Autonomous World Panel — 自治レイヤー L1-3 可視化
+// F19: Autonomous World Panel — governance layer L1-3 visualization
 import { useState } from 'react';
 import { useGameStore } from '../../store/gameStore.ts';
 import { useUIStore } from '../../store/uiStore.ts';
@@ -62,9 +62,9 @@ export function AutonomousWorldPanel() {
         flexShrink: 0,
       }}>
         {([
-          ['covenants', '\u5951\u7D04', covenants.length] as const,
-          ['inventions', '\u767A\u660E', inventions.length] as const,
-          ['institutions', '\u5236\u5EA6', institutions.length] as const,
+          ['covenants', 'Covenants', covenants.length] as const,
+          ['inventions', 'Inventions', inventions.length] as const,
+          ['institutions', 'Institutions', institutions.length] as const,
         ]).map(([key, label, count]) => (
           <button
             key={key}

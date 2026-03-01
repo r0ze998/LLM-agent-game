@@ -1,4 +1,4 @@
-// === Strategy Routes — 4Xデータ定義一覧 + コマンド実行 API ===
+// === Strategy Routes — 4X data definition listing + command execution API ===
 
 import { Hono } from 'hono';
 import { BUILDING_DEFS, BUILDING_LIST, TECH_DEFS, TECH_LIST, UNIT_DEFS, UNIT_LIST, VICTORY_DEFS, TERRAIN_RULES } from '@murasato/shared';

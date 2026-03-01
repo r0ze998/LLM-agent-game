@@ -1,5 +1,5 @@
 /**
- * retryUtils.ts — 指数バックオフリトライユーティリティ
+ * retryUtils.ts — Exponential backoff retry utility
  */
 
 export interface RetryConfig {

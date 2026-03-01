@@ -6,11 +6,11 @@ import type { GameEvent } from '@murasato/shared';
 type DemoPhase = 'conversation' | 'construction' | 'war' | 'birth' | 'default';
 
 const PHASE_CONFIG: Record<DemoPhase, { label: string; color: string }> = {
-  conversation: { label: 'AI会話生成中...', color: '#d4a0ff' },
-  construction: { label: '建設中...', color: '#ffb464' },
-  war: { label: '戦闘解決中...', color: '#ff6b6b' },
-  birth: { label: '新エージェント誕生...', color: '#64ffb4' },
-  default: { label: 'エージェント行動中...', color: '#7ab8ff' },
+  conversation: { label: 'Generating AI dialogue...', color: '#d4a0ff' },
+  construction: { label: 'Building...', color: '#ffb464' },
+  war: { label: 'Resolving combat...', color: '#ff6b6b' },
+  birth: { label: 'New agent born...', color: '#64ffb4' },
+  default: { label: 'Agents acting...', color: '#7ab8ff' },
 };
 
 function eventToPhase(type: string): DemoPhase {

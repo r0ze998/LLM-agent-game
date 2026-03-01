@@ -116,7 +116,7 @@ export function createWorldState(gameId: string, map: WorldMap, dojoBridge?: Doj
   return state;
 }
 
-/** 4Xワールドへの参照を構築（commandProcessor用） */
+/** Build a reference to the 4X world (for commandProcessor) */
 export function buildWorld4XRef(world: WorldState): World4XRef {
   return {
     villageStates: world.villageStates4X,
@@ -224,9 +224,9 @@ export async function tick(world: WorldState): Promise<TickResult> {
         a2: bp2 ? { soul: bp2.soul, rules: bp2.rules.length > 0 ? bp2.rules : undefined } : undefined,
       } : undefined;
 
-      console.log(`[tick ${world.tick}] 会話開始: ${opp.agent1.identity.name} × ${opp.agent2.identity.name}`);
+      console.log(`[tick ${world.tick}] Conversation started: ${opp.agent1.identity.name} x ${opp.agent2.identity.name}`);
       const result = await genConversation(opp.agent1, opp.agent2, rel12, rel21, opp.situation, sharedVillage, soulContexts);
-      console.log(`[tick ${world.tick}] 会話完了: ${result.dialogue.length}ターン`);
+      console.log(`[tick ${world.tick}] Conversation finished: ${result.dialogue.length} turns`);
       applyConversationResults(result, opp.agent1, opp.agent2, world.relationships, world.tick, world.gameId);
       events.push(createConversationEvent(world.gameId, opp.agent1, opp.agent2, result, world.tick));
 
@@ -270,7 +270,7 @@ export async function tick(world: WorldState): Promise<TickResult> {
         if (adopted) {
           events.push(createEvent(world.gameId, 'discovery', world.tick,
             [exchange.carrierAgent.identity.id],
-            `${exchange.carrierAgent.identity.name}が${exchange.fromVillage.name}の${exchange.memeType}を${exchange.toVillage.name}に伝えた`,
+            `${exchange.carrierAgent.identity.name} spread ${exchange.memeType} from ${exchange.fromVillage.name} to ${exchange.toVillage.name}`,
             { memeType: exchange.memeType, content: exchange.content },
           ));
         }
@@ -281,14 +281,14 @@ export async function tick(world: WorldState): Promise<TickResult> {
             spreadReligion(v1, v2);
             events.push(createEvent(world.gameId, 'discovery', world.tick,
               [opp.agent1.identity.id],
-              `${v1.name}の宗教「${v1.culture.religion?.name}」が${v2.name}に伝播した`,
+              `Religion "${v1.culture.religion?.name}" from ${v1.name} spread to ${v2.name}`,
               { type: 'religion_spread', fromVillage: v1.id, toVillage: v2.id },
             ));
           } else if (checkReligionSpread(v2, v1)) {
             spreadReligion(v2, v1);
             events.push(createEvent(world.gameId, 'discovery', world.tick,
               [opp.agent2.identity.id],
-              `${v2.name}の宗教「${v2.culture.religion?.name}」が${v1.name}に伝播した`,
+              `Religion "${v2.culture.religion?.name}" from ${v2.name} spread to ${v1.name}`,
               { type: 'religion_spread', fromVillage: v2.id, toVillage: v1.id },
             ));
           }
@@ -325,8 +325,8 @@ export async function tick(world: WorldState): Promise<TickResult> {
         const role = agent.currentAction ?? undefined;
         events.push(createEvent(world.gameId, 'death', world.tick,
           [agent.identity.id],
-          `${agent.identity.name}が生涯を終えた（享年${agent.identity.age}${villageName ? `、${villageName}の住人` : ''}）`,
-          { cause: '老衰', age: agent.identity.age, role, villageName },
+          `${agent.identity.name} passed away (age ${agent.identity.age}${villageName ? `, resident of ${villageName}` : ''})`,
+          { cause: 'old_age', age: agent.identity.age, role, villageName },
         ));
         // Remove from village on death
         if (agent.villageId) {
@@ -336,12 +336,12 @@ export async function tick(world: WorldState): Promise<TickResult> {
       } else if (newStatus === 'adult' && oldStatus === 'child') {
         events.push(createEvent(world.gameId, 'discovery', world.tick,
           [agent.identity.id],
-          `${agent.identity.name}が成人した`,
+          `${agent.identity.name} reached adulthood`,
         ));
       } else if (newStatus === 'elder' && oldStatus === 'adult') {
         events.push(createEvent(world.gameId, 'discovery', world.tick,
           [agent.identity.id],
-          `${agent.identity.name}が長老になった`,
+          `${agent.identity.name} became an elder`,
         ));
         // F10c: Extract elder wisdom to village pool
         extractElderWisdom(agent, world);
@@ -354,8 +354,8 @@ export async function tick(world: WorldState): Promise<TickResult> {
       const villageName = agent.villageId ? world.villages.get(agent.villageId)?.name : undefined;
       events.push(createEvent(world.gameId, 'death', world.tick,
         [agent.identity.id],
-        `${agent.identity.name}が飢えで倒れた（享年${agent.identity.age}${villageName ? `、${villageName}の住人` : ''}）`,
-        { cause: '飢餓', age: agent.identity.age, villageName },
+        `${agent.identity.name} died of starvation (age ${agent.identity.age}${villageName ? `, resident of ${villageName}` : ''})`,
+        { cause: 'starvation', age: agent.identity.age, villageName },
       ));
       if (agent.villageId) {
         const village = world.villages.get(agent.villageId);
@@ -404,7 +404,7 @@ export async function tick(world: WorldState): Promise<TickResult> {
           markPlayerOwned(village.id);
         }
 
-        // Dojo: 村をオンチェーンにも作成
+        // Dojo: Also create village on-chain
         if (world.dojoBridge?.isEnabled()) {
           world.dojoBridge.createVillage(village.id).catch((err) =>
             console.warn('[DojoBridge] createVillage background error:', err),
@@ -427,7 +427,7 @@ export async function tick(world: WorldState): Promise<TickResult> {
       if (Math.random() < 0.2) {
         const leader = village.governance.leaderId ? world.agents.get(village.governance.leaderId) : null;
         if (leader) {
-          const situation = `人口${village.population.length}、食料${village.resources.food ?? 0}`;
+          const situation = `population ${village.population.length}, food ${village.resources.food ?? 0}`;
           const law = await proposeLaw(village, leader, situation);
           if (law) {
             const members = village.population
@@ -436,7 +436,7 @@ export async function tick(world: WorldState): Promise<TickResult> {
             const passed = voteLaw(village, members, law);
             events.push(createEvent(world.gameId, 'election', world.tick,
               [leader.identity.id],
-              `${village.name}で法律「${law}」が${passed ? '可決' : '否決'}された`,
+              `Law "${law}" was ${passed ? 'passed' : 'rejected'} in ${village.name}`,
               { law, passed },
             ));
           }
@@ -462,7 +462,7 @@ export async function tick(world: WorldState): Promise<TickResult> {
         const religion = await generateReligion(village);
         village.culture.religion = religion;
         events.push(createEvent(world.gameId, 'discovery', world.tick,
-          [], `${village.name}で宗教「${religion.name}」が誕生した`,
+          [], `Religion "${religion.name}" emerged in ${village.name}`,
           { type: 'religion_emergence', villageName: village.name, religionName: religion.name },
         ));
       }
@@ -557,7 +557,7 @@ export async function tick(world: WorldState): Promise<TickResult> {
       }
       events.push(createEvent(world.gameId, 'discovery', world.tick,
         [agentId],
-        `${agent.identity.name}が${village.name}に勧誘された`,
+        `${agent.identity.name} was recruited to ${village.name}`,
         { type: 'recruitment', villageId },
       ));
     }

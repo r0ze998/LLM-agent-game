@@ -1,9 +1,9 @@
-// === 4X ストラテジー用の状態型定義 ===
+// === 4X Strategy State Type Definitions ===
 
 import type { Position } from './types.ts';
 import type { QueueItem, Effect } from './rules/types.ts';
 
-// --- 資源タイプ（5種: 旧7種から統合） ---
+// --- Resource Types (5 types, consolidated from the original 7) ---
 
 export type ResourceType4X = 'food' | 'wood' | 'stone' | 'iron' | 'gold';
 
@@ -15,11 +15,11 @@ export function emptyResources(): Resources4X {
   return { food: 0, wood: 0, stone: 0, iron: 0, gold: 0 };
 }
 
-// --- 建物インスタンス（村に建った実体） ---
+// --- Building Instance (placed in a village) ---
 
 export interface BuildingInstance {
   id: string;
-  defId: string;               // BuildingDef.id を参照
+  defId: string;               // References BuildingDef.id
   position: Position;
   level: number;
   health: number;
@@ -27,27 +27,27 @@ export interface BuildingInstance {
   builtAtTick: number;
 }
 
-// --- 軍事ユニットスタック ---
+// --- Military Unit Stack ---
 
 export interface ArmyUnit {
-  defId: string;               // UnitDef.id を参照
+  defId: string;               // References UnitDef.id
   count: number;
-  veterancy: number;           // 0-100 (戦闘経験)
+  veterancy: number;           // 0-100 (combat experience)
 }
 
-// --- 軍隊（移動・攻撃の単位） ---
+// --- Army (unit of movement and attack) ---
 
 export interface Army {
   id: string;
   villageId: string;
   units: ArmyUnit[];
   position: Position;
-  targetPosition?: Position;   // 移動目標
+  targetPosition?: Position;   // Movement destination
   status: 'idle' | 'moving' | 'attacking' | 'defending';
   cachedPath?: Position[];     // F1: Pathfinding cache
 }
 
-// --- 交易路 ---
+// --- Trade Route ---
 
 export interface TradeRoute4X {
   id: string;
@@ -58,53 +58,53 @@ export interface TradeRoute4X {
   establishedTick: number;
 }
 
-// --- 村の4X状態（1村あたり） ---
+// --- Village 4X State (per village) ---
 
 export interface VillageState4X {
   villageId: string;
-  ownerId: string | null;      // プレイヤーID or null (AI村)
+  ownerId: string | null;      // Player ID or null (AI village)
   ownerAddress?: string;        // Starknet wallet address (F7)
   centerPosition: Position;     // F2: Immutable village center
 
-  // 資源
+  // Resources
   resources: Resources4X;
-  resourceStorage: Resources4X; // 最大保有量
+  resourceStorage: Resources4X; // Maximum storage capacity
 
-  // 人口
+  // Population
   population: number;
   housingCapacity: number;
 
-  // 進捗ポイント
+  // Progress points
   researchPoints: number;
   culturePoints: number;
-  totalCulturePoints: number;  // 勝利条件用の累計
+  totalCulturePoints: number;  // Cumulative total for victory condition
 
-  // 研究済み技術
+  // Researched technologies
   researchedTechs: Set<string>;
 
-  // 建物
+  // Buildings
   buildings: BuildingInstance[];
 
-  // 軍隊
+  // Military
   armies: Army[];
-  garrison: ArmyUnit[];       // 駐留部隊
+  garrison: ArmyUnit[];       // Stationed garrison units
 
-  // キュー
+  // Queues
   buildQueue: QueueItem[];
   researchQueue: QueueItem[];
   trainQueue: QueueItem[];
 
-  // 交易
+  // Trade
   tradeRoutes: TradeRoute4X[];
 
-  // 地形タイル（村の領土）
+  // Terrain tiles (village territory)
   territory: Position[];
 
-  // メタ
+  // Metadata
   foundedAtTick: number;
   score: number;
 
-  // 経済勝利用: 累計ゴールド獲得量
+  // Economic victory: cumulative gold earned
   totalGoldEarned: number;
 }
 
@@ -142,7 +142,7 @@ export function createDefaultVillageState4X(
   };
 }
 
-// --- 自然災害 (F4) ---
+// --- Natural Disasters (F4) ---
 
 export type DisasterType = 'drought' | 'flood' | 'plague' | 'locust' | 'earthquake';
 
@@ -156,7 +156,7 @@ export interface Disaster {
   affectedVillageIds: string[];
 }
 
-// --- 戦闘結果 ---
+// --- Combat Result ---
 
 export interface CombatResult {
   attackerVillageId: string;
@@ -170,17 +170,17 @@ export interface CombatResult {
   position: Position;
 }
 
-// --- 勝利イベント ---
+// --- Victory Event ---
 
 export interface VictoryEvent {
-  winnerId: string;            // プレイヤーID or 村ID
+  winnerId: string;            // Player ID or village ID
   villageId: string;
   victoryType: string;
   tick: number;
   score: number;
 }
 
-// --- Layer 1: 契約 (Covenants) ---
+// --- Layer 1: Covenants ---
 
 export type ClauseType =
   | 'tax_rate'           // { resource: ResourceType4X, rate: 0.0-0.5 }
@@ -215,10 +215,10 @@ export interface Covenant {
   enactedAtTick: number;
   expiresAtTick: number | null;
   repealedAtTick: number | null;
-  relevance: number;            // 1.0 → 0.0 (忘却法則で減衰)
+  relevance: number;            // 1.0 -> 0.0 (decays via oblivion rule)
 }
 
-// --- Layer 2: 発明 (Inventions) ---
+// --- Layer 2: Inventions ---
 
 export interface Invention {
   id: string;
@@ -227,13 +227,13 @@ export interface Invention {
   originVillageId: string;
   name: string;
   description: string;
-  definition: Record<string, unknown>;  // BuildingDef | TechDef | UnitDef をシリアライズ
+  definition: Record<string, unknown>;  // Serialized BuildingDef | TechDef | UnitDef
   inventedAtTick: number;
   knownByVillages: string[];
-  relevance: number;            // 忘却法則で減衰
+  relevance: number;            // Decays via oblivion rule
 }
 
-// --- Layer 3: 制度 (Institutions) ---
+// --- Layer 3: Institutions ---
 
 export type InstitutionType = 'guild' | 'religion' | 'alliance' | 'academy' | 'custom';
 
@@ -254,10 +254,10 @@ export interface Institution {
   joinRequirements: JoinRequirement[];
   foundedAtTick: number;
   treasury: Partial<Record<ResourceType4X, number>>;
-  relevance: number;            // 忘却法則で減衰
+  relevance: number;            // Decays via oblivion rule
 }
 
-// --- Autonomous World State (4層を格納) ---
+// --- Autonomous World State (stores all layers) ---
 
 export interface AutonomousWorldState {
   covenants: Map<string, Covenant>;
@@ -273,7 +273,7 @@ export function createAutonomousWorldState(): AutonomousWorldState {
   };
 }
 
-// --- 4Xシリアライズ用（Set → Array） ---
+// --- 4X Serialization (Set -> Array) ---
 
 export interface VillageState4XSerialized extends Omit<VillageState4X, 'researchedTechs'> {
   researchedTechs: string[];

@@ -43,28 +43,28 @@ export function TopBar() {
       zIndex: 100,
     }}>
       <div style={{ display: 'flex', gap: 16 }}>
-        <span style={{ color: '#7ab8ff', fontWeight: 'bold', textShadow: '0 0 12px rgba(122,184,255,0.4)' }}>村里</span>
-        <span>年{year} / {day}日目</span>
-        <span>人口: {livingCount}</span>
+        <span style={{ color: '#7ab8ff', fontWeight: 'bold', textShadow: '0 0 12px rgba(122,184,255,0.4)' }}>Murasato</span>
+        <span>Y{year} / Day {day}</span>
+        <span>Pop: {livingCount}</span>
         <span style={{ color: '#666', animation: 'pulse 2s infinite' }}>tick: {tick}</span>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <HeaderDropdown label="4X" items={[
-          { label: '戦略', onClick: toggleStrategy },
-          { label: '技術', onClick: toggleTechTree },
-          { label: '外交', onClick: toggleDiplomacy },
-          { label: '勝利', onClick: toggleVictory },
-          { label: '自治', onClick: toggleAutonomousWorld },
+          { label: 'Strategy', onClick: toggleStrategy },
+          { label: 'Tech', onClick: toggleTechTree },
+          { label: 'Diplomacy', onClick: toggleDiplomacy },
+          { label: 'Victory', onClick: toggleVictory },
+          { label: 'Autonomy', onClick: toggleAutonomousWorld },
         ]} />
-        <HeaderDropdown label="情報" items={[
-          { label: '年代記', onClick: toggleTimeline },
-          { label: '統計', onClick: toggleDashboard },
-          { label: '社会', onClick: toggleSocialGraph },
+        <HeaderDropdown label="Info" items={[
+          { label: 'Timeline', onClick: toggleTimeline },
+          { label: 'Dashboard', onClick: toggleDashboard },
+          { label: 'Social', onClick: toggleSocialGraph },
         ]} />
         {gameMode === 'player' && (
           <>
-            <HeaderButton onClick={toggleDeployer}>召喚</HeaderButton>
-            <HeaderButton onClick={toggleIntention}>天の声</HeaderButton>
+            <HeaderButton onClick={toggleDeployer}>Summon</HeaderButton>
+            <HeaderButton onClick={toggleIntention}>Voice</HeaderButton>
           </>
         )}
         <WalletConnect />

@@ -1,8 +1,8 @@
 /**
- * dojoConfig.ts — Katana devnet 接続定数
+ * dojoConfig.ts — Katana devnet connection constants
  *
- * manifest_dev.json から抽出した静的アドレス。
- * ブラウザからFSアクセス不可のため定数として埋め込む。
+ * Static addresses extracted from manifest_dev.json.
+ * Embedded as constants since browsers cannot access the filesystem.
  */
 
 export const KATANA_RPC_URL = "http://localhost:5050";

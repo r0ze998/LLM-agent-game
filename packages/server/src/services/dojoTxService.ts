@@ -122,7 +122,7 @@ export class DojoTxService {
     this.manifestContracts = manifestContracts ?? null;
   }
 
-  /** マニフェストベースのコントラクトアドレスを設定 */
+  /** Set manifest-based contract addresses */
   setManifestContracts(contracts: ManifestContracts): void {
     this.manifestContracts = contracts;
   }
@@ -488,13 +488,13 @@ export class DojoTxService {
    * Priority: manifest → environment variable fallback.
    */
   private getSystemAddress(system: string): string {
-    // 1. マニフェストから取得
+    // 1. Get from manifest
     if (this.manifestContracts) {
       const addr = this.manifestContracts[system as keyof ManifestContracts];
       if (addr) return addr;
     }
 
-    // 2. 環境変数フォールバック
+    // 2. Environment variable fallback
     const envKey = `DOJO_SYSTEM_${system.toUpperCase()}`;
     const addr = process.env[envKey];
     if (!addr) {

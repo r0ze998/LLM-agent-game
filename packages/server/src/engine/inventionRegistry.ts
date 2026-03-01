@@ -1,4 +1,4 @@
-// === Layer 2: 発明レジストリ — エージェントが発明した建物・技術・ユニットの管理 ===
+// === Layer 2: Invention Registry — Managing buildings, techs, and units invented by agents ===
 
 import type { Effect, BuildingDef, TechDef, UnitDef } from '@murasato/shared';
 import type {
@@ -29,20 +29,20 @@ export class InventionRegistry {
     this.awState = awState;
   }
 
-  /** 発明を登録する。物理検証を通過した場合のみ成功 */
+  /** Register an invention. Succeeds only if it passes physics validation */
   register(invention: Invention): { success: boolean; violations: string[] } {
-    // 既に同IDがある場合は拒否
+    // Reject if ID already exists
     if (this.awState.inventions.has(invention.id)) {
       return { success: false, violations: ['Invention ID already exists'] };
     }
 
-    // 村あたりの発明数チェック
+    // Check invention count per village
     const villageInventionCount = this.getInventionsByVillage(invention.originVillageId).length;
     if (villageInventionCount >= INVENTION_LIMITS.maxInventionsPerVillage) {
       return { success: false, violations: [`Village has reached max inventions (${INVENTION_LIMITS.maxInventionsPerVillage})`] };
     }
 
-    // 定義を復元して物理検証
+    // Restore definition and run physics validation
     const def = invention.definition;
     const validationResult = validateInventionDef(def as any, invention.type);
 
@@ -50,13 +50,13 @@ export class InventionRegistry {
       return { success: false, violations: validationResult.violations };
     }
 
-    // 登録
+    // Register
     invention.relevance = 1.0;
     this.awState.inventions.set(invention.id, invention);
     return { success: true, violations: [] };
   }
 
-  /** 特定の村が利用可能な発明を取得 */
+  /** Get inventions available to a specific village */
   getAvailableFor(villageId: string): Invention[] {
     const available: Invention[] = [];
     for (const inv of this.awState.inventions.values()) {
@@ -68,7 +68,7 @@ export class InventionRegistry {
     return available;
   }
 
-  /** 特定の村が発明したものを取得 */
+  /** Get inventions created by a specific village */
   getInventionsByVillage(villageId: string): Invention[] {
     const result: Invention[] = [];
     for (const inv of this.awState.inventions.values()) {
@@ -77,18 +77,18 @@ export class InventionRegistry {
     return result;
   }
 
-  /** 知識を交易経路に沿って伝播する */
+  /** Spread knowledge along trade routes */
   spreadKnowledge(villageStates: Map<string, VillageState4X>, currentTick: number): void {
     for (const inv of this.awState.inventions.values()) {
       if (inv.relevance <= 0) continue;
 
-      // 伝播遅延チェック
+      // Spread delay check
       if (currentTick - inv.inventedAtTick < INVENTION_LIMITS.spreadDelayTicks) continue;
 
       const originVillage = villageStates.get(inv.originVillageId);
       if (!originVillage) continue;
 
-      // 交易経路に沿って伝播
+      // Spread along trade routes
       for (const route of originVillage.tradeRoutes) {
         const targetVillageId = route.fromVillageId === inv.originVillageId
           ? route.toVillageId
@@ -98,7 +98,7 @@ export class InventionRegistry {
           inv.knownByVillages.push(targetVillageId);
         }
 
-        // 二次伝播: 知識を持つ村の交易先にも伝播（さらに遅延あり）
+        // Secondary spread: propagate to trade partners of knowledge holders (with additional delay)
         if (currentTick - inv.inventedAtTick >= INVENTION_LIMITS.spreadDelayTicks * 2) {
           const targetVillage = villageStates.get(targetVillageId);
           if (targetVillage) {
@@ -117,7 +117,7 @@ export class InventionRegistry {
   }
 }
 
-// --- 発明からの Effect 取得 ---
+// --- Get Effects from inventions ---
 
 export function getInventionEffects(
   village: VillageState4X,
@@ -129,7 +129,7 @@ export function getInventionEffects(
 
   for (const inv of available) {
     if (inv.type === 'building') {
-      // 村にこの発明建物が建っているかチェック
+      // Check if this invented building is built in the village
       const hasBuilding = village.buildings.some(b => b.defId === inv.id);
       if (!hasBuilding) continue;
 
@@ -138,7 +138,7 @@ export function getInventionEffects(
         effects.push(...def.effects.map(e => clampEffect(e)));
       }
     } else if (inv.type === 'tech') {
-      // 村がこの発明技術を研究済みかチェック
+      // Check if this invented tech has been researched by the village
       if (!village.researchedTechs.has(inv.id)) continue;
 
       const def = inv.definition as unknown as TechDef;
@@ -146,13 +146,13 @@ export function getInventionEffects(
         effects.push(...def.effects.map(e => clampEffect(e)));
       }
     }
-    // unit は Effect を直接持たない（戦闘時にステータスを参照）
+    // Units don't hold Effects directly (stats are referenced during combat)
   }
 
   return effects;
 }
 
-// --- 発明の relevance 減衰 ---
+// --- Invention relevance decay ---
 
 export function decayInventionRelevance(awState: AutonomousWorldState): void {
   for (const inv of awState.inventions.values()) {
@@ -160,18 +160,18 @@ export function decayInventionRelevance(awState: AutonomousWorldState): void {
   }
 }
 
-// --- 発明 BuildingDef / TechDef / UnitDef のルックアップ ---
+// --- Invention BuildingDef / TechDef / UnitDef lookup ---
 
-/** 発明を含めた BuildingDef のルックアップ */
+/** Look up BuildingDef including inventions */
 export function lookupBuildingDef(
   defId: string,
   awState: AutonomousWorldState,
 ): BuildingDef | null {
-  // まずハードコード定義を検索
+  // First search hardcoded definitions
   const hardcoded = BUILDING_DEFS[defId];
   if (hardcoded) return hardcoded;
 
-  // 発明を検索
+  // Search inventions
   const inv = awState.inventions.get(defId);
   if (inv && inv.type === 'building' && inv.relevance > 0) {
     return inv.definition as unknown as BuildingDef;
@@ -180,7 +180,7 @@ export function lookupBuildingDef(
   return null;
 }
 
-/** 発明を含めた TechDef のルックアップ */
+/** Look up TechDef including inventions */
 export function lookupTechDef(
   defId: string,
   awState: AutonomousWorldState,
@@ -196,7 +196,7 @@ export function lookupTechDef(
   return null;
 }
 
-/** 発明を含めた UnitDef のルックアップ */
+/** Look up UnitDef including inventions */
 export function lookupUnitDef(
   defId: string,
   awState: AutonomousWorldState,

@@ -151,7 +151,7 @@ export class DiplomacyManager {
         type: 'trade',
         tick,
         actorIds: [],
-        description: `${fromVillage.name}と${toVillage.name}が交易を行った`,
+        description: `${fromVillage.name} and ${toVillage.name} conducted a trade`,
         data: { offer: trade.offer, request: trade.request },
       });
     }
@@ -174,7 +174,7 @@ export function evaluateDisposition(
   // Governance conflict
   if (v1.governance.type !== v2.governance.type) {
     tension += 15;
-    reasons.push('統治形態の違い');
+    reasons.push('differing governance');
   }
 
   // Economic philosophy conflict
@@ -182,7 +182,7 @@ export function evaluateDisposition(
   const econ2 = getMajorityEconomics(agentsV2);
   if (econ1 !== econ2) {
     tension += 10;
-    reasons.push('経済思想の相違');
+    reasons.push('economic philosophy clash');
   }
 
   // Territory overlap
@@ -191,14 +191,14 @@ export function evaluateDisposition(
   );
   if (overlap.length > 0) {
     tension += overlap.length * 5;
-    reasons.push('領土重複');
+    reasons.push('territory overlap');
   }
 
   // Population size difference (bigger village is more threatening)
   const sizeDiff = Math.abs(v1.population.length - v2.population.length);
   if (sizeDiff > 5) {
     tension += sizeDiff * 2;
-    reasons.push('人口格差');
+    reasons.push('population disparity');
   }
 
   // Shared cultural traits reduce tension
@@ -209,7 +209,7 @@ export function evaluateDisposition(
 
   return {
     tension: Math.max(0, Math.min(100, tension)),
-    reason: reasons.join('、') || '特に問題なし',
+    reason: reasons.join(', ') || 'no particular issues',
   };
 }
 
@@ -298,7 +298,7 @@ export function declareWar(
     type: 'war',
     tick,
     actorIds: [],
-    description: `${v1.name}と${v2.name}の間で戦争が勃発した`,
+    description: `War has broken out between ${v1.name} and ${v2.name}`,
     data: { village1: v1.id, village2: v2.id },
   };
 }
@@ -321,7 +321,7 @@ export function makePeace(
     type: 'peace',
     tick,
     actorIds: [],
-    description: `${v1.name}と${v2.name}が和平を結んだ`,
+    description: `${v1.name} and ${v2.name} have made peace`,
     data: { village1: v1.id, village2: v2.id },
   };
 }
@@ -344,7 +344,7 @@ export function formAlliance(
     type: 'alliance',
     tick,
     actorIds: [],
-    description: `${v1.name}と${v2.name}が同盟を結んだ`,
+    description: `${v1.name} and ${v2.name} have formed an alliance`,
     data: { village1: v1.id, village2: v2.id },
   };
 }
@@ -428,7 +428,7 @@ export async function processDiplomacy(
             type: 'diplomacy',
             tick,
             actorIds: [],
-            description: `${village1.name}と${village2.name}が交易協定を結んだ`,
+            description: `${village1.name} and ${village2.name} have established a trade agreement`,
             data: { trade },
           });
         }

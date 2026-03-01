@@ -63,7 +63,7 @@ function determineSituation(
   // First meeting
   if (!rel12 || rel12.familiarity < 5) {
     return {
-      situation: `${a1.identity.name}と${a2.identity.name}が初めて出会った。`,
+      situation: `${a1.identity.name} and ${a2.identity.name} meet for the first time.`,
       priority: 0.6,
     };
   }
@@ -72,7 +72,7 @@ function determineSituation(
   const ticksSince = tick - (rel12.lastInteractionTick ?? 0);
   if (ticksSince > 50) {
     return {
-      situation: `${a1.identity.name}と${a2.identity.name}が久しぶりに再会した。`,
+      situation: `${a1.identity.name} and ${a2.identity.name} reunite after a long time apart.`,
       priority: 0.5,
     };
   }
@@ -80,7 +80,7 @@ function determineSituation(
   // Rivals meet
   if ((rel12.sentiment ?? 0) < -30) {
     return {
-      situation: `${a1.identity.name}と${a2.identity.name}がにらみ合っている。`,
+      situation: `${a1.identity.name} and ${a2.identity.name} are glaring at each other.`,
       priority: 0.45,
     };
   }
@@ -88,14 +88,14 @@ function determineSituation(
   // Close friends
   if ((rel12.sentiment ?? 0) > 50) {
     return {
-      situation: `親しい仲間の${a1.identity.name}と${a2.identity.name}が談笑している。`,
+      situation: `Close companions ${a1.identity.name} and ${a2.identity.name} are chatting together.`,
       priority: 0.4,
     };
   }
 
   // Default casual encounter
   return {
-    situation: `${a1.identity.name}と${a2.identity.name}が近くを通りかかった。`,
+    situation: `${a1.identity.name} and ${a2.identity.name} happen to pass by each other.`,
     priority: 0.3,
   };
 }
@@ -119,66 +119,66 @@ export async function generateConversation(
   const descP = (a: AgentState) => {
     const p = a.identity.personality;
     const traits: string[] = [];
-    if (p.openness > 60) traits.push('好奇心旺盛');
-    else if (p.openness < 40) traits.push('保守的');
-    if (p.agreeableness > 60) traits.push('温和');
-    else if (p.agreeableness < 40) traits.push('対抗的');
-    if (p.courage > 60) traits.push('勇敢');
-    else if (p.courage < 40) traits.push('慎重');
-    return traits.join('、') || '普通';
+    if (p.openness > 60) traits.push('curious');
+    else if (p.openness < 40) traits.push('conservative');
+    if (p.agreeableness > 60) traits.push('gentle');
+    else if (p.agreeableness < 40) traits.push('confrontational');
+    if (p.courage > 60) traits.push('brave');
+    else if (p.courage < 40) traits.push('cautious');
+    return traits.join(', ') || 'ordinary';
   };
 
   const rel12Desc = rel12
-    ? `好感度${rel12.sentiment}/信頼${rel12.trust}/親密度${rel12.familiarity}${rel12.roles.length > 0 ? ` [${rel12.roles.join(',')}]` : ''}`
-    : '初対面';
+    ? `sentiment ${rel12.sentiment}/trust ${rel12.trust}/familiarity ${rel12.familiarity}${rel12.roles.length > 0 ? ` [${rel12.roles.join(',')}]` : ''}`
+    : 'first meeting';
   const rel21Desc = rel21
-    ? `好感度${rel21.sentiment}/信頼${rel21.trust}/親密度${rel21.familiarity}`
-    : '初対面';
+    ? `sentiment ${rel21.sentiment}/trust ${rel21.trust}/familiarity ${rel21.familiarity}`
+    : 'first meeting';
 
   const sc1 = soulContexts?.a1;
   const sc2 = soulContexts?.a2;
 
-  let systemParts = [`あなたはJRPGの世界の会話シミュレーターです。
-二人のキャラクターの会話を生成してください。性格・関係性・状況に忠実に。
-${sharedVillage ? '二人は同じ村の仲間です。' : '二人は異なる村（または無所属）です。'}`];
+  let systemParts = [`You are a conversation simulator for a JRPG world.
+Generate a conversation between two characters. Stay faithful to their personalities, relationships, and the situation.
+${sharedVillage ? 'The two are fellow villagers from the same village.' : 'The two are from different villages (or unaffiliated).'}`];
 
   if (sc1?.soul || sc2?.soul) {
     systemParts.push('');
-    if (sc1?.soul) systemParts.push(`=== ${a1.identity.name}の魂 ===\n${sc1.soul}`);
-    if (sc2?.soul) systemParts.push(`=== ${a2.identity.name}の魂 ===\n${sc2.soul}`);
+    if (sc1?.soul) systemParts.push(`=== ${a1.identity.name}'s Soul ===\n${sc1.soul}`);
+    if (sc2?.soul) systemParts.push(`=== ${a2.identity.name}'s Soul ===\n${sc2.soul}`);
   }
 
   if (sc1?.rules?.length || sc2?.rules?.length) {
     systemParts.push('');
-    if (sc1?.rules?.length) systemParts.push(`${a1.identity.name}の行動規則: ${sc1.rules.join(' / ')}`);
-    if (sc2?.rules?.length) systemParts.push(`${a2.identity.name}の行動規則: ${sc2.rules.join(' / ')}`);
+    if (sc1?.rules?.length) systemParts.push(`${a1.identity.name}'s behavioral rules: ${sc1.rules.join(' / ')}`);
+    if (sc2?.rules?.length) systemParts.push(`${a2.identity.name}'s behavioral rules: ${sc2.rules.join(' / ')}`);
   }
 
   systemParts.push(`
-返答は以下のJSON形式のみ:
+Reply in the following JSON format only:
 {
-  "dialogue": [{ "speakerId": "ID", "text": "セリフ" }],
-  "sentimentChange": { "ID1": 数値(-10~+10), "ID2": 数値(-10~+10) },
-  "trustChange": { "ID1": 数値(-5~+5), "ID2": 数値(-5~+5) },
-  "newMemories": [{ "agentId": "ID", "content": "記憶", "importance": 0.0-1.0 }],
-  "informationExchange": ["共有された情報"]
+  "dialogue": [{ "speakerId": "ID", "text": "line of dialogue" }],
+  "sentimentChange": { "ID1": number(-10~+10), "ID2": number(-10~+10) },
+  "trustChange": { "ID1": number(-5~+5), "ID2": number(-5~+5) },
+  "newMemories": [{ "agentId": "ID", "content": "memory", "importance": 0.0-1.0 }],
+  "informationExchange": ["shared information"]
 }`);
 
   const system = systemParts.join('\n');
 
   const user = `=== ${situation} ===
 
-【${a1.identity.name}】(ID: ${a1.identity.id})
-性格: ${descP(a1)} / 信条: ${a1.identity.philosophy.values.join(',')}
-${a1.identity.name}→${a2.identity.name}: ${rel12Desc}
-今の行動: ${a1.currentAction ?? '特になし'}
+[${a1.identity.name}] (ID: ${a1.identity.id})
+Personality: ${descP(a1)} / Beliefs: ${a1.identity.philosophy.values.join(',')}
+${a1.identity.name} -> ${a2.identity.name}: ${rel12Desc}
+Current action: ${a1.currentAction ?? 'none'}
 
-【${a2.identity.name}】(ID: ${a2.identity.id})
-性格: ${descP(a2)} / 信条: ${a2.identity.philosophy.values.join(',')}
-${a2.identity.name}→${a1.identity.name}: ${rel21Desc}
-今の行動: ${a2.currentAction ?? '特になし'}
+[${a2.identity.name}] (ID: ${a2.identity.id})
+Personality: ${descP(a2)} / Beliefs: ${a2.identity.philosophy.values.join(',')}
+${a2.identity.name} -> ${a1.identity.name}: ${rel21Desc}
+Current action: ${a2.currentAction ?? 'none'}
 
-2-4ターンの短い会話をJSON形式で生成してください。セリフは短く自然に。sentimentChangeとtrustChangeのキーはIDを使ってください。`;
+Generate a short conversation of 2-4 turns in JSON format. Keep dialogue lines short and natural. Use IDs as keys for sentimentChange and trustChange.`;
 
   try {
     const raw = await callLLM({ system, userMessage: user, importance: 'social', maxTokens: 2048 });
@@ -191,9 +191,9 @@ ${a2.identity.name}→${a1.identity.name}: ${rel21Desc}
     };
   } catch (err) {
     if (err instanceof LLMBudgetExceeded) {
-      console.warn(`LLM budget exceeded, using fallback conversation (${a1.identity.name}×${a2.identity.name})`);
+      console.warn(`LLM budget exceeded, using fallback conversation (${a1.identity.name}x${a2.identity.name})`);
     } else {
-      console.warn(`Conversation LLM failed (${a1.identity.name}×${a2.identity.name}):`, (err as Error).message?.slice(0, 200));
+      console.warn(`Conversation LLM failed (${a1.identity.name}x${a2.identity.name}):`, (err as Error).message?.slice(0, 200));
     }
     // F11: Template-based fallback conversation
     return generateFallbackConversation(a1, a2, rel12);
@@ -204,43 +204,43 @@ ${a2.identity.name}→${a1.identity.name}: ${rel21Desc}
 
 const FALLBACK_GREETINGS: Record<string, string[]> = {
   first_meeting: [
-    'はじめまして。あなたは…？',
-    'おや、見かけない顔ですね。',
-    'こんにちは。この辺りの方ですか？',
+    'Nice to meet you. And you are...?',
+    'Oh, an unfamiliar face.',
+    'Hello. Are you from around here?',
   ],
   friendly: [
-    'やあ、元気にしてた？',
-    'おお！会えてうれしいよ。',
-    'いい天気だね。どうしてる？',
+    'Hey, how have you been?',
+    'Oh! Good to see you.',
+    'Nice weather. How are things?',
   ],
   hostile: [
-    '…何の用だ。',
-    'ふん、またお前か。',
-    '近寄るな。',
+    '...What do you want.',
+    'Hmph, you again.',
+    'Stay away from me.',
   ],
   default: [
-    'やあ。',
-    'こんにちは。',
-    'どうも。',
+    'Hey.',
+    'Hello.',
+    'Hi there.',
   ],
 };
 
 const FALLBACK_RESPONSES: Record<string, string[]> = {
   first_meeting: [
-    'ええ、ここで暮らしています。よろしく。',
-    'はい、はじめまして。お見知りおきを。',
+    'Yes, I live here. Pleased to meet you.',
+    'Hello, nice to meet you. Hope we get along.',
   ],
   friendly: [
-    'うん、まあまあだよ。そっちは？',
-    'ありがとう。最近は忙しくてね。',
+    'Yeah, doing alright. How about you?',
+    'Thanks. Been pretty busy lately.',
   ],
   hostile: [
-    '…用がないなら失せろ。',
-    'お前に話すことはない。',
+    '...Get lost if you have nothing to say.',
+    'I have nothing to say to you.',
   ],
   default: [
-    'ああ、こんにちは。',
-    'どうも。',
+    'Oh, hello.',
+    'Hi there.',
   ],
 };
 
@@ -310,8 +310,8 @@ export function createConversationEvent(
 ): GameEvent {
   const turns = result.dialogue.length;
   const summary = turns > 0
-    ? `${a1.identity.name}と${a2.identity.name}が会話した（${turns}ターン）`
-    : `${a1.identity.name}と${a2.identity.name}が会話した`;
+    ? `${a1.identity.name} and ${a2.identity.name} had a conversation (${turns} turns)`
+    : `${a1.identity.name} and ${a2.identity.name} had a conversation`;
   return {
     id: `evt_${crypto.randomUUID()}`,
     gameId,

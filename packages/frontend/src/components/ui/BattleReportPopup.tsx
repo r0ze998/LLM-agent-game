@@ -1,4 +1,4 @@
-// F16: Battle Report Popup — 戦闘報告ポップアップ
+// F16: Battle Report Popup — combat report popup
 import { useEffect, useState, useCallback } from 'react';
 import { useGameStore } from '../../store/gameStore.ts';
 import { UNIT_DEFS } from '@murasato/shared';
@@ -32,7 +32,7 @@ export function BattleReportPopup() {
       ? 'none'
       : losses.map((u) => {
           const def = UNIT_DEFS[u.defId];
-          return `${def?.nameJa ?? u.defId} \u00d7${u.count}`;
+          return `${def?.name ?? u.defId} \u00d7${u.count}`;
         }).join(', ');
 
   return (

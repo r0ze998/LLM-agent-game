@@ -1,17 +1,17 @@
 /**
- * toriiClient.ts — Torii gRPC クライアント (F4)
+ * toriiClient.ts — Torii gRPC client (F4)
  *
- * @dojoengine/grpc の ToriiGrpcClient を使用して
- * モデル変更をサブスクライブし、外部プレイヤーのTXを補完する。
+ * Uses ToriiGrpcClient from @dojoengine/grpc to subscribe to
+ * model changes and supplement external player TXs.
  *
- * Bun 互換: @dojoengine/grpc は純粋 TypeScript gRPC-Web
- * (HTTP/1.1 fetch ベース) なので WASM 不要。
+ * Bun compatible: @dojoengine/grpc is pure TypeScript gRPC-Web
+ * (HTTP/1.1 fetch based) so no WASM required.
  */
 
 import { parseReceiptEvents, type DojoGameEvent } from "./dojoEventParser.ts";
 
 const LOG_PREFIX = "[Torii]";
-const KNOWN_TX_TTL_MS = 60_000; // 1分間は重複除外
+const KNOWN_TX_TTL_MS = 60_000; // Deduplicate for 1 minute
 
 export interface ToriiConfig {
   httpUrl: string;   // e.g. "http://localhost:8080"
@@ -21,8 +21,8 @@ export interface ToriiConfig {
 export type ExternalEventHandler = (events: DojoGameEvent[]) => void;
 
 /**
- * Torii gRPC クライアント — @dojoengine/grpc を動的インポートで使用。
- * パッケージが未インストールの場合は graceful に無効化。
+ * Torii gRPC client — uses @dojoengine/grpc via dynamic import.
+ * Gracefully disables if the package is not installed.
  */
 export class ToriiEventClient {
   private config: ToriiConfig;

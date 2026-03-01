@@ -1,13 +1,12 @@
-// === 建物定義（25棟） — データのみ、コード変更不要で追加可能 ===
+// === Building Definitions (25) — Data only, add new buildings without code changes ===
 
 import type { BuildingDef } from './types.ts';
 
 export const BUILDING_DEFS: Record<string, BuildingDef> = {
-  // ========== 経済系 ==========
+  // ========== Economy ==========
   farm: {
     id: 'farm',
     name: 'Farm',
-    nameJa: '農場',
     category: 'economy',
     cost: { wood: 5 },
     buildTicks: 8,
@@ -20,7 +19,6 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   granary: {
     id: 'granary',
     name: 'Granary',
-    nameJa: '穀物庫',
     category: 'economy',
     cost: { wood: 15, stone: 5 },
     buildTicks: 12,
@@ -34,7 +32,6 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   lumber_mill: {
     id: 'lumber_mill',
     name: 'Lumber Mill',
-    nameJa: '製材所',
     category: 'economy',
     cost: { wood: 10, stone: 5 },
     buildTicks: 10,
@@ -47,7 +44,6 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   mine: {
     id: 'mine',
     name: 'Mine',
-    nameJa: '鉱山',
     category: 'economy',
     cost: { wood: 10, stone: 10 },
     buildTicks: 15,
@@ -61,7 +57,6 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   market: {
     id: 'market',
     name: 'Market',
-    nameJa: '市場',
     category: 'economy',
     cost: { wood: 15, stone: 15 },
     buildTicks: 20,
@@ -75,7 +70,6 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   warehouse: {
     id: 'warehouse',
     name: 'Warehouse',
-    nameJa: '倉庫',
     category: 'economy',
     cost: { wood: 20, stone: 10 },
     buildTicks: 12,
@@ -90,7 +84,6 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   irrigation_canal: {
     id: 'irrigation_canal',
     name: 'Irrigation Canal',
-    nameJa: '灌漑水路',
     category: 'economy',
     cost: { wood: 10, stone: 20 },
     buildTicks: 18,
@@ -104,7 +97,6 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   mint: {
     id: 'mint',
     name: 'Mint',
-    nameJa: '造幣局',
     category: 'economy',
     cost: { stone: 20, iron: 15, gold: 10 },
     buildTicks: 25,
@@ -115,11 +107,10 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
     requires: { tech: 'banking' },
   },
 
-  // ========== 軍事系 ==========
+  // ========== Military ==========
   barracks: {
     id: 'barracks',
     name: 'Barracks',
-    nameJa: '兵舎',
     category: 'military',
     cost: { wood: 15, stone: 10 },
     buildTicks: 12,
@@ -133,7 +124,6 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   archery_range: {
     id: 'archery_range',
     name: 'Archery Range',
-    nameJa: '射撃場',
     category: 'military',
     cost: { wood: 20, stone: 5 },
     buildTicks: 14,
@@ -146,7 +136,6 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   stable: {
     id: 'stable',
     name: 'Stable',
-    nameJa: '厩舎',
     category: 'military',
     cost: { wood: 20, stone: 10, iron: 5 },
     buildTicks: 16,
@@ -159,7 +148,6 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   wall: {
     id: 'wall',
     name: 'Wall',
-    nameJa: '城壁',
     category: 'military',
     cost: { stone: 20 },
     buildTicks: 15,
@@ -173,7 +161,6 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   watchtower: {
     id: 'watchtower',
     name: 'Watchtower',
-    nameJa: '見張り塔',
     category: 'military',
     cost: { wood: 10, stone: 15 },
     buildTicks: 10,
@@ -187,7 +174,6 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   forge: {
     id: 'forge',
     name: 'Forge',
-    nameJa: '鍛冶場',
     category: 'military',
     cost: { wood: 10, stone: 15, iron: 10 },
     buildTicks: 18,
@@ -201,7 +187,6 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   siege_workshop: {
     id: 'siege_workshop',
     name: 'Siege Workshop',
-    nameJa: '攻城工房',
     category: 'military',
     cost: { wood: 25, iron: 15 },
     buildTicks: 20,
@@ -213,11 +198,10 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
     requires: { tech: 'siege_warfare' },
   },
 
-  // ========== 文化系 ==========
+  // ========== Culture ==========
   temple: {
     id: 'temple',
     name: 'Temple',
-    nameJa: '神殿',
     category: 'culture',
     cost: { stone: 30, wood: 10 },
     buildTicks: 25,
@@ -231,7 +215,6 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   library: {
     id: 'library',
     name: 'Library',
-    nameJa: '図書館',
     category: 'culture',
     cost: { wood: 20, stone: 15 },
     buildTicks: 18,
@@ -244,7 +227,6 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   school: {
     id: 'school',
     name: 'School',
-    nameJa: '学校',
     category: 'culture',
     cost: { wood: 20, stone: 15 },
     buildTicks: 20,
@@ -258,7 +240,6 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   theater: {
     id: 'theater',
     name: 'Theater',
-    nameJa: '劇場',
     category: 'culture',
     cost: { wood: 25, stone: 20, gold: 10 },
     buildTicks: 22,
@@ -271,7 +252,6 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   monument: {
     id: 'monument',
     name: 'Monument',
-    nameJa: '記念碑',
     category: 'culture',
     cost: { stone: 25, gold: 5 },
     buildTicks: 20,
@@ -284,7 +264,6 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   academy: {
     id: 'academy',
     name: 'Academy',
-    nameJa: '学院',
     category: 'culture',
     cost: { wood: 30, stone: 25, gold: 15 },
     buildTicks: 28,
@@ -296,11 +275,10 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
     requires: { tech: 'printing' },
   },
 
-  // ========== インフラ系 ==========
+  // ========== Infrastructure ==========
   house: {
     id: 'house',
     name: 'House',
-    nameJa: '住居',
     category: 'infrastructure',
     cost: { wood: 10, stone: 5 },
     buildTicks: 8,
@@ -313,7 +291,6 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   well: {
     id: 'well',
     name: 'Well',
-    nameJa: '井戸',
     category: 'infrastructure',
     cost: { stone: 8 },
     buildTicks: 8,
@@ -327,7 +304,6 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   road: {
     id: 'road',
     name: 'Road',
-    nameJa: '道路',
     category: 'infrastructure',
     cost: { stone: 3 },
     buildTicks: 3,
@@ -341,7 +317,6 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
   meeting_hall: {
     id: 'meeting_hall',
     name: 'Meeting Hall',
-    nameJa: '集会所',
     category: 'infrastructure',
     cost: { wood: 25, stone: 20 },
     buildTicks: 20,
@@ -353,11 +328,10 @@ export const BUILDING_DEFS: Record<string, BuildingDef> = {
     requires: {},
   },
 
-  // ========== 拡張系 (F2) ==========
+  // ========== Expansion (F2) ==========
   outpost: {
     id: 'outpost',
     name: 'Outpost',
-    nameJa: '前哨基地',
     category: 'military',
     cost: { wood: 20, stone: 15 },
     buildTicks: 15,

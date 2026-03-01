@@ -1,4 +1,4 @@
-// F17: Event Notification Toasts — 右下スタック表示
+// F17: Event Notification Toasts — stacked display at bottom-right
 import { useEffect, useState } from 'react';
 import { useNotificationStore, type Notification } from '../../store/notificationStore.ts';
 

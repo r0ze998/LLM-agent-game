@@ -24,12 +24,12 @@ export function VillagePanel() {
       fontSize: 12,
       zIndex: 70,
     }}>
-      <div style={{ fontWeight: 'bold', color: '#7ac87a', marginBottom: 8 }}>村一覧</div>
+      <div style={{ fontWeight: 'bold', color: '#7ac87a', marginBottom: 8 }}>Villages</div>
       {[...villages.values()].map((village) => (
         <div key={village.id} style={{ marginBottom: 8, borderBottom: '1px solid #333', paddingBottom: 6 }}>
           <div style={{ fontWeight: 'bold' }}>{village.name}</div>
           <div style={{ color: '#999' }}>
-            人口: {village.population.length} / 統治: {village.governance.type}
+            Pop: {village.population.length} / Gov: {village.governance.type}
           </div>
           <div style={{ color: '#888', fontSize: 11 }}>
             {Object.entries(village.resources)

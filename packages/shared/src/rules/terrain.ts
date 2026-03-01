@@ -1,4 +1,4 @@
-// === 地形ルール定義 ===
+// === Terrain Rule Definitions ===
 
 import type { TerrainRuleDef } from './types.ts';
 

@@ -85,28 +85,28 @@ function drawPlains(variant: number): PatternCanvas {
 function drawForest(variant: number): PatternCanvas {
   const [c, ctx] = createTile();
 
-  // 明るめの緑ベース。ドットは最小限、キャラの邪魔をしない
-  const base  = '#4A8838'; // 明るい森の緑
-  const shade = '#3E7830'; // 1段暗い緑（影に使う）
-  const lite  = '#589848'; // ほんの少し明るい緑
-  const trunk = '#6B4830'; // 幹
+  // Brighter green base. Minimal dots to avoid obstructing characters
+  const base  = '#4A8838'; // Bright forest green
+  const shade = '#3E7830'; // One shade darker green (used for shadows)
+  const lite  = '#589848'; // Slightly brighter green
+  const trunk = '#6B4830'; // Trunk
 
-  // ベース塗り
+  // Base fill
   ctx.fillStyle = base;
   ctx.fillRect(0, 0, 16, 16);
 
   if (variant === 0) {
-    // 小さな丸い樹冠 + 幹だけ
+    // Small round canopy + trunk only
     px(ctx, 7, 11, trunk); px(ctx, 8, 11, trunk);
     px(ctx, 7, 12, trunk); px(ctx, 8, 12, trunk);
 
     ctx.fillStyle = shade;
-    ctx.fillRect(5, 4, 6, 5);  // 樹冠ベース
+    ctx.fillRect(5, 4, 6, 5);  // Canopy base
     ctx.fillStyle = lite;
-    ctx.fillRect(6, 5, 4, 3);  // 樹冠ハイライト
+    ctx.fillRect(6, 5, 4, 3);  // Canopy highlight
 
   } else if (variant === 1) {
-    // 幹なし、2つの小さな樹冠で密林感
+    // No trunk, two small canopies for dense forest feel
     ctx.fillStyle = shade;
     ctx.fillRect(2, 2, 5, 4);
     ctx.fillRect(9, 5, 5, 4);
@@ -115,7 +115,7 @@ function drawForest(variant: number): PatternCanvas {
     ctx.fillRect(10, 6, 3, 2);
 
   } else {
-    // ほぼフラット、控えめな草のアクセントだけ
+    // Mostly flat, subtle grass accents only
     px(ctx, 3, 6, shade); px(ctx, 4, 6, shade);
     px(ctx, 10, 10, shade); px(ctx, 11, 10, shade);
     px(ctx, 7, 3, lite); px(ctx, 12, 13, lite);

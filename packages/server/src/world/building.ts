@@ -54,25 +54,25 @@ export function canBuild(
 ): { ok: boolean; reason?: string } {
   // Check bounds
   if (pos.x < 0 || pos.x >= map.size || pos.y < 0 || pos.y >= map.size) {
-    return { ok: false, reason: '範囲外' };
+    return { ok: false, reason: 'Out of bounds' };
   }
 
   const tile = map.tiles[pos.y][pos.x];
 
   // Can't build on water or mountain
-  if (tile.terrain === 'water') return { ok: false, reason: '水上には建設できない' };
-  if (tile.terrain === 'mountain') return { ok: false, reason: '山には建設できない' };
+  if (tile.terrain === 'water') return { ok: false, reason: 'Cannot build on water' };
+  if (tile.terrain === 'mountain') return { ok: false, reason: 'Cannot build on mountains' };
 
   // Already has a structure
-  if (tile.structureId) return { ok: false, reason: '既に建物がある' };
+  if (tile.structureId) return { ok: false, reason: 'Structure already exists' };
 
   // Check resources
   const costs = BUILD_COSTS[type];
-  if (!costs) return { ok: false, reason: `不明な建物: ${type}` };
+  if (!costs) return { ok: false, reason: `Unknown building: ${type}` };
   for (const [resource, amount] of Object.entries(costs)) {
     const available = availableResources[resource as ResourceType] ?? 0;
     if (available < (amount ?? 0)) {
-      return { ok: false, reason: `${resource}が足りない (必要: ${amount}, 所持: ${available})` };
+      return { ok: false, reason: `Not enough ${resource} (needed: ${amount}, have: ${available})` };
     }
   }
 

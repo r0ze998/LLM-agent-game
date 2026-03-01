@@ -1,8 +1,8 @@
 /**
- * starknetProvider.tsx — Dojo コンテキスト提供
+ * starknetProvider.tsx — Dojo context provider
  *
- * React Context で txService, stateReader, tickAdvancer, stateSync を共有。
- * walletStore.isOnChain が true の場合のみサービスが有効。
+ * Shares txService, stateReader, tickAdvancer, stateSync via React Context.
+ * Services are only active when walletStore.isOnChain is true.
  */
 
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';

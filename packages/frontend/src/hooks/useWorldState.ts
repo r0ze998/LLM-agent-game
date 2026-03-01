@@ -94,7 +94,7 @@ export function useWorldState(gameId: string | null) {
           addNotification({
             type: 'tech',
             title: 'Tech Researched',
-            description: techDef?.nameJa ?? msg.techId,
+            description: techDef?.name ?? msg.techId,
             color: '#9b59b6',
           });
           break;

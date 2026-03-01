@@ -1,8 +1,8 @@
 /**
- * starknetTx.ts — フロントエンド直接オンチェーンコマンド実行
+ * starknetTx.ts — Frontend direct on-chain command execution
  *
- * DojoTxService + VillageIdMapper を使用してプレイヤーコマンドを
- * Katana devnet に直接送信する。
+ * Uses DojoTxService + VillageIdMapper to send player commands
+ * directly to the Katana devnet.
  */
 
 import type { Account, RpcProvider } from 'starknet';
@@ -18,7 +18,7 @@ import {
 let txService: DojoTxService | null = null;
 let villageMapper: VillageIdMapper | null = null;
 
-/** TXサービスを初期化 (walletStore.connectKatana 後に呼ぶ) */
+/** Initialize the TX service (call after walletStore.connectKatana) */
 export function initTxService(
   account: Account,
   provider: RpcProvider,
@@ -29,17 +29,17 @@ export function initTxService(
   console.log('[StarknetTx] TX service initialized');
 }
 
-/** VillageIdMapper への参照を返す */
+/** Return a reference to the VillageIdMapper */
 export function getVillageMapper(): VillageIdMapper | null {
   return villageMapper;
 }
 
-/** DojoTxService への参照を返す */
+/** Return a reference to the DojoTxService */
 export function getTxService(): DojoTxService | null {
   return txService;
 }
 
-/** コマンドをオンチェーンで実行 */
+/** Execute a command on-chain */
 export async function executeCommandOnChain(
   command: PlayerCommand,
 ): Promise<{ success: boolean; txHash?: string; error?: string }> {

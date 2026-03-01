@@ -8,21 +8,21 @@ import { CLAUSE_PARAM_BOUNDS, EFFECT_BOUNDS, INVENTION_LIMITS, INSTITUTION_LIMIT
 
 function describePersonality(p: AgentState['identity']['personality']): string {
   const traits: string[] = [];
-  if (p.openness > 70) traits.push('好奇心旺盛');
-  else if (p.openness < 30) traits.push('保守的');
-  if (p.agreeableness > 70) traits.push('協調的');
-  else if (p.agreeableness < 30) traits.push('競争的');
-  if (p.conscientiousness > 70) traits.push('計画的');
-  else if (p.conscientiousness < 30) traits.push('即興的');
-  if (p.courage > 70) traits.push('大胆');
-  else if (p.courage < 30) traits.push('慎重');
-  if (p.ambition > 70) traits.push('野心的');
-  else if (p.ambition < 30) traits.push('知足');
-  return traits.join('、') || '平凡';
+  if (p.openness > 70) traits.push('curious');
+  else if (p.openness < 30) traits.push('conservative');
+  if (p.agreeableness > 70) traits.push('cooperative');
+  else if (p.agreeableness < 30) traits.push('competitive');
+  if (p.conscientiousness > 70) traits.push('methodical');
+  else if (p.conscientiousness < 30) traits.push('spontaneous');
+  if (p.courage > 70) traits.push('bold');
+  else if (p.courage < 30) traits.push('cautious');
+  if (p.ambition > 70) traits.push('ambitious');
+  else if (p.ambition < 30) traits.push('content');
+  return traits.join(', ') || 'ordinary';
 }
 
 function describePhilosophy(ph: AgentState['identity']['philosophy']): string {
-  return `統治観: ${ph.governance} / 経済観: ${ph.economics} / 信条: ${ph.values.join(', ')} / 世界観: ${ph.worldview}`;
+  return `Governance: ${ph.governance} / Economics: ${ph.economics} / Values: ${ph.values.join(', ')} / Worldview: ${ph.worldview}`;
 }
 
 function formatMemories(memories: Memory[], limit: number): string {
@@ -33,13 +33,13 @@ function formatMemories(memories: Memory[], limit: number): string {
 }
 
 function formatRelationships(rels: Relationship[], agentNames: Map<string, string>): string {
-  if (rels.length === 0) return 'まだ深い関係はない';
+  if (rels.length === 0) return 'No deep relationships yet';
   return rels
     .slice(0, 5)
     .map(r => {
-      const name = agentNames.get(r.targetId) ?? '不明';
-      const feeling = r.sentiment > 50 ? '好意的' : r.sentiment > 0 ? 'やや好意的' : r.sentiment > -50 ? 'やや敵対的' : '敵対的';
-      return `- ${name}: ${feeling} (信頼${r.trust}, 親密度${r.familiarity}) ${r.roles.length > 0 ? `[${r.roles.join(', ')}]` : ''}`;
+      const name = agentNames.get(r.targetId) ?? 'Unknown';
+      const feeling = r.sentiment > 50 ? 'friendly' : r.sentiment > 0 ? 'somewhat friendly' : r.sentiment > -50 ? 'somewhat hostile' : 'hostile';
+      return `- ${name}: ${feeling} (trust ${r.trust}, familiarity ${r.familiarity}) ${r.roles.length > 0 ? `[${r.roles.join(', ')}]` : ''}`;
     })
     .join('\n');
 }
@@ -73,78 +73,78 @@ export function buildDailyPlanPrompt(ctx: DailyPlanContext): { system: string; u
   const { agent, memories, relationships, agentNames, village, nearbyAgents, availableActions, intentions, tick, soulText, behaviorRules, backstory, villageStrategy } = ctx;
   const { identity, needs } = agent;
 
-  let systemParts = [`あなたはJRPGの世界に生きるキャラクター「${identity.name}」です。
-あなたは自分の性格と信念に基づいて、今日一日の計画を立ててください。`];
+  let systemParts = [`You are "${identity.name}", a character living in a JRPG world.
+Plan your day based on your personality and beliefs.`];
 
   if (soulText) {
-    systemParts.push(`\n=== あなたの魂 ===\n${soulText}`);
+    systemParts.push(`\n=== Your Soul ===\n${soulText}`);
   }
 
   if (behaviorRules && behaviorRules.length > 0) {
-    systemParts.push(`\n=== 行動規則（必ず従うこと） ===\n${behaviorRules.map((r, i) => `${i + 1}. ${r}`).join('\n')}`);
+    systemParts.push(`\n=== Behavior Rules (must follow) ===\n${behaviorRules.map((r, i) => `${i + 1}. ${r}`).join('\n')}`);
   }
 
-  systemParts.push(`\n返答は必ず以下のJSON形式のみで返してください。マークダウンのコードブロックは使わないでください。
+  systemParts.push(`\nReply with ONLY the following JSON format. Do not use markdown code blocks.
 
 {
-  "innerThought": "今の気持ちや考え（1-2文）",
+  "innerThought": "Current feelings or thoughts (1-2 sentences)",
   "schedule": [
-    { "slot": 0, "action": "行動名", "target": "対象（任意）", "reason": "理由" },
-    ...24スロット分
+    { "slot": 0, "action": "action name", "target": "target (optional)", "reason": "reason" },
+    ...24 slots total
   ],
   "socialIntentions": [
-    { "targetAgentId": "ID", "intention": "話したいこと" }
+    { "targetAgentId": "ID", "intention": "what you want to talk about" }
   ],
   "philosophyShift": null
 }
 
-行動名の選択肢: ${availableActions.join(', ')}`);
+Available actions: ${availableActions.join(', ')}`);
 
   const system = systemParts.join('\n');
 
   const intentionText = intentions.length > 0
     ? intentions.map(i => `[${i.strength}] ${i.message}`).join('\n')
-    : 'なし';
+    : 'None';
 
-  let userParts = [`=== ${identity.name}の朝 (tick ${tick}) ===
+  let userParts = [`=== ${identity.name}'s Morning (tick ${tick}) ===
 
-【基本情報】
-名前: ${identity.name} / 世代: ${identity.generation} / 年齢: ${identity.age} / 状態: ${identity.status}
-性格: ${describePersonality(identity.personality)}
-信条: ${describePhilosophy(identity.philosophy)}
-所属: ${village ? village.name : '無所属（放浪中）'}`];
+[Basic Info]
+Name: ${identity.name} / Gen: ${identity.generation} / Age: ${identity.age} / Status: ${identity.status}
+Personality: ${describePersonality(identity.personality)}
+Beliefs: ${describePhilosophy(identity.philosophy)}
+Affiliation: ${village ? village.name : 'Unaffiliated (wandering)'}`];
 
   if (backstory) {
-    userParts.push(`\n【魂の記憶（前世）】\n${backstory}`);
+    userParts.push(`\n[Soul Memories (Past Life)]\n${backstory}`);
   }
 
   userParts.push(`
-【身体状態】
-空腹: ${needs.hunger}/100 / 体力: ${needs.energy}/100 / 社交欲: ${needs.social}/100
+[Physical State]
+Hunger: ${needs.hunger}/100 / Energy: ${needs.energy}/100 / Social: ${needs.social}/100
 
-【最近の記憶】
+[Recent Memories]
 ${formatMemories(memories, 15)}
 
-【人間関係】
+[Relationships]
 ${formatRelationships(relationships, agentNames)}
 
-【周囲の状況】
-近くにいる人: ${nearbyAgents.length > 0 ? nearbyAgents.map(a => `${a.name}(${a.distance}マス)`).join(', ') : '誰もいない'}
+[Surroundings]
+Nearby: ${nearbyAgents.length > 0 ? nearbyAgents.map(a => `${a.name}(${a.distance} tiles)`).join(', ') : 'No one nearby'}
 
-【天の声（プレイヤーの意図）】
+[Divine Voice (Player Intentions)]
 ${intentionText}
 
-今日の24スロット分の計画をJSON形式で立ててください。`);
+Plan your 24 time slots for today in JSON format.`);
 
-  // 4X strategy context — エージェントが村の戦略状態を認識できるように
+  // 4X strategy context — let agents be aware of village strategic state
   if (villageStrategy) {
     userParts.push(`
-【村の戦略状況】
-人口: ${villageStrategy.population} / 軍事力: ${villageStrategy.militaryStrength}
-資源: 食料${villageStrategy.resources.food ?? 0}, 木材${villageStrategy.resources.wood ?? 0}, 石材${villageStrategy.resources.stone ?? 0}, 鉄${villageStrategy.resources.iron ?? 0}, 金${villageStrategy.resources.gold ?? 0}
-戦争状態: ${villageStrategy.atWar ? '交戦中' : '平和'}
-研究済み技術: ${villageStrategy.researchedTechs.length > 0 ? villageStrategy.researchedTechs.join(', ') : 'なし'}
-※ gather_iron（鉄採集）、defend（防衛）、patrol（巡回）も選択可能です。`);
+[Village Strategy]
+Population: ${villageStrategy.population} / Military: ${villageStrategy.militaryStrength}
+Resources: Food ${villageStrategy.resources.food ?? 0}, Wood ${villageStrategy.resources.wood ?? 0}, Stone ${villageStrategy.resources.stone ?? 0}, Iron ${villageStrategy.resources.iron ?? 0}, Gold ${villageStrategy.resources.gold ?? 0}
+War status: ${villageStrategy.atWar ? 'At war' : 'At peace'}
+Researched techs: ${villageStrategy.researchedTechs.length > 0 ? villageStrategy.researchedTechs.join(', ') : 'None'}
+Note: gather_iron, defend, and patrol are also available actions.`);
   }
 
   const user = userParts.join('\n');
@@ -167,36 +167,36 @@ export interface ConversationContext {
 export function buildConversationPrompt(ctx: ConversationContext): { system: string; user: string } {
   const { agent1, agent2, relationship12, relationship21, situation } = ctx;
 
-  const system = `あなたはJRPGの世界の会話シミュレーターです。
-二人のキャラクターの出会いの会話を生成してください。
-各キャラクターの性格・関係性・状況に基づいた自然な会話を作ってください。
-返答は必ず以下のJSON形式のみで返してください。
+  const system = `You are a conversation simulator in a JRPG world.
+Generate a conversation between two characters who have just met.
+Create natural dialogue based on each character's personality, relationship, and situation.
+Reply with ONLY the following JSON format.
 
 {
   "dialogue": [
-    { "speakerId": "発言者ID", "text": "セリフ" },
-    ...3-6ターン
+    { "speakerId": "speaker ID", "text": "dialogue line" },
+    ...3-6 turns
   ],
-  "sentimentChange": { "agent1→agent2の変化": 数値, "agent2→agent1の変化": 数値 },
+  "sentimentChange": { "agent1 toward agent2 change": number, "agent2 toward agent1 change": number },
   "newMemories": [
-    { "agentId": "ID", "content": "記憶内容", "importance": 0.0-1.0 }
+    { "agentId": "ID", "content": "memory content", "importance": 0.0-1.0 }
   ]
 }`;
 
-  const sent12 = relationship12 ? `好感度${relationship12.sentiment}, 信頼${relationship12.trust}` : '初対面';
-  const sent21 = relationship21 ? `好感度${relationship21.sentiment}, 信頼${relationship21.trust}` : '初対面';
+  const sent12 = relationship12 ? `affinity ${relationship12.sentiment}, trust ${relationship12.trust}` : 'first meeting';
+  const sent21 = relationship21 ? `affinity ${relationship21.sentiment}, trust ${relationship21.trust}` : 'first meeting';
 
-  const user = `=== 出会い ===
+  const user = `=== Encounter ===
 
-${agent1.identity.name}（性格: ${describePersonality(agent1.identity.personality)}）
-→ ${agent2.identity.name}への感情: ${sent12}
+${agent1.identity.name} (Personality: ${describePersonality(agent1.identity.personality)})
+-> Feelings toward ${agent2.identity.name}: ${sent12}
 
-${agent2.identity.name}（性格: ${describePersonality(agent2.identity.personality)}）
-→ ${agent1.identity.name}への感情: ${sent21}
+${agent2.identity.name} (Personality: ${describePersonality(agent2.identity.personality)})
+-> Feelings toward ${agent1.identity.name}: ${sent21}
 
-状況: ${situation}
+Situation: ${situation}
 
-sentimentChangeのキーは "${agent1.identity.id}" と "${agent2.identity.id}" を使ってください。`;
+Use "${agent1.identity.id}" and "${agent2.identity.id}" as the keys for sentimentChange.`;
 
   return { system, user };
 }
@@ -214,40 +214,40 @@ export interface ReflectionContext {
 export function buildReflectionPrompt(ctx: ReflectionContext): { system: string; user: string } {
   const { agent, recentMemories, soulText, behaviorRules, backstory } = ctx;
 
-  let systemParts = [`あなたはJRPGの世界に生きる「${agent.identity.name}」です。
-最近の出来事を振り返り、自分の考えや信念を更新してください。`];
+  let systemParts = [`You are "${agent.identity.name}", living in a JRPG world.
+Reflect on recent events and update your thoughts and beliefs.`];
 
   if (soulText) {
-    systemParts.push(`\n=== あなたの魂 ===\n${soulText}`);
+    systemParts.push(`\n=== Your Soul ===\n${soulText}`);
   }
   if (behaviorRules && behaviorRules.length > 0) {
-    systemParts.push(`\n=== 行動規則 ===\n${behaviorRules.map((r, i) => `${i + 1}. ${r}`).join('\n')}`);
+    systemParts.push(`\n=== Behavior Rules ===\n${behaviorRules.map((r, i) => `${i + 1}. ${r}`).join('\n')}`);
   }
 
-  systemParts.push(`\n返答は必ず以下のJSON形式のみで返してください。
+  systemParts.push(`\nReply with ONLY the following JSON format.
 
 {
-  "reflection": "振り返りの文章（2-3文）",
-  "beliefChange": null または { "governance"?: "新しい統治観", "economics"?: "新しい経済観", "values"?: ["新しい価値観"], "worldview"?: "新しい世界観" },
-  "newInsight": null または "新しい洞察（1文）"
+  "reflection": "Reflection text (2-3 sentences)",
+  "beliefChange": null or { "governance"?: "new governance view", "economics"?: "new economics view", "values"?: ["new values"], "worldview"?: "new worldview" },
+  "newInsight": null or "A new insight (1 sentence)"
 }`);
 
   const system = systemParts.join('\n');
 
-  let userParts = [`=== ${agent.identity.name}の振り返り ===
+  let userParts = [`=== ${agent.identity.name}'s Reflection ===
 
-性格: ${describePersonality(agent.identity.personality)}
-現在の信条: ${describePhilosophy(agent.identity.philosophy)}`];
+Personality: ${describePersonality(agent.identity.personality)}
+Current beliefs: ${describePhilosophy(agent.identity.philosophy)}`];
 
   if (backstory) {
-    userParts.push(`\n【魂の記憶（前世）】\n${backstory}`);
+    userParts.push(`\n[Soul Memories (Past Life)]\n${backstory}`);
   }
 
   userParts.push(`
-【最近の出来事】
+[Recent Events]
 ${formatMemories(recentMemories, 20)}
 
-これらの経験を踏まえて、振り返りをJSON形式で返してください。`);
+Based on these experiences, provide your reflection in JSON format.`);
 
   const user = userParts.join('\n');
 
@@ -257,13 +257,11 @@ ${formatMemories(recentMemories, 20)}
 // --- Name Generation Prompt ---
 
 export function buildNamePrompt(parentNames: string[], culturalStyle: string): { system: string; user: string } {
-  const system = `あなたはJRPGの世界のキャラクター命名者です。
-文化的な命名スタイルに従い、新しいキャラクターの名前を1つだけ返してください。
-返答は名前のみ（引用符なし、説明なし）。`;
+  const system = `You are a JRPG character name generator. Follow the cultural naming style and return exactly one name for a new character. Reply with the name only (no quotes, no explanation). Names should be romanized Japanese (e.g., Akira, Yuki, Sakura).`;
 
-  const user = `両親: ${parentNames.join('と')}
-文化スタイル: ${culturalStyle}
-新しい子供の名前を1つだけ返してください。`;
+  const user = `Parents: ${parentNames.join(' and ')}
+Cultural style: ${culturalStyle}
+Return exactly one name for the new child.`;
 
   return { system, user };
 }
@@ -272,7 +270,7 @@ export function buildNamePrompt(parentNames: string[], culturalStyle: string): {
 
 export interface StrategyOption {
   id: string;
-  nameJa: string;
+  name: string;
   description: string;
 }
 
@@ -319,117 +317,117 @@ export function buildStrategyPrompt(ctx: StrategyPromptContext): { system: strin
   const vs = villageState;
 
   // --- System prompt ---
-  let systemParts = [`あなたはJRPGの世界に生きる村長「${identity.name}」です。
-あなたは${villageName}の指導者として、村の戦略を決定します。
-あなたの性格・信念・記憶に基づいて、今何をすべきか判断してください。
-「正解」はありません。あなたらしい判断をしてください。`];
+  let systemParts = [`You are "${identity.name}", a village leader living in a JRPG world.
+As the leader of ${villageName}, you decide the village's strategy.
+Judge what needs to be done based on your personality, beliefs, and memories.
+There is no "correct answer." Make decisions that reflect who you are.`];
 
   if (ctx.soulText) {
-    systemParts.push(`\n=== あなたの魂 ===\n${ctx.soulText}`);
+    systemParts.push(`\n=== Your Soul ===\n${ctx.soulText}`);
   }
   if (ctx.behaviorRules && ctx.behaviorRules.length > 0) {
-    systemParts.push(`\n=== 行動規則 ===\n${ctx.behaviorRules.map((r, i) => `${i + 1}. ${r}`).join('\n')}`);
+    systemParts.push(`\n=== Behavior Rules ===\n${ctx.behaviorRules.map((r, i) => `${i + 1}. ${r}`).join('\n')}`);
   }
 
-  systemParts.push(`\n返答は必ず以下のJSON形式のみで返してください。マークダウンのコードブロックは使わないでください。
+  systemParts.push(`\nReply with ONLY the following JSON format. Do not use markdown code blocks.
 
 {
-  "innerThought": "今の状況についての考え（1-3文。あなたの性格が反映されること）",
-  "build": "建設する建物のID（不要ならnull）",
-  "buildReason": "なぜその建物を選んだか（1文）",
-  "research": "研究する技術のID（不要ならnull）",
-  "researchReason": "なぜその技術を選んだか（1文）",
-  "train": "訓練するユニットのID（不要ならnull）",
-  "trainReason": "なぜそのユニットを選んだか（1文）",
-  "diplomacy": null または { "targetVillageId": "ID", "action": "declare_war|propose_alliance|propose_peace|break_alliance", "reason": "理由" }
+  "innerThought": "Your thoughts on the current situation (1-3 sentences, reflecting your personality)",
+  "build": "ID of building to construct (null if none)",
+  "buildReason": "Why you chose this building (1 sentence)",
+  "research": "ID of tech to research (null if none)",
+  "researchReason": "Why you chose this tech (1 sentence)",
+  "train": "ID of unit to train (null if none)",
+  "trainReason": "Why you chose this unit (1 sentence)",
+  "diplomacy": null or { "targetVillageId": "ID", "action": "declare_war|propose_alliance|propose_peace|break_alliance", "reason": "reason" }
 }`);
 
   const system = systemParts.join('\n');
 
   // --- User prompt ---
-  const garrison = vs.garrison.map(u => `${u.defId}×${u.count}`).join(', ') || 'なし';
-  const armies = vs.armies.map(a => `軍(${a.units.map(u => `${u.defId}×${u.count}`).join(', ')})`).join(', ') || 'なし';
-  const techs = vs.researchedTechs.size > 0 ? [...vs.researchedTechs].join(', ') : 'なし';
-  const buildings = vs.buildings.map(b => b.defId).join(', ') || 'なし';
-  const buildQueue = vs.buildQueue.length > 0 ? vs.buildQueue.map(q => q.defId).join(', ') : 'なし';
-  const researchQueue = vs.researchQueue.length > 0 ? vs.researchQueue.map(q => q.defId).join(', ') : 'なし';
-  const trainQueue = vs.trainQueue.length > 0 ? vs.trainQueue.map(q => q.defId).join(', ') : 'なし';
+  const garrison = vs.garrison.map(u => `${u.defId}x${u.count}`).join(', ') || 'None';
+  const armies = vs.armies.map(a => `Army(${a.units.map(u => `${u.defId}x${u.count}`).join(', ')})`).join(', ') || 'None';
+  const techs = vs.researchedTechs.size > 0 ? [...vs.researchedTechs].join(', ') : 'None';
+  const buildings = vs.buildings.map(b => b.defId).join(', ') || 'None';
+  const buildQueue = vs.buildQueue.length > 0 ? vs.buildQueue.map(q => q.defId).join(', ') : 'None';
+  const researchQueue = vs.researchQueue.length > 0 ? vs.researchQueue.map(q => q.defId).join(', ') : 'None';
+  const trainQueue = vs.trainQueue.length > 0 ? vs.trainQueue.map(q => q.defId).join(', ') : 'None';
 
-  let userParts = [`=== ${villageName}の戦略会議 (tick ${tick}) ===
+  let userParts = [`=== ${villageName} Strategy Meeting (tick ${tick}) ===
 
-【あなた（村長）の情報】
-名前: ${identity.name} / 性格: ${describePersonality(identity.personality)}
-信条: ${describePhilosophy(identity.philosophy)}
+[You (Village Leader)]
+Name: ${identity.name} / Personality: ${describePersonality(identity.personality)}
+Beliefs: ${describePhilosophy(identity.philosophy)}
 
-【村の状態】
-人口: ${vs.population} / 住居上限: ${vs.housingCapacity}
-食料: ${vs.resources.food} / 木材: ${vs.resources.wood} / 石材: ${vs.resources.stone} / 鉄: ${vs.resources.iron} / 金: ${vs.resources.gold}
-研究ポイント: ${Math.floor(vs.researchPoints)} / 文化ポイント: ${vs.totalCulturePoints}
-スコア: ${vs.score}
+[Village State]
+Population: ${vs.population} / Housing cap: ${vs.housingCapacity}
+Food: ${vs.resources.food} / Wood: ${vs.resources.wood} / Stone: ${vs.resources.stone} / Iron: ${vs.resources.iron} / Gold: ${vs.resources.gold}
+Research points: ${Math.floor(vs.researchPoints)} / Culture points: ${vs.totalCulturePoints}
+Score: ${vs.score}
 
-【軍事】
-駐留部隊: ${garrison}
-派遣軍: ${armies}
+[Military]
+Garrison: ${garrison}
+Armies: ${armies}
 
-【既存施設】${buildings}
-【研究済み技術】${techs}
-【進行中キュー】建設: ${buildQueue} / 研究: ${researchQueue} / 訓練: ${trainQueue}`];
+[Existing Buildings] ${buildings}
+[Researched Techs] ${techs}
+[In-progress Queues] Build: ${buildQueue} / Research: ${researchQueue} / Train: ${trainQueue}`];
 
   // Recent memories
   if (memories.length > 0) {
-    userParts.push(`\n【最近の記憶】\n${formatMemories(memories, 10)}`);
+    userParts.push(`\n[Recent Memories]\n${formatMemories(memories, 10)}`);
   }
 
   // Relationships with other village leaders
   if (relationships.length > 0) {
-    userParts.push(`\n【人間関係】\n${formatRelationships(relationships, agentNames)}`);
+    userParts.push(`\n[Relationships]\n${formatRelationships(relationships, agentNames)}`);
   }
 
   // Neighbor villages
   if (ctx.neighborVillages.length > 0) {
-    userParts.push(`\n【周辺の村】`);
+    userParts.push(`\n[Neighboring Villages]`);
     for (const nv of ctx.neighborVillages) {
-      const powerLabel = nv.militaryPower > 100 ? '強大' : nv.militaryPower > 50 ? '中程度' : '弱小';
-      userParts.push(`- ${nv.name}: 軍事力${powerLabel}(${Math.floor(nv.militaryPower)}) / 外交: ${nv.diplomaticStatus}`);
+      const powerLabel = nv.militaryPower > 100 ? 'powerful' : nv.militaryPower > 50 ? 'moderate' : 'weak';
+      userParts.push(`- ${nv.name}: Military power ${powerLabel}(${Math.floor(nv.militaryPower)}) / Diplomacy: ${nv.diplomaticStatus}`);
     }
   }
 
   // Available options
   if (ctx.availableBuildings.length > 0) {
-    userParts.push(`\n【建設可能な建物】`);
+    userParts.push(`\n[Available Buildings]`);
     for (const b of ctx.availableBuildings) {
-      userParts.push(`- ${b.id}: ${b.nameJa}（${b.description}）`);
+      userParts.push(`- ${b.id}: ${b.name} (${b.description})`);
     }
   } else {
-    userParts.push(`\n【建設可能な建物】なし（資源不足または前提条件未達）`);
+    userParts.push(`\n[Available Buildings] None (insufficient resources or prerequisites not met)`);
   }
 
   if (ctx.availableTechs.length > 0) {
-    userParts.push(`\n【研究可能な技術】`);
+    userParts.push(`\n[Available Techs]`);
     for (const t of ctx.availableTechs) {
-      userParts.push(`- ${t.id}: ${t.nameJa}（${t.description}）`);
+      userParts.push(`- ${t.id}: ${t.name} (${t.description})`);
     }
   } else {
-    userParts.push(`\n【研究可能な技術】なし`);
+    userParts.push(`\n[Available Techs] None`);
   }
 
   if (ctx.availableUnits.length > 0) {
-    userParts.push(`\n【訓練可能なユニット】`);
+    userParts.push(`\n[Available Units]`);
     for (const u of ctx.availableUnits) {
-      userParts.push(`- ${u.id}: ${u.nameJa}（${u.description}）`);
+      userParts.push(`- ${u.id}: ${u.name} (${u.description})`);
     }
   } else {
-    userParts.push(`\n【訓練可能なユニット】なし`);
+    userParts.push(`\n[Available Units] None`);
   }
 
-  userParts.push(`\nあなたの性格と信念に基づいて、戦略を決定してください。JSON形式で返答してください。`);
+  userParts.push(`\nDecide your strategy based on your personality and beliefs. Reply in JSON format.`);
 
   const user = userParts.join('\n');
 
   return { system, user };
 }
 
-// === Layer 1: Covenant (契約) プロンプト ===
+// === Layer 1: Covenant Prompt ===
 
 export interface CovenantPromptContext {
   leader: AgentState;
@@ -465,60 +463,60 @@ export function buildCovenantPrompt(ctx: CovenantPromptContext): { system: strin
     .join('\n');
 
   const additionalClauses = [
-    '- building_ban: { buildingDefId: "建物ID" }',
+    '- building_ban: { buildingDefId: "building ID" }',
     '- military_pact: { sharedDefense: true/false }',
-    '- non_aggression: { durationTicks: 数値 }',
+    '- non_aggression: { durationTicks: number }',
     '- immigration_policy: { open: true/false }',
   ].join('\n');
 
-  const system = `あなたは${villageName}の村長「${identity.name}」です。
-あなたは村の法律・条約・経済政策を制定できます。
-性格: ${describePersonality(identity.personality)}
-信条: ${describePhilosophy(identity.philosophy)}
+  const system = `You are "${identity.name}", the village leader of ${villageName}.
+You can enact laws, treaties, and economic policies for the village.
+Personality: ${describePersonality(identity.personality)}
+Beliefs: ${describePhilosophy(identity.philosophy)}
 
-利用可能な条項タイプとパラメータ範囲:
+Available clause types and parameter ranges:
 ${clauseTypeList}
 ${additionalClauses}
 
-返答は必ず以下のJSON形式のみで返してください。
+Reply with ONLY the following JSON format.
 {
-  "innerThought": "なぜこの法律が必要か（1-2文）",
+  "innerThought": "Why this law is needed (1-2 sentences)",
   "propose": {
-    "name": "法律・条約の名前",
-    "description": "簡潔な説明",
+    "name": "Name of the law/treaty",
+    "description": "Brief description",
     "scope": "village | bilateral | global",
-    "targetVillageId": "bilateral時のみ対象村ID",
-    "clauses": [{ "type": "条項タイプ", "params": { ... } }]
+    "targetVillageId": "Target village ID (only for bilateral)",
+    "clauses": [{ "type": "clause type", "params": { ... } }]
   }
 }
-提案しない場合は "propose": null としてください。`;
+If you have no proposal, set "propose": null.`;
 
   const activeCovenantList = ctx.activeCovenants.length > 0
     ? ctx.activeCovenants.map(c => `- ${c.name}: ${c.clauses.map(cl => cl.type).join(', ')}`).join('\n')
-    : 'なし';
+    : 'None';
 
   const neighborList = ctx.neighborVillages.length > 0
     ? ctx.neighborVillages.map(n => `- ${n.name} (${n.diplomaticStatus})`).join('\n')
-    : 'なし';
+    : 'None';
 
-  const user = `=== ${villageName}の立法会議 (tick ${tick}) ===
+  const user = `=== ${villageName} Legislative Session (tick ${tick}) ===
 
-【村の状態】
-人口: ${villageState.population} / 食料: ${villageState.resources.food} / 金: ${villageState.resources.gold}
-文化: ${villageState.totalCulturePoints} / 軍事: ${villageState.garrison.reduce((s, u) => s + u.count, 0)}名
+[Village State]
+Population: ${villageState.population} / Food: ${villageState.resources.food} / Gold: ${villageState.resources.gold}
+Culture: ${villageState.totalCulturePoints} / Military: ${villageState.garrison.reduce((s, u) => s + u.count, 0)} troops
 
-【現行の法律・条約】
+[Current Laws & Treaties]
 ${activeCovenantList}
 
-【周辺の村】
+[Neighboring Villages]
 ${neighborList}
 
-村の発展のために新しい法律・条約・経済政策を提案しますか？`;
+Would you like to propose a new law, treaty, or economic policy for the village's development?`;
 
   return { system, user };
 }
 
-// === Layer 2: Invention (発明) プロンプト ===
+// === Layer 2: Invention Prompt ===
 
 export interface InventionPromptContext {
   leader: AgentState;
@@ -533,7 +531,6 @@ export interface InventionDecision {
   invent: {
     type: 'building' | 'tech' | 'unit';
     name: string;
-    nameJa: string;
     description: string;
     definition: Record<string, unknown>;
   } | null;
@@ -543,61 +540,60 @@ export function buildInventionPrompt(ctx: InventionPromptContext): { system: str
   const { leader, villageName, villageState, tick } = ctx;
   const { identity } = leader;
 
-  // Effect バウンドの説明を生成
+  // Generate effect bounds description
   const boundsDesc = Object.entries(EFFECT_BOUNDS)
     .filter(([type]) => !type.startsWith('unlock_'))
     .map(([type, bounds]) => `  ${type}: [${bounds.min}, ${bounds.max}]`)
     .join('\n');
 
-  const system = `あなたは${villageName}の村長「${identity.name}」であり、偉大な発明家でもあります。
-あなたは村の課題を解決するために、新しい建物・技術・ユニットを発明できます。
-性格: ${describePersonality(identity.personality)}
+  const system = `You are "${identity.name}", the village leader of ${villageName} and a great inventor.
+You can invent new buildings, technologies, and units to solve the village's challenges.
+Personality: ${describePersonality(identity.personality)}
 
-【物理法則の制約（絶対遵守）】
-- Effect値の範囲:
+[Physics Constraints (must obey)]
+- Effect value ranges:
 ${boundsDesc}
-- 建物: 最低コスト1, 最低建設時間1tick, 最大Effect数${INVENTION_LIMITS.maxEffectsPerInvention}
-- 技術: 最低研究コスト5
-- ユニット: 最低維持費 food:0.5/tick
+- Buildings: min cost 1, min build time 1 tick, max ${INVENTION_LIMITS.maxEffectsPerInvention} effects
+- Techs: min research cost 5
+- Units: min upkeep food:0.5/tick
 
-返答は必ず以下のJSON形式のみで返してください。
+Reply with ONLY the following JSON format.
 {
-  "innerThought": "なぜこの発明が必要か（1-2文）",
+  "innerThought": "Why this invention is needed (1-2 sentences)",
   "invent": {
     "type": "building | tech | unit",
-    "name": "英語ID（snake_case）",
-    "nameJa": "日本語名",
-    "description": "説明",
+    "name": "English ID (snake_case)",
+    "description": "description",
     "definition": {
-      // buildingの場合: { cost: { food: N, wood: N, ... }, buildTicks: N, maxPerVillage: N, effects: [...], requires: {} }
-      // techの場合: { branch: "agriculture|military|culture", tier: N, researchCost: N, effects: [...], requires: {} }
-      // unitの場合: { attack: N, defense: N, hp: N, speed: N, range: N, trainCost: {...}, trainTicks: N, upkeepPerTick: { food: 0.5, ... }, requires: {}, tags: [...] }
+      // For building: { cost: { food: N, wood: N, ... }, buildTicks: N, maxPerVillage: N, effects: [...], requires: {} }
+      // For tech: { branch: "agriculture|military|culture", tier: N, researchCost: N, effects: [...], requires: {} }
+      // For unit: { attack: N, defense: N, hp: N, speed: N, range: N, trainCost: {...}, trainTicks: N, upkeepPerTick: { food: 0.5, ... }, requires: {}, tags: [...] }
     }
   }
 }
-発明しない場合は "invent": null としてください。`;
+If you have no invention, set "invent": null.`;
 
   const existingInvList = ctx.existingInventions.length > 0
     ? ctx.existingInventions.map(i => `- ${i.name} (${i.type}): ${i.description}`).join('\n')
-    : 'なし';
+    : 'None';
 
-  const user = `=== ${villageName}の研究所 (tick ${tick}) ===
+  const user = `=== ${villageName} Laboratory (tick ${tick}) ===
 
-【村の課題】
-人口: ${villageState.population} / 住居上限: ${villageState.housingCapacity}
-食料: ${villageState.resources.food} / 木材: ${villageState.resources.wood} / 石材: ${villageState.resources.stone} / 鉄: ${villageState.resources.iron} / 金: ${villageState.resources.gold}
-研究ポイント: ${Math.floor(villageState.researchPoints)}
-研究済み技術: ${villageState.researchedTechs.size > 0 ? [...villageState.researchedTechs].join(', ') : 'なし'}
+[Village Challenges]
+Population: ${villageState.population} / Housing cap: ${villageState.housingCapacity}
+Food: ${villageState.resources.food} / Wood: ${villageState.resources.wood} / Stone: ${villageState.resources.stone} / Iron: ${villageState.resources.iron} / Gold: ${villageState.resources.gold}
+Research points: ${Math.floor(villageState.researchPoints)}
+Researched techs: ${villageState.researchedTechs.size > 0 ? [...villageState.researchedTechs].join(', ') : 'None'}
 
-【既存の発明】
+[Existing Inventions]
 ${existingInvList}
 
-村の課題を解決する画期的な発明を考えてください。`;
+Think of a groundbreaking invention to solve the village's challenges.`;
 
   return { system, user };
 }
 
-// === Layer 3: Institution (制度) プロンプト ===
+// === Layer 3: Institution Prompt ===
 
 export interface InstitutionPromptContext {
   leader: AgentState;
@@ -631,57 +627,57 @@ export function buildInstitutionPrompt(ctx: InstitutionPromptContext): { system:
     .map(([type, bounds]) => `  ${type}: [${bounds.min}, ${bounds.max}]`)
     .join('\n');
 
-  const system = `あなたは${villageName}の村長「${identity.name}」です。
-あなたは村を超えた組織（交易ギルド、宗教団体、軍事同盟、学術院など）を創設できます。
-性格: ${describePersonality(identity.personality)}
-信条: ${describePhilosophy(identity.philosophy)}
+  const system = `You are "${identity.name}", the village leader of ${villageName}.
+You can found cross-village organizations (trade guilds, religious orders, military alliances, academies, etc.).
+Personality: ${describePersonality(identity.personality)}
+Beliefs: ${describePhilosophy(identity.philosophy)}
 
-【制度のEffect制約】
-- 最大${INSTITUTION_LIMITS.maxMemberEffects}個のEffect
-- Effect値の範囲:
+[Institution Effect Constraints]
+- Max ${INSTITUTION_LIMITS.maxMemberEffects} effects
+- Effect value ranges:
 ${boundsDesc}
 
-返答は必ず以下のJSON形式のみで返してください。
+Reply with ONLY the following JSON format.
 {
-  "innerThought": "なぜこの組織が必要か（1-2文）",
+  "innerThought": "Why this organization is needed (1-2 sentences)",
   "found": {
-    "name": "組織名",
+    "name": "Organization name",
     "type": "guild | religion | alliance | academy | custom",
-    "description": "組織の説明",
-    "charter": "組織の憲章（エージェントが書く）",
+    "description": "Organization description",
+    "charter": "Organization charter (written by the agent)",
     "memberEffects": [
-      { "type": "effect_type", "target": { "scope": "village", "resource": "optional" }, "value": 数値 }
+      { "type": "effect_type", "target": { "scope": "village", "resource": "optional" }, "value": number }
     ],
     "joinRequirements": [
       { "type": "min_population | has_tech | has_building | min_culture", "params": { ... } }
     ]
   },
-  "joinInstitutionId": "加入したい既存組織のID（なければnull）"
+  "joinInstitutionId": "ID of existing organization to join (null if none)"
 }
-創設も加入もしない場合は "found": null, "joinInstitutionId": null としてください。`;
+If neither founding nor joining, set "found": null, "joinInstitutionId": null.`;
 
   const existingInstList = ctx.existingInstitutions.length > 0
     ? ctx.existingInstitutions.map(i =>
-        `- ${i.name} (${i.type}): メンバー${i.memberVillageIds.length}村 / ${i.description}`
+        `- ${i.name} (${i.type}): ${i.memberVillageIds.length} members / ${i.description}`
       ).join('\n')
-    : 'なし';
+    : 'None';
 
   const neighborList = ctx.neighborVillages.length > 0
     ? ctx.neighborVillages.map(n => `- ${n.name} (${n.diplomaticStatus})`).join('\n')
-    : 'なし';
+    : 'None';
 
-  const user = `=== ${villageName}の外交会議 (tick ${tick}) ===
+  const user = `=== ${villageName} Diplomatic Council (tick ${tick}) ===
 
-【村の状態】
-人口: ${villageState.population} / 文化: ${villageState.totalCulturePoints} / 金: ${villageState.resources.gold}
+[Village State]
+Population: ${villageState.population} / Culture: ${villageState.totalCulturePoints} / Gold: ${villageState.resources.gold}
 
-【周辺の村】
+[Neighboring Villages]
 ${neighborList}
 
-【既存の組織】
+[Existing Organizations]
 ${existingInstList}
 
-新しい組織を創設するか、既存の組織に加入しますか？`;
+Would you like to found a new organization or join an existing one?`;
 
   return { system, user };
 }

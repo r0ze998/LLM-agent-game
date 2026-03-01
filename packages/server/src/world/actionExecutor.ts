@@ -79,11 +79,11 @@ export function executeAction(world: WorldState, agent: AgentState, action: Agen
         if (targetPos) {
           const nextPos = getNextStep(world.map.tiles, agent.position, targetPos);
           agent.position = nextPos;
-          agent.currentAction = `${resource}を求めて移動中`;
+          agent.currentAction = `Moving toward ${resource}`;
           return { changedChunk: chunkKey(agent.position) };
         }
         // Nothing nearby — fall back to random exploration
-        agent.currentAction = `${resource}が見つからず探索中`;
+        agent.currentAction = `Searching, ${resource} not found`;
         return executeAction(world, agent, { type: 'explore' });
       }
 
@@ -92,20 +92,20 @@ export function executeAction(world: WorldState, agent: AgentState, action: Agen
       if (amount > 0) {
         addToInventory(agent, resource, amount);
         contributeToVillage(world, agent, resource, amount);
-        agent.currentAction = `${resource}を${amount}個採集`;
+        agent.currentAction = `Gathered ${amount} ${resource}`;
       }
       return { changedChunk: chunkKey(agent.position) };
     }
 
     case 'eat': {
       eatFood(agent);
-      agent.currentAction = '食事中';
+      agent.currentAction = 'Eating';
       return {};
     }
 
     case 'sleep': {
       agent.needs.energy = Math.min(100, agent.needs.energy + SLEEP_RESTORE);
-      agent.currentAction = '睡眠中';
+      agent.currentAction = 'Sleeping';
       return {};
     }
 
@@ -115,7 +115,7 @@ export function executeAction(world: WorldState, agent: AgentState, action: Agen
       if (amount > 0) {
         addToInventory(agent, 'food', amount);
         contributeToVillage(world, agent, 'food', amount);
-        agent.currentAction = `農作業中（食料+${amount}）`;
+        agent.currentAction = `Farming (food+${amount})`;
       }
       return { changedChunk: chunkKey(agent.position) };
     }
@@ -133,12 +133,12 @@ export function executeAction(world: WorldState, agent: AgentState, action: Agen
         const structure = createStructure(type, agent.position, agent.villageId ?? '', agent.identity.id, world.tick);
         world.structures.set(structure.id, structure);
         world.map.tiles[agent.position.y][agent.position.x].structureId = structure.id;
-        agent.currentAction = `${type}を建設中`;
+        agent.currentAction = `Building ${type}`;
 
         return {
           event: createEvent(world.gameId, 'construction', world.tick,
             [agent.identity.id],
-            `${agent.identity.name}が${type}を建設した（座標 ${agent.position.x},${agent.position.y}）`,
+            `${agent.identity.name} built a ${type} (at ${agent.position.x},${agent.position.y})`,
             { structureId: structure.id, type, position: { x: agent.position.x, y: agent.position.y } },
           ),
           changedChunk: chunkKey(agent.position),
@@ -148,7 +148,7 @@ export function executeAction(world: WorldState, agent: AgentState, action: Agen
       const costs = getBuildCost(type);
       for (const [resource, needed] of Object.entries(costs)) {
         if ((agent.inventory[resource as ResourceType] ?? 0) < (needed ?? 0)) {
-          agent.currentAction = `${type}建設のため${resource}を収集中`;
+          agent.currentAction = `Gathering ${resource} for ${type} construction`;
           return executeAction(world, agent, { type: 'gather', resource });
         }
       }
@@ -166,13 +166,13 @@ export function executeAction(world: WorldState, agent: AgentState, action: Agen
             // Walk toward the target
             const nextPos = getNextStep(world.map.tiles, agent.position, target.position);
             agent.position = nextPos;
-            agent.currentAction = `${target.identity.name}の元へ向かっている`;
+            agent.currentAction = `Heading toward ${target.identity.name}`;
             return { changedChunk: chunkKey(agent.position) };
           }
         }
       }
       agent.needs.social = Math.min(100, agent.needs.social + SOCIAL_RESTORE);
-      agent.currentAction = '交流中';
+      agent.currentAction = 'Socializing';
       return {};
     }
 
@@ -183,15 +183,15 @@ export function executeAction(world: WorldState, agent: AgentState, action: Agen
       if (hasWood && hasStone) {
         agent.inventory.wood = (agent.inventory.wood ?? 0) - 2;
         agent.inventory.stone = (agent.inventory.stone ?? 0) - 1;
-        agent.currentAction = '道具を製作中';
+        agent.currentAction = 'Crafting tools';
         return {
           event: createEvent(world.gameId, 'discovery', world.tick,
             [agent.identity.id],
-            `${agent.identity.name}が道具を製作した`,
+            `${agent.identity.name} crafted tools`,
             { item: action.item }),
         };
       }
-      agent.currentAction = '素材不足で製作断念';
+      agent.currentAction = 'Abandoned crafting due to lack of materials';
       return {};
     }
 
@@ -203,11 +203,11 @@ export function executeAction(world: WorldState, agent: AgentState, action: Agen
         if (dist <= 2) {
           educateChild(student, agent);
           agent.needs.social = Math.min(100, agent.needs.social + SOCIAL_RESTORE * 0.5);
-          agent.currentAction = `${student.identity.name}に教えている`;
+          agent.currentAction = `Teaching ${student.identity.name}`;
           return {};
         }
       }
-      agent.currentAction = '教える相手が近くにいない';
+      agent.currentAction = 'No one nearby to teach';
       return {};
     }
 
@@ -222,17 +222,17 @@ export function executeAction(world: WorldState, agent: AgentState, action: Agen
             agent.inventory.herbs = (agent.inventory.herbs ?? 0) - 1;
             target.needs.hunger = Math.min(100, target.needs.hunger + 20);
             target.needs.energy = Math.min(100, target.needs.energy + 15);
-            agent.currentAction = `${target.identity.name}を治療中`;
+            agent.currentAction = `Treating ${target.identity.name}`;
             return {
               event: createEvent(world.gameId, 'discovery', world.tick,
                 [agent.identity.id, target.identity.id],
-                `${agent.identity.name}が${target.identity.name}を治療した`,
+                `${agent.identity.name} healed ${target.identity.name}`,
               ),
             };
           }
         }
       }
-      agent.currentAction = '治療できず';
+      agent.currentAction = 'Unable to treat';
       return {};
     }
 
@@ -240,7 +240,7 @@ export function executeAction(world: WorldState, agent: AgentState, action: Agen
       // F7: Multi-tick pathfinding toward target village
       const targetVillage = world.villages.get(action.targetVillageId);
       if (!targetVillage || targetVillage.territory.length === 0) {
-        agent.currentAction = '移住先が見つからず';
+        agent.currentAction = 'Migration destination not found';
         return {};
       }
       const targetPos = targetVillage.territory[0];
@@ -256,16 +256,16 @@ export function executeAction(world: WorldState, agent: AgentState, action: Agen
         if (!targetVillage.population.includes(agent.identity.id)) {
           targetVillage.population.push(agent.identity.id);
         }
-        agent.currentAction = `${targetVillage.name}に移住完了`;
+        agent.currentAction = `Migration to ${targetVillage.name} complete`;
 
         // Write migration memory
         const memMgr = new MemoryManager(agent.identity.id, world.gameId);
-        memMgr.addMemory(`${targetVillage.name}に移住した`, 0.8, world.tick, 'episodic', ['migration']);
+        memMgr.addMemory(`Migrated to ${targetVillage.name}`, 0.8, world.tick, 'episodic', ['migration']);
 
         return {
           event: createEvent(world.gameId, 'discovery', world.tick,
             [agent.identity.id],
-            `${agent.identity.name}が${targetVillage.name}に移住した`,
+            `${agent.identity.name} migrated to ${targetVillage.name}`,
             { type: 'migration', targetVillageId: targetVillage.id }),
         };
       }
@@ -273,7 +273,7 @@ export function executeAction(world: WorldState, agent: AgentState, action: Agen
       // Walk toward target
       const nextPos = getNextStep(world.map.tiles, agent.position, targetPos);
       agent.position = nextPos;
-      agent.currentAction = `${targetVillage.name}へ移住中`;
+      agent.currentAction = `Migrating to ${targetVillage.name}`;
       return { changedChunk: chunkKey(agent.position) };
     }
 
@@ -287,14 +287,14 @@ export function executeAction(world: WorldState, agent: AgentState, action: Agen
       if ((TERRAIN_MOVEMENT_COST[tile.terrain] ?? Infinity) < Infinity) {
         agent.position = { x: newX, y: newY };
       }
-      agent.currentAction = '探索中';
+      agent.currentAction = 'Exploring';
       return { changedChunk: chunkKey(agent.position) };
     }
 
     case 'rest':
     default: {
       agent.needs.energy = Math.min(100, agent.needs.energy + 5);
-      agent.currentAction = '休憩中';
+      agent.currentAction = 'Resting';
       return {};
     }
   }

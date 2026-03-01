@@ -9,7 +9,7 @@ export function tickToDate(tick: number): string {
   const dayInYear = Math.floor((tick % TICKS_PER_YEAR) / TICKS_PER_DAY) + 1;
   const month = Math.floor(dayInYear / 30) + 1;
   const day = (dayInYear % 30) + 1;
-  return `${year}年${month}月${day}日`;
+  return `Y${year} M${month} D${day}`;
 }
 
 // --- Group events into eras ---
@@ -41,7 +41,7 @@ export function groupEventsIntoEras(events: GameEvent[], eraDuration: number = 5
       .slice(0, 10);
 
     eras.push({
-      name: `第${eras.length + 1}紀 (${tickToDate(start)} - ${tickToDate(end)})`,
+      name: `Era ${eras.length + 1} (${tickToDate(start)} - ${tickToDate(end)})`,
       startTick: start,
       endTick: end,
       keyEvents: keyEvents.length > 0 ? keyEvents : eraEvents.slice(0, 5),
@@ -60,7 +60,7 @@ export async function generateChronicle(
   totalTick: number,
 ): Promise<string> {
   const eras = groupEventsIntoEras(events);
-  if (eras.length === 0) return 'まだ歴史は刻まれていない。';
+  if (eras.length === 0) return 'No history has been written yet.';
 
   // Build event summary for each era
   const eraSummaries = eras.map(era => {
@@ -68,19 +68,19 @@ export async function generateChronicle(
     return `=== ${era.name} ===\n${eventLines}`;
   }).join('\n\n');
 
-  const villageNames = villages.map(v => v.name).join('、');
+  const villageNames = villages.map(v => v.name).join(', ');
 
   try {
     const raw = await callLLM({
-      system: `あなたはJRPG世界の年代記記述者です。出来事の羅列を、物語風の年代記にまとめてください。各時代ごとに2-3文で要約し、全体を通じた流れ（興亡、対立、文化の発展など）を描写してください。`,
-      userMessage: `=== 世界の年代記 ===
-現在: ${tickToDate(totalTick)}
-存在する村: ${villageNames || 'なし'}
+      system: `You are a chronicler in a JRPG world. Summarize the listed events into a narrative chronicle. Write 2-3 sentences per era and depict the overarching flow (rise and fall, conflicts, cultural development, etc.).`,
+      userMessage: `=== World Chronicle ===
+Current date: ${tickToDate(totalTick)}
+Existing villages: ${villageNames || 'None'}
 
-【出来事】
+[Events]
 ${eraSummaries}
 
-これらの出来事を年代記の形式でまとめてください。`,
+Please compile these events into a chronicle format.`,
       importance: 'important',
       maxTokens: 1024,
     });
@@ -89,7 +89,7 @@ ${eraSummaries}
     // Fallback: just list events
     return eras.map(era => {
       const lines = era.keyEvents.map(e => `${tickToDate(e.tick)}: ${e.description}`).join('\n');
-      return `【${era.name}】\n${lines}`;
+      return `[${era.name}]\n${lines}`;
     }).join('\n\n');
   }
 }
@@ -105,7 +105,7 @@ export async function generateBiography(
     .sort((a, b) => a.tick - b.tick);
 
   if (agentEvents.length === 0) {
-    return `${agent.identity.name}の人生はまだ始まったばかりだ。`;
+    return `${agent.identity.name}'s story has only just begun.`;
   }
 
   const eventLines = agentEvents
@@ -115,20 +115,20 @@ export async function generateBiography(
 
   try {
     const raw = await callLLM({
-      system: `あなたはJRPG世界の伝記作家です。キャラクターの人生の出来事から、短い伝記（3-5文）を書いてください。`,
-      userMessage: `【${agent.identity.name}の人生】
-世代: 第${agent.identity.generation}世代
-性格: 好奇心${agent.identity.personality.openness}、協調性${agent.identity.personality.agreeableness}
-信条: ${agent.identity.philosophy.values.join('、')}
-状態: ${agent.identity.status}（年齢${agent.identity.age}）
+      system: `You are a biographer in a JRPG world. Write a short biography (3-5 sentences) based on the character's life events.`,
+      userMessage: `[The Life of ${agent.identity.name}]
+Generation: ${agent.identity.generation}
+Personality: Openness ${agent.identity.personality.openness}, Agreeableness ${agent.identity.personality.agreeableness}
+Values: ${agent.identity.philosophy.values.join(', ')}
+Status: ${agent.identity.status} (Age ${agent.identity.age})
 
-出来事:
+Events:
 ${eventLines}`,
       importance: 'routine',
       maxTokens: 300,
     });
     return raw.trim();
   } catch {
-    return `${agent.identity.name}は第${agent.identity.generation}世代の${agent.identity.status === 'dead' ? '故人' : '住民'}である。`;
+    return `${agent.identity.name} is a generation ${agent.identity.generation} ${agent.identity.status === 'dead' ? 'deceased' : 'resident'}.`;
   }
 }

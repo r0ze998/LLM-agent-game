@@ -117,17 +117,17 @@ function px(ctx: CanvasRenderingContext2D, x: number, y: number, color: string) 
 }
 
 /**
- * FRLG 風フィールドスプライト — fillRect ベースのソリッドブロック描画
+ * FRLG-style field sprite — fillRect-based solid block rendering
  *
- * 大きな塗り潰し矩形を重ねて描くことで、ズームアウトでも視認性の高い
- * チャンキーなちびキャラを実現。px() は目のみ。
+ * Draws chunky chibi characters by layering large filled rectangles,
+ * ensuring visibility even when zoomed out. px() is used for eyes only.
  *
- * Layout (16×16, 二頭身):
- *  y0-4  : 髪（8px幅ソリッドブロック + ハイライト）
- *  y4-7  : 顔（6px幅、肌色ブロック + 目2dot）
- *  y8-10 : 服（6px幅、パーソナリティカラー）
- *  y11-12: 脚（パンツ）
- *  y13   : 靴
+ * Layout (16x16, two-head proportions):
+ *  y0-4  : Hair (8px wide solid block + highlight)
+ *  y4-7  : Face (6px wide, skin-color block + 2-dot eyes)
+ *  y8-10 : Shirt (6px wide, personality color)
+ *  y11-12: Legs (pants)
+ *  y13   : Shoes
  */
 function generateSpriteFrames(color: number): HTMLCanvasElement[] {
   const skin   = '#F8C8A0';

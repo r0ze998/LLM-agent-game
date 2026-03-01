@@ -1,11 +1,11 @@
 /**
- * dojoStateReader.ts — オンチェーン状態リーダー (フロントエンド版)
+ * dojoStateReader.ts — On-chain state reader (frontend version)
  *
- * サーバーの dojoStateReader.ts からポート。
- * RpcProvider.callContract() で Dojo World からモデルデータを読み取る。
+ * Ported from the server's dojoStateReader.ts.
+ * Reads model data from Dojo World via RpcProvider.callContract().
  *
- * Dojo v1.5 では entity() に Layout パラメータが必要。
- * Layout はモデルコントラクトの layout() 関数を呼んで動的に取得する。
+ * Dojo v1.5 requires a Layout parameter for entity().
+ * The Layout is dynamically fetched by calling layout() on the model contract.
  */
 
 import { RpcProvider } from 'starknet';

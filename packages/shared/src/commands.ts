@@ -1,10 +1,10 @@
-// === プレイヤーコマンド型定義 ===
+// === Player Command Type Definitions ===
 
 import type { Position } from './types.ts';
 import type { ResourceType4X, CovenantClause, JoinRequirement } from './types4x.ts';
 import type { Effect } from './rules/types.ts';
 
-// --- コマンド union 型 ---
+// --- Command Union Type ---
 
 export type PlayerCommand =
   | ClaimVillageCommand
@@ -24,28 +24,28 @@ export type PlayerCommand =
   | JoinInstitutionCommand
   | LeaveInstitutionCommand;
 
-// 村をクレーム（プレイヤーが村のリーダーになる）
+// Claim a village (player becomes the village leader)
 export interface ClaimVillageCommand {
   type: 'claim_village';
-  position: Position;         // クレーム位置（近くの村 or 新規建設）
+  position: Position;         // Claim position (nearby village or new settlement)
 }
 
-// 建設コマンド
+// Build command
 export interface BuildCommand {
   type: 'build';
   villageId: string;
   buildingDefId: string;      // BuildingDef.id
-  position: Position;         // 建設位置
+  position: Position;         // Build location
 }
 
-// 研究コマンド
+// Research command
 export interface ResearchCommand {
   type: 'research';
   villageId: string;
   techDefId: string;          // TechDef.id
 }
 
-// 訓練コマンド
+// Train command
 export interface TrainCommand {
   type: 'train';
   villageId: string;
@@ -53,15 +53,15 @@ export interface TrainCommand {
   count: number;
 }
 
-// 攻撃コマンド
+// Attack command
 export interface AttackCommand {
   type: 'attack';
-  villageId: string;          // 出撃元
-  armyId: string;             // 軍隊ID
-  targetVillageId: string;    // 攻撃先
+  villageId: string;          // Origin village
+  armyId: string;             // Army ID
+  targetVillageId: string;    // Target village
 }
 
-// 軍隊移動
+// Move army
 export interface MoveArmyCommand {
   type: 'move_army';
   villageId: string;
@@ -69,7 +69,7 @@ export interface MoveArmyCommand {
   targetPosition: Position;
 }
 
-// 外交コマンド
+// Diplomacy command
 export interface DiplomacyCommand {
   type: 'diplomacy';
   villageId: string;
@@ -77,7 +77,7 @@ export interface DiplomacyCommand {
   action: 'propose_alliance' | 'declare_war' | 'propose_peace' | 'break_alliance';
 }
 
-// 交易コマンド
+// Trade command
 export interface TradeCommand {
   type: 'trade';
   villageId: string;
@@ -86,20 +86,20 @@ export interface TradeCommand {
   request: Partial<Record<ResourceType4X, number>>;
 }
 
-// 建物取り壊し
+// Demolish building
 export interface DemolishCommand {
   type: 'demolish';
   villageId: string;
   buildingId: string;
 }
 
-// 防衛集結
+// Rally defense
 export interface RallyDefenseCommand {
   type: 'rally_defense';
   villageId: string;
 }
 
-// --- Layer 1: 契約コマンド ---
+// --- Layer 1: Covenant Commands ---
 
 export interface ProposeCovenantCommand {
   type: 'propose_covenant';
@@ -124,7 +124,7 @@ export interface RepealCovenantCommand {
   covenantId: string;
 }
 
-// --- Layer 3: 制度コマンド ---
+// --- Layer 3: Institution Commands ---
 
 export interface FoundInstitutionCommand {
   type: 'found_institution';
@@ -149,7 +149,7 @@ export interface LeaveInstitutionCommand {
   institutionId: string;
 }
 
-// --- コマンド結果 ---
+// --- Command Result ---
 
 export interface CommandResult {
   success: boolean;

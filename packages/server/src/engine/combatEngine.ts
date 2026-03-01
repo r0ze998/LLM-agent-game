@@ -1,4 +1,4 @@
-// === Combat Engine — 戦闘解決の物理法則 ===
+// === Combat Engine — Physics rules for combat resolution ===
 
 import { UNIT_DEFS, TERRAIN_RULES } from '@murasato/shared';
 import type { ArmyUnit, CombatResult, VillageState4X, Resources4X } from '@murasato/shared';
@@ -12,7 +12,7 @@ import {
 import type { TerrainType4X } from '@murasato/shared';
 import { aggregateEffects } from './ruleEngine.ts';
 
-// --- 攻撃力計算 ---
+// --- Attack power calculation ---
 
 function computeAttackPower(
   units: ArmyUnit[],
@@ -38,7 +38,7 @@ function computeAttackPower(
   return total;
 }
 
-// --- 防御力計算 ---
+// --- Defense power calculation ---
 
 function computeDefensePower(
   units: ArmyUnit[],
@@ -66,7 +66,7 @@ function computeDefensePower(
   return total;
 }
 
-// --- 損害適用 ---
+// --- Apply losses ---
 
 function applyLosses(units: ArmyUnit[], lossRate: number): ArmyUnit[] {
   const losses: ArmyUnit[] = [];
@@ -88,7 +88,7 @@ function addVeterancy(units: ArmyUnit[]): void {
   }
 }
 
-// --- 戦闘解決 ---
+// --- Combat resolution ---
 
 export function resolveCombat(
   attackerVillage: VillageState4X,
@@ -102,7 +102,7 @@ export function resolveCombat(
     defendingUnits,
     defenderVillage,
     terrain,
-    true, // 防御側は城壁含む
+    true, // defender includes fortifications
   );
 
   const ratio = attackPower / Math.max(1, defensePower);
@@ -114,24 +114,24 @@ export function resolveCombat(
   const attackerWon = effectiveRatio > 1.0;
 
   if (attackerWon) {
-    // 攻撃側勝利
+    // Attacker victory
     const defLossRate = Math.min(1, (effectiveRatio - 1) * DEFENDER_LOSS_RATE);
-    const atkLossRate = Math.min(0.5, (1 / effectiveRatio) * 0.2); // 勝者にも軽い損害
+    const atkLossRate = Math.min(0.5, (1 / effectiveRatio) * 0.2); // minor losses for victor
     defenderLosses = applyLosses(defendingUnits, defLossRate);
     attackerLosses = applyLosses(attackingUnits, atkLossRate);
   } else {
-    // 防御側勝利
+    // Defender victory
     const atkLossRate = Math.min(1, (1 - effectiveRatio + 1) * ATTACKER_LOSS_RATE);
-    const defLossRate = Math.min(0.3, effectiveRatio * 0.15); // 勝者にも軽い損害
+    const defLossRate = Math.min(0.3, effectiveRatio * 0.15); // minor losses for victor
     attackerLosses = applyLosses(attackingUnits, atkLossRate);
     defenderLosses = applyLosses(defendingUnits, defLossRate);
   }
 
-  // 経験値付与
+  // Award veterancy
   addVeterancy(attackingUnits);
   addVeterancy(defendingUnits);
 
-  // 0のユニットを除去
+  // Remove units with 0 count
   const cleanUnits = (units: ArmyUnit[]) => units.filter(u => u.count > 0);
   attackingUnits.splice(0, attackingUnits.length, ...cleanUnits(attackingUnits));
   defendingUnits.splice(0, defendingUnits.length, ...cleanUnits(defendingUnits));
@@ -145,35 +145,35 @@ export function resolveCombat(
     attackPower,
     defensePower,
     effectiveRatio,
-    position: { x: 0, y: 0 }, // 呼び出し側で設定
+    position: { x: 0, y: 0 }, // set by caller
   };
 }
 
-/** 村を征服: 人口半減、建物ダメージ、所有者変更 */
+/** Conquer village: halve population, damage buildings, transfer ownership */
 export function conquerVillage(
   winner: VillageState4X,
   loser: VillageState4X,
 ): void {
-  // 人口半減
+  // Halve population
   loser.population = Math.max(1, Math.floor(loser.population / 2));
 
-  // 建物にダメージ
+  // Damage buildings
   for (const building of loser.buildings) {
     building.health = Math.max(0, building.health - 30);
   }
   loser.buildings = loser.buildings.filter(b => b.health > 0);
 
-  // 資源の一部を略奪
+  // Loot a portion of resources
   for (const res of ['food', 'wood', 'stone', 'iron', 'gold'] as const) {
     const loot = Math.floor(loser.resources[res] * 0.5);
     loser.resources[res] -= loot;
     winner.resources[res] += loot;
   }
 
-  // 所有者変更
+  // Transfer ownership
   loser.ownerId = winner.ownerId;
 
-  // 駐留部隊を除去
+  // Remove garrison
   loser.garrison = [];
   loser.armies = [];
 }

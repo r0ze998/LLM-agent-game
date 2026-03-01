@@ -1,8 +1,8 @@
 /**
- * WalletConnect.tsx — Katana devnet 接続ボタン
+ * WalletConnect.tsx — Katana devnet connection button
  *
- * connectKatana() で RpcProvider + Account を作成。
- * 接続時はアドレス短縮表示 + 緑インジケーター。
+ * connectKatana() creates an RpcProvider + Account.
+ * When connected, shows a shortened address + green indicator.
  */
 
 import { useWalletStore } from '../../store/walletStore.ts';
@@ -48,7 +48,7 @@ export function WalletConnect() {
             fontFamily: 'inherit',
           }}
         >
-          切断
+          Disconnect
         </button>
       </div>
     );
@@ -69,7 +69,7 @@ export function WalletConnect() {
         fontWeight: 'bold',
       }}
     >
-      Katana接続
+      Connect Katana
     </button>
   );
 }

@@ -1,11 +1,11 @@
-// === Layer 0: 物理法則 — 不変のルール。エージェントも開発者も変更不可 ===
+// === Layer 0: Physics Laws -- Immutable rules. Neither agents nor developers may change these ===
 
 import type { Effect, EffectType, BuildingDef, TechDef, UnitDef } from './types.ts';
 import type { ResourceType4X } from '../types4x.ts';
 import { RESOURCE_TYPES_4X } from '../types4x.ts';
 
-// --- Effect上下限 (法則4) ---
-// 全Effectの value に絶対的な上下限を設定。どのレイヤーからの Effect も clamp される。
+// --- Effect Bounds (Law 4) ---
+// Sets absolute min/max bounds on all Effect values. Effects from any layer are clamped.
 
 export const EFFECT_BOUNDS: Record<EffectType, { min: number; max: number }> = {
   resource_production:  { min: -10, max: 20 },
@@ -28,48 +28,48 @@ export const EFFECT_BOUNDS: Record<EffectType, { min: number; max: number }> = {
   unlock_building:      { min: 0, max: 1 },
 };
 
-// --- 建設・研究・維持コストの最小値 (法則5,6,7) ---
+// --- Minimum Costs for Building, Research, and Upkeep (Laws 5, 6, 7) ---
 
-export const MIN_BUILDING_COST = 1;          // 法則5: どんな建物も最低コスト1
-export const MIN_RESEARCH_COST = 5;          // 法則6: どんな技術も最低コスト5
-export const MIN_UNIT_UPKEEP_FOOD = 0.5;     // 法則7: 全ユニット最低 food:0.5/tick
+export const MIN_BUILDING_COST = 1;          // Law 5: Every building costs at least 1
+export const MIN_RESEARCH_COST = 5;          // Law 6: Every technology costs at least 5
+export const MIN_UNIT_UPKEEP_FOOD = 0.5;     // Law 7: Every unit requires at least food:0.5/tick
 
-// --- 時空間則 (法則8,9,10) ---
+// --- Spacetime Laws (Laws 8, 9, 10) ---
 
-export const MAX_TERRITORY_RADIUS = 15;      // 法則8: 領土は中心から最大15タイル
-export const MIN_BUILD_TICKS = 1;            // 法則10: 全建設は最低1tick
+export const MAX_TERRITORY_RADIUS = 15;      // Law 8: Territory extends at most 15 tiles from center
+export const MIN_BUILD_TICKS = 1;            // Law 10: All construction takes at least 1 tick
 
-// --- エントロピー則 (法則11,12,13) ---
+// --- Entropy Laws (Laws 11, 12, 13) ---
 
-export const DECAY_HP_PER_TICK = 1;          // 法則11: 維持しなければ毎tick HP -1
-export const STARVATION_POP_LOSS_RATE = 0.01; // 法則12: 食料0で毎tick人口 -1%
-export const RELEVANCE_DECAY_RATE = 0.01;    // 法則13: 使われないCovenant/Inventionは relevance decay
+export const DECAY_HP_PER_TICK = 1;          // Law 11: Without maintenance, HP -1 per tick
+export const STARVATION_POP_LOSS_RATE = 0.01; // Law 12: At zero food, population -1% per tick
+export const RELEVANCE_DECAY_RATE = 0.01;    // Law 13: Unused covenants/inventions undergo relevance decay
 
-// --- 発明制限 ---
+// --- Invention Limits ---
 
 export const INVENTION_LIMITS = {
-  maxEffectsPerInvention: 8,     // 1つの発明に含められる最大Effect数
-  maxInventionsPerVillage: 20,   // 1村が持てる発明の最大数
-  spreadDelayTicks: 50,          // 知識が交易先に伝播するまでのtick数
-  requiredResearchPoints: 100,   // 発明に必要な最低研究ポイント
+  maxEffectsPerInvention: 8,     // Max effects per invention
+  maxInventionsPerVillage: 20,   // Max inventions a village can hold
+  spreadDelayTicks: 50,          // Ticks before knowledge propagates to trade partners
+  requiredResearchPoints: 100,   // Minimum research points required for invention
 };
 
-// --- Covenant制限 ---
+// --- Covenant Limits ---
 
 export const COVENANT_LIMITS = {
-  maxClausesPerCovenant: 5,      // 1つの契約に含められる最大条項数
-  maxActiveCovenantsPerVillage: 10, // 1村が同時に持てる契約の最大数
+  maxClausesPerCovenant: 5,      // Max clauses per covenant
+  maxActiveCovenantsPerVillage: 10, // Max active covenants per village
 };
 
-// --- Institution制限 ---
+// --- Institution Limits ---
 
 export const INSTITUTION_LIMITS = {
-  maxMemberEffects: 5,           // 制度の memberEffects 最大数
-  maxInstitutionsPerVillage: 5,  // 1村が所属できる制度の最大数
-  minMembersToSurvive: 1,       // 存続に必要な最低メンバー数
+  maxMemberEffects: 5,           // Max member effects per institution
+  maxInstitutionsPerVillage: 5,  // Max institutions a village can belong to
+  minMembersToSurvive: 1,       // Minimum members required to survive
 };
 
-// --- ClauseType パラメータ制約 ---
+// --- ClauseType Parameter Bounds ---
 
 export const CLAUSE_PARAM_BOUNDS: Record<string, Record<string, { min: number; max: number }>> = {
   tax_rate:           { rate: { min: 0.0, max: 0.5 } },
@@ -83,14 +83,14 @@ export const CLAUSE_PARAM_BOUNDS: Record<string, Record<string, { min: number; m
   festival:           { culture_bonus: { min: 1, max: 5 }, food_cost: { min: 1, max: 20 } },
 };
 
-// --- バリデーション関数 ---
+// --- Validation Functions ---
 
-/** 単一Effectを EFFECT_BOUNDS で clamp する */
+/** Clamp a single Effect to EFFECT_BOUNDS */
 export function clampEffect(effect: Effect): Effect {
   const bounds = EFFECT_BOUNDS[effect.type];
   if (!bounds) return effect;
 
-  // unlock 系は clamp 不要（0 or 1）
+  // Unlock types don't need clamping (0 or 1)
   if (effect.type === 'unlock_unit' || effect.type === 'unlock_building') {
     return effect;
   }
@@ -101,7 +101,7 @@ export function clampEffect(effect: Effect): Effect {
   return { ...effect, value: clampedValue };
 }
 
-/** Effectが物理法則に違反していないか検証 */
+/** Validate that an effect does not violate physics laws */
 export function validateEffect(effect: Effect): { valid: boolean; violation?: string } {
   const bounds = EFFECT_BOUNDS[effect.type];
   if (!bounds) {
@@ -122,19 +122,19 @@ export function validateEffect(effect: Effect): { valid: boolean; violation?: st
   return { valid: true };
 }
 
-/** 発明定義（BuildingDef/TechDef/UnitDef）が物理法則に違反していないか検証 */
+/** Validate that an invention definition (BuildingDef/TechDef/UnitDef) does not violate physics laws */
 export function validateInventionDef(
   def: BuildingDef | TechDef | UnitDef,
   type: 'building' | 'tech' | 'unit',
 ): { valid: boolean; violations: string[] } {
   const violations: string[] = [];
 
-  // Effect数上限チェック
+  // Check effect count limit
   if ('effects' in def && def.effects.length > INVENTION_LIMITS.maxEffectsPerInvention) {
     violations.push(`Effect count ${def.effects.length} exceeds max ${INVENTION_LIMITS.maxEffectsPerInvention}`);
   }
 
-  // 全 Effect が EFFECT_BOUNDS 内かチェック
+  // Check that all effects are within EFFECT_BOUNDS
   if ('effects' in def) {
     for (const eff of def.effects) {
       const result = validateEffect(eff);
@@ -144,20 +144,20 @@ export function validateInventionDef(
     }
   }
 
-  // 建物コスト最小値チェック (法則5)
+  // Check minimum building cost (Law 5)
   if (type === 'building') {
     const bDef = def as BuildingDef;
     const totalCost = RESOURCE_TYPES_4X.reduce((sum, r) => sum + (bDef.cost[r] || 0), 0);
     if (totalCost < MIN_BUILDING_COST) {
       violations.push(`Building total cost ${totalCost} below minimum ${MIN_BUILDING_COST}`);
     }
-    // 建設時間最小値 (法則10)
+    // Check minimum build time (Law 10)
     if (bDef.buildTicks < MIN_BUILD_TICKS) {
       violations.push(`Build ticks ${bDef.buildTicks} below minimum ${MIN_BUILD_TICKS}`);
     }
   }
 
-  // 研究コスト最小値チェック (法則6)
+  // Check minimum research cost (Law 6)
   if (type === 'tech') {
     const tDef = def as TechDef;
     if (tDef.researchCost < MIN_RESEARCH_COST) {
@@ -165,7 +165,7 @@ export function validateInventionDef(
     }
   }
 
-  // ユニット維持コスト最小値チェック (法則7)
+  // Check minimum unit upkeep cost (Law 7)
   if (type === 'unit') {
     const uDef = def as UnitDef;
     const foodUpkeep = uDef.upkeepPerTick.food || 0;

@@ -1,8 +1,8 @@
 /**
- * dojoConfig.ts — Dojo 接続設定
+ * dojoConfig.ts — Dojo connection configuration
  *
- * DOJO_ENABLED=true で有効化。
- * RPC URL、アカウント、マニフェストパスを集約する。
+ * Enabled with DOJO_ENABLED=true.
+ * Aggregates RPC URL, account, and manifest path.
  */
 
 import { resolve, dirname } from "path";
@@ -26,8 +26,8 @@ const KATANA_DEFAULT_PRIVATE_KEY =
   "0x2bbf4f9fd0bbb2e60b0316c1fe0b76cf7a4d0198571b55369d141b49d25e1e";
 
 /**
- * 環境変数からDojoConfigを構築。
- * DOJO_ENABLED が true でない場合は enabled: false を返す。
+ * Build DojoConfig from environment variables.
+ * Returns enabled: false if DOJO_ENABLED is not true.
  */
 export function loadDojoConfig(): DojoConfig {
   const enabled = process.env.DOJO_ENABLED === "true";
@@ -50,8 +50,8 @@ export function loadDojoConfig(): DojoConfig {
   const privateKey =
     process.env.DOJO_PRIVATE_KEY ?? KATANA_DEFAULT_PRIVATE_KEY;
 
-  // マニフェストパス (デフォルト: packages/contracts/manifest_dev.json)
-  // import.meta.url は日本語パスを URL エンコードするため fileURLToPath で正規化
+  // Manifest path (default: packages/contracts/manifest_dev.json)
+  // import.meta.url URL-encodes Japanese paths, so normalize with fileURLToPath
   const thisDir = dirname(fileURLToPath(import.meta.url));
   const manifestPath = resolve(
     process.env.DOJO_MANIFEST_PATH ??

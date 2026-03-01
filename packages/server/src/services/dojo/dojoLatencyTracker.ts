@@ -1,8 +1,8 @@
 /**
- * dojoLatencyTracker.ts — TX確認レイテンシ計測 (F9)
+ * dojoLatencyTracker.ts — TX confirmation latency measurement (F9)
  *
- * 循環バッファで直近100サンプルを保持し、
- * p95レイテンシに基づく推奨tick間隔を算出する。
+ * Maintains a circular buffer of the last 100 samples and
+ * calculates recommended tick interval based on p95 latency.
  */
 
 const BUFFER_SIZE = 100;

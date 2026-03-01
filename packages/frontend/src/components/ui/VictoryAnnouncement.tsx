@@ -1,4 +1,4 @@
-// F18: Victory Announcement — 勝利宣言オーバーレイ
+// F18: Victory Announcement — victory declaration overlay
 import { useGameStore } from '../../store/gameStore.ts';
 
 export function VictoryAnnouncement() {
@@ -11,11 +11,11 @@ export function VictoryAnnouncement() {
   const villageName = villages.get(victoryEvent.villageId)?.name ?? victoryEvent.villageId.slice(0, 8);
 
   const victoryTypeNames: Record<string, string> = {
-    domination: '\u5236\u8987\u52DD\u5229',
-    culture: '\u6587\u5316\u52DD\u5229',
-    diplomacy: '\u5916\u4EA4\u52DD\u5229',
-    technology: '\u6280\u8853\u52DD\u5229',
-    score: '\u30B9\u30B3\u30A2\u52DD\u5229',
+    domination: 'Domination Victory',
+    culture: 'Cultural Victory',
+    diplomacy: 'Diplomatic Victory',
+    technology: 'Technology Victory',
+    score: 'Score Victory',
   };
 
   return (
@@ -48,7 +48,7 @@ export function VictoryAnnouncement() {
         margin: '0 0 12px 0',
         letterSpacing: 8,
       }}>
-        {'\u52DD\u5229\uFF01'}
+        {'VICTORY!'}
       </h1>
 
       {/* Victory type */}
@@ -93,7 +93,7 @@ export function VictoryAnnouncement() {
           fontWeight: 'bold',
         }}
       >
-        {'\u9589\u3058\u308B'}
+        {'Close'}
       </button>
 
       <style>{`

@@ -93,7 +93,7 @@ export function buildDecisionContext(world: WorldState, agent: AgentState): Deci
     const wisdomPool = world.villageWisdom.get(agent.villageId) ?? [];
     const wisdomSample = wisdomPool.sort(() => Math.random() - 0.5).slice(0, 3);
     for (const wisdom of wisdomSample) {
-      memMgr.addMemory(`[長老の教え] ${wisdom.content}`, 0.6, world.tick, 'longterm', ['elder_wisdom']);
+      memMgr.addMemory(`[Elder wisdom] ${wisdom.content}`, 0.6, world.tick, 'longterm', ['elder_wisdom']);
     }
   }
 
@@ -170,8 +170,8 @@ export async function checkReproduction(world: WorldState): Promise<GameEvent[]>
 
       // Create child
       const namingStyle = a1.villageId
-        ? (world.villages.get(a1.villageId)?.culture.namingStyle ?? '和風')
-        : '和風';
+        ? (world.villages.get(a1.villageId)?.culture.namingStyle ?? 'traditional')
+        : 'traditional';
 
       // F10a: Village governance influence on child philosophy
       const childVillage = a1.villageId ? world.villages.get(a1.villageId) : null;
@@ -207,7 +207,7 @@ export async function checkReproduction(world: WorldState): Promise<GameEvent[]>
         const villageName = child.villageId ? world.villages.get(child.villageId)?.name : undefined;
         events.push(createEvent(world.gameId, 'birth', world.tick,
           [a1.identity.id, a2.identity.id, child.identity.id],
-          `${a1.identity.name}と${a2.identity.name}の子「${child.identity.name}」が生まれた（第${child.identity.generation}世代${villageName ? `、${villageName}` : ''}）`,
+          `"${child.identity.name}", child of ${a1.identity.name} and ${a2.identity.name}, was born (generation ${child.identity.generation}${villageName ? `, ${villageName}` : ''})`,
           { childId: child.identity.id, childName: child.identity.name, generation: child.identity.generation, villageName },
         ));
       } catch (err) {

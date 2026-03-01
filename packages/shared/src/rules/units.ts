@@ -1,4 +1,4 @@
-// === ユニット定義（10種） ===
+// === Unit Definitions (10 types) ===
 
 import type { UnitDef } from './types.ts';
 
@@ -6,7 +6,6 @@ export const UNIT_DEFS: Record<string, UnitDef> = {
   militia: {
     id: 'militia',
     name: 'Militia',
-    nameJa: '民兵',
     attack: 3,
     defense: 2,
     hp: 30,
@@ -21,7 +20,6 @@ export const UNIT_DEFS: Record<string, UnitDef> = {
   warrior: {
     id: 'warrior',
     name: 'Warrior',
-    nameJa: '戦士',
     attack: 6,
     defense: 4,
     hp: 50,
@@ -36,7 +34,6 @@ export const UNIT_DEFS: Record<string, UnitDef> = {
   archer: {
     id: 'archer',
     name: 'Archer',
-    nameJa: '弓兵',
     attack: 5,
     defense: 2,
     hp: 35,
@@ -51,7 +48,6 @@ export const UNIT_DEFS: Record<string, UnitDef> = {
   spearman: {
     id: 'spearman',
     name: 'Spearman',
-    nameJa: '槍兵',
     attack: 4,
     defense: 7,
     hp: 45,
@@ -66,7 +62,6 @@ export const UNIT_DEFS: Record<string, UnitDef> = {
   cavalry: {
     id: 'cavalry',
     name: 'Cavalry',
-    nameJa: '騎兵',
     attack: 8,
     defense: 3,
     hp: 45,
@@ -81,7 +76,6 @@ export const UNIT_DEFS: Record<string, UnitDef> = {
   siege_ram: {
     id: 'siege_ram',
     name: 'Siege Ram',
-    nameJa: '破城鎚',
     attack: 15,
     defense: 1,
     hp: 60,
@@ -96,7 +90,6 @@ export const UNIT_DEFS: Record<string, UnitDef> = {
   catapult: {
     id: 'catapult',
     name: 'Catapult',
-    nameJa: '投石機',
     attack: 12,
     defense: 1,
     hp: 40,
@@ -111,7 +104,6 @@ export const UNIT_DEFS: Record<string, UnitDef> = {
   knight: {
     id: 'knight',
     name: 'Knight',
-    nameJa: '騎士',
     attack: 12,
     defense: 8,
     hp: 70,
@@ -126,7 +118,6 @@ export const UNIT_DEFS: Record<string, UnitDef> = {
   musketeer: {
     id: 'musketeer',
     name: 'Musketeer',
-    nameJa: '銃兵',
     attack: 14,
     defense: 5,
     hp: 45,
@@ -141,7 +132,6 @@ export const UNIT_DEFS: Record<string, UnitDef> = {
   elite_guard: {
     id: 'elite_guard',
     name: 'Elite Guard',
-    nameJa: '近衛兵',
     attack: 16,
     defense: 12,
     hp: 80,

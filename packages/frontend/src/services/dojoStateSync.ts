@@ -1,5 +1,5 @@
 /**
- * dojoStateSync.ts — 定期的にオンチェーンstateを読み取りストアに反映
+ * dojoStateSync.ts — Periodically reads on-chain state and updates the store
  */
 
 import { DojoStateReader } from './dojoStateReader.ts';
@@ -19,7 +19,7 @@ export class DojoStateSync {
     this.villageMapper = villageMapper;
   }
 
-  /** 単一村をオンチェーンから読み取りストアに反映 */
+  /** Read a single village from on-chain and update the store */
   async syncVillage(villageUuid: string): Promise<void> {
     const u32Id = this.villageMapper.toU32(villageUuid);
     if (u32Id === undefined) return;
@@ -93,7 +93,7 @@ export class DojoStateSync {
     }
   }
 
-  /** 全登録村を同期 */
+  /** Sync all registered villages */
   async syncAllVillages(): Promise<void> {
     const entries = this.villageMapper.entries();
     for (const [uuid] of entries) {
@@ -101,7 +101,7 @@ export class DojoStateSync {
     }
   }
 
-  /** ポーリング開始 */
+  /** Start polling */
   startPolling(intervalMs = 3000): void {
     if (this.intervalId !== null) return;
     console.log(`${LOG_PREFIX} Polling started (${intervalMs}ms)`);
@@ -112,7 +112,7 @@ export class DojoStateSync {
     }, intervalMs);
   }
 
-  /** ポーリング停止 */
+  /** Stop polling */
   stopPolling(): void {
     if (this.intervalId !== null) {
       clearInterval(this.intervalId);

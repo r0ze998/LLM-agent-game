@@ -1,4 +1,4 @@
-// === Victory Checker — 勝利条件判定 ===
+// === Victory Checker — Victory condition evaluation ===
 
 import { VICTORY_DEFS, TECH_DEFS, getTechsByBranch, getMaxTier } from '@murasato/shared';
 import type { VictoryConditionDef, VictoryType } from '@murasato/shared';
@@ -12,17 +12,17 @@ export interface VictoryCheckContext {
   tick: number;
 }
 
-/** 全勝利条件をチェックし、達成した場合はVictoryEventを返す */
+/** Check all victory conditions and return a VictoryEvent if achieved */
 export function checkVictory(ctx: VictoryCheckContext): VictoryEvent | null {
   for (const def of VICTORY_DEFS) {
     for (const [villageId, vs] of ctx.villageStates) {
-      if (!vs.ownerId) continue; // AI村はスコア勝利のみ
+      if (!vs.ownerId) continue; // AI villages can only win by score
 
       const metric = computeMetric(def.check.metric, vs, ctx);
       const met = compareMetric(metric, def.check.threshold, def.check.comparison);
 
       if (met) {
-        // スコア勝利は時間が来るまで待つ
+        // Score victory waits until time is reached
         if (def.type === 'score' && ctx.tick < SCORE_VICTORY_TICK) continue;
 
         return {
@@ -59,7 +59,7 @@ function computeMetric(
       return village.totalCulturePoints;
 
     case 'alliance_ratio': {
-      const total = ctx.villageStates.size - 1; // 自分を除く
+      const total = ctx.villageStates.size - 1; // excluding self
       if (total <= 0) return 1;
       let alliedCount = 0;
       for (const rel of ctx.diplomacy) {
@@ -67,7 +67,7 @@ function computeMetric(
         const otherVillageId = rel.villageId1 === village.villageId
           ? rel.villageId2 : (rel.villageId2 === village.villageId ? rel.villageId1 : null);
         if (!otherVillageId) continue;
-        // 同盟先がこのプレイヤーの村であることを確認
+        // Verify the ally is not this player's own village
         const otherVs = ctx.villageStates.get(otherVillageId);
         if (otherVs && otherVs.ownerId !== village.ownerId) alliedCount++;
       }
@@ -104,7 +104,7 @@ function compareMetric(value: number, threshold: number, comparison: 'gte' | 'lt
   }
 }
 
-/** スコア勝利時のランキング計算 */
+/** Compute score ranking for score victory */
 export function computeScoreRanking(
   villageStates: Map<string, VillageState4X>,
 ): { villageId: string; ownerId: string | null; score: number }[] {

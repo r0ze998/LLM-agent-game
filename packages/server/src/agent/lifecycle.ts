@@ -32,8 +32,8 @@ function randomPersonality(): PersonalityAxes {
 const GOVERNANCE_OPTIONS: Philosophy['governance'][] = ['democratic', 'meritocratic', 'authoritarian', 'anarchist', 'theocratic'];
 const ECONOMICS_OPTIONS: Philosophy['economics'][] = ['collectivist', 'market', 'gift_economy', 'feudal'];
 const VALUE_POOL = [
-  '勤勉', '自由', '平等', '名誉', '知恵', '勇気', '慈悲', '秩序',
-  '創造', '伝統', '調和', '正義', '忍耐', '友情', '冒険', '平和',
+  'Diligence', 'Freedom', 'Equality', 'Honor', 'Wisdom', 'Courage', 'Mercy', 'Order',
+  'Creation', 'Tradition', 'Harmony', 'Justice', 'Perseverance', 'Friendship', 'Adventure', 'Peace',
 ];
 
 function randomPhilosophy(): Philosophy {
@@ -42,7 +42,7 @@ function randomPhilosophy(): Philosophy {
     governance: GOVERNANCE_OPTIONS[Math.floor(Math.random() * GOVERNANCE_OPTIONS.length)],
     economics: ECONOMICS_OPTIONS[Math.floor(Math.random() * ECONOMICS_OPTIONS.length)],
     values,
-    worldview: '世界はまだ見ぬ可能性に満ちている。',
+    worldview: 'The world is full of possibilities yet to be discovered.',
   };
 }
 
@@ -56,8 +56,9 @@ function randomSkills(): SkillMap {
 }
 
 const GENESIS_NAMES = [
-  'アキラ', 'ユキ', 'サクラ', 'タケシ', 'ミドリ', 'リュウ', 'カエデ', 'ヒロシ',
-  'ハナ', 'ケンジ', 'ミサキ', 'ソラ', 'アヤメ', 'シンジ', 'ナツミ', 'コウタ',
+  'Akira', 'Yuki', 'Sakura', 'Ren', 'Hina', 'Sora', 'Haruto', 'Mei',
+  'Kaito', 'Aoi', 'Riku', 'Mio', 'Yuto', 'Hana', 'Sota', 'Kokoro',
+  'Tsubasa', 'Nagi', 'Rin', 'Takeru',
 ];
 
 // --- Create genesis agent ---
@@ -94,12 +95,12 @@ interface DerivedAttributes {
 }
 
 export async function deriveBlueprintAttributes(soul: string): Promise<DerivedAttributes> {
-  const system = `あなたはJRPGキャラクターの魂テキストから属性を抽出するAIです。
-与えられた魂の描写から、キャラクターの名前・性格・信条・スキルをJSON形式で返してください。
-返答は必ず以下のJSON形式のみで返してください。マークダウンのコードブロックは使わないでください。
+  const system = `You are an AI that extracts attributes from a JRPG character's soul text.
+Given the soul description, return the character's name, personality, beliefs, and skills in JSON format.
+Your response must contain only the following JSON format. Do not use markdown code blocks.
 
 {
-  "name": "カタカナの名前（2-4文字）",
+  "name": "A JRPG-style romanized Japanese name (2-4 syllables)",
   "personality": {
     "openness": 0-100,
     "agreeableness": 0-100,
@@ -110,8 +111,8 @@ export async function deriveBlueprintAttributes(soul: string): Promise<DerivedAt
   "philosophy": {
     "governance": "democratic|meritocratic|authoritarian|anarchist|theocratic",
     "economics": "collectivist|market|gift_economy|feudal",
-    "values": ["価値観1", "価値観2", "価値観3"],
-    "worldview": "世界観を一文で"
+    "values": ["value1", "value2", "value3"],
+    "worldview": "A single sentence describing their worldview"
   },
   "skills": {
     "farming": 1-30, "building": 1-30, "crafting": 1-30, "leadership": 1-30,
@@ -119,9 +120,9 @@ export async function deriveBlueprintAttributes(soul: string): Promise<DerivedAt
   }
 }
 
-魂の描写に基づいて、最も適切な値を設定してください。`;
+Set the most appropriate values based on the soul description.`;
 
-  const user = `=== 魂の描写 ===\n${soul}`;
+  const user = `=== Soul Description ===\n${soul}`;
 
   try {
     const raw = await callLLM({ system, userMessage: user, importance: 'routine', maxTokens: 512 });
@@ -129,7 +130,7 @@ export async function deriveBlueprintAttributes(soul: string): Promise<DerivedAt
   } catch {
     // Fallback: random attributes with a generic name
     return {
-      name: `召喚${Math.floor(Math.random() * 1000)}`,
+      name: `Summoned${Math.floor(Math.random() * 1000)}`,
       personality: randomPersonality(),
       philosophy: randomPhilosophy(),
       skills: randomSkills(),
@@ -228,7 +229,7 @@ export async function createChildAgent(
     const raw = await callLLM({ system, userMessage: user, importance: 'routine', maxTokens: 64 });
     name = raw.trim().replace(/["""]/g, '');
   } catch {
-    name = `子${Math.floor(Math.random() * 1000)}`;
+    name = `Child${Math.floor(Math.random() * 1000)}`;
   }
 
   return {
@@ -314,7 +315,7 @@ export function checkGrowthMilestones(agent: AgentState): GrowthEvent | null {
     if (val >= 50 && val < 50.5) { // Just crossed threshold
       return {
         type: 'skill_mastery',
-        description: `${agent.identity.name}が${skillName(skill)}の達人になった`,
+        description: `${agent.identity.name} has mastered ${skillName(skill)}`,
       };
     }
   }
@@ -323,8 +324,8 @@ export function checkGrowthMilestones(agent: AgentState): GrowthEvent | null {
 
 function skillName(skill: SkillType): string {
   const names: Record<SkillType, string> = {
-    farming: '農業', building: '建築', crafting: '工芸', leadership: '指導力',
-    combat: '戦闘', diplomacy: '外交', teaching: '教育', healing: '医療',
+    farming: 'Farming', building: 'Building', crafting: 'Crafting', leadership: 'Leadership',
+    combat: 'Combat', diplomacy: 'Diplomacy', teaching: 'Teaching', healing: 'Healing',
   };
   return names[skill] ?? skill;
 }

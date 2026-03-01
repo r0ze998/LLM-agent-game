@@ -1,4 +1,4 @@
-// F14: Territory Overlay — 領土可視化
+// F14: Territory Overlay — territory visualization
 import type { VillageState4XSerialized } from '@murasato/shared';
 import { TILE_SIZE } from '@murasato/shared';
 

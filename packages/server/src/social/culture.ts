@@ -11,8 +11,8 @@ export async function generateTradition(
 
   try {
     const raw = await callLLM({
-      system: '村の伝統・祭りを1つ考えてください。JRPGの世界観に合う短い説明で（1文以内）。伝統の名前と説明のみ返してください。',
-      userMessage: `村名: ${village.name}\n統治: ${village.governance.type}\n建築: ${village.culture.architectureStyle}\n挨拶: ${village.culture.greetingStyle}\n最近の出来事: ${recentEvents.slice(0, 3).join('、') || '特になし'}\n既存の伝統: ${village.culture.traditions.join('、') || 'なし'}`,
+      system: 'Create one village tradition or festival. Use a short description fitting a JRPG world (one sentence max). Return only the name and description of the tradition.',
+      userMessage: `Village name: ${village.name}\nGovernance: ${village.governance.type}\nArchitecture: ${village.culture.architectureStyle}\nGreeting style: ${village.culture.greetingStyle}\nRecent events: ${recentEvents.slice(0, 3).join(', ') || 'none'}\nExisting traditions: ${village.culture.traditions.join(', ') || 'none'}`,
       importance: 'routine',
       maxTokens: 80,
     });
@@ -40,8 +40,8 @@ export async function createStory(
 
   try {
     const raw = await callLLM({
-      system: '村に伝わる物語・伝説を1つ作ってください。元の出来事を脚色して語り継がれる形に。2文以内。物語のみ返してください。',
-      userMessage: `村: ${village.name}\n元の出来事: ${event.description}\n命名スタイル: ${village.culture.namingStyle}`,
+      system: 'Create one tale or legend passed down in the village. Embellish the original event into a form that would be retold across generations. Two sentences max. Return only the story.',
+      userMessage: `Village: ${village.name}\nOriginal event: ${event.description}\nNaming style: ${village.culture.namingStyle}`,
       importance: 'routine',
       maxTokens: 120,
     });
@@ -66,8 +66,8 @@ export async function createTaboo(
 
   try {
     const raw = await callLLM({
-      system: '悪い出来事から生まれた村のタブー（禁忌）を1つ考えてください。短い1文で。タブーの内容のみ返してください。',
-      userMessage: `村: ${village.name}\n悪い出来事: ${badEvent}\n既存のタブー: ${village.culture.taboos.join('、') || 'なし'}`,
+      system: 'Create one village taboo born from a bad event. One short sentence. Return only the taboo.',
+      userMessage: `Village: ${village.name}\nBad event: ${badEvent}\nExisting taboos: ${village.culture.taboos.join(', ') || 'none'}`,
       importance: 'routine',
       maxTokens: 60,
     });
@@ -85,23 +85,23 @@ export async function createTaboo(
 // --- F11: Template-based fallback generators ---
 
 const FALLBACK_TRADITIONS = [
-  '月の満ちる夜に火を灯す祭り',
-  '初狩りの日に長老へ捧げ物をする風習',
-  '春分に種を大地に撒く儀式',
-  '新しい仲間を迎える歌の儀',
-  '収穫の後に全員で食事を分かち合う慣習',
+  'A festival of lighting fires on the night of the full moon',
+  'A custom of offering gifts to the elders on the first hunt',
+  'A ritual of sowing seeds into the earth on the spring equinox',
+  'A ceremony of song to welcome new companions',
+  'A tradition of sharing a communal meal after the harvest',
 ];
 
 const FALLBACK_STORIES = [
-  'かつて勇敢な者が嵐の中を歩き抜き、村を救ったという伝説。',
-  '森の奥に住む精霊との約束が、村を守り続けているという物語。',
-  '二人の旅人が偶然出会い、この地に平和の種を蒔いた話。',
+  'A legend tells of a brave soul who walked through a great storm and saved the village.',
+  'A tale of a pact made with a spirit deep in the forest that continues to protect the village.',
+  'A story of two travelers who met by chance and sowed the seeds of peace in this land.',
 ];
 
 const FALLBACK_TABOOS = [
-  '夜に口笛を吹いてはならない',
-  '森の大樹を切り倒してはならない',
-  '他人の食事を残してはならない',
+  'One must not whistle at night',
+  'One must not fell the great tree of the forest',
+  'One must not leave another\'s meal unfinished',
 ];
 
 export function generateFallbackTradition(village: Village): string | null {
@@ -192,7 +192,7 @@ export function applyCulturalExchange(exchange: CulturalExchange): boolean {
     case 'tradition':
       if (toVillage.culture.traditions.includes(content)) return false;
       if (toVillage.culture.traditions.length < 5) {
-        toVillage.culture.traditions.push(`(外来) ${content}`);
+        toVillage.culture.traditions.push(`(foreign) ${content}`);
         return true;
       }
       return false;
@@ -249,7 +249,7 @@ export async function evolveCulture(
         type: 'discovery',
         tick,
         actorIds: village.population.slice(0, 1),
-        description: `${village.name}で新しい伝統が生まれた: ${tradition}`,
+        description: `A new tradition was born in ${village.name}: ${tradition}`,
         data: { villageId: village.id, tradition },
       });
     }
@@ -273,10 +273,10 @@ export async function evolveCulture(
 
   // 4. Naming/greeting style may evolve based on population's average openness
   const avgOpenness = members.reduce((s, a) => s + a.identity.personality.openness, 0) / Math.max(1, members.length);
-  if (avgOpenness > 70 && village.culture.greetingStyle === '丁寧') {
-    village.culture.greetingStyle = 'フレンドリー';
-  } else if (avgOpenness < 30 && village.culture.greetingStyle !== '形式的') {
-    village.culture.greetingStyle = '形式的';
+  if (avgOpenness > 70 && village.culture.greetingStyle === 'polite') {
+    village.culture.greetingStyle = 'friendly';
+  } else if (avgOpenness < 30 && village.culture.greetingStyle !== 'formal') {
+    village.culture.greetingStyle = 'formal';
   }
 
   return events;

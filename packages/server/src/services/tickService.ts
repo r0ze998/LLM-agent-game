@@ -16,7 +16,7 @@ class TickService {
   private _dojoBridge?: DojoBridge;
   private tickCounts = new Map<string, number>(); // for periodic logging
 
-  /** DojoBridge をセット（index.ts から起動時に呼ばれる） */
+  /** Set the DojoBridge (called from index.ts at startup) */
   setDojoBridge(bridge: DojoBridge): void {
     this._dojoBridge = bridge;
   }
@@ -25,7 +25,7 @@ class TickService {
     return this.worlds.get(gameId);
   }
 
-  /** 全ワールドを返す (fullSync等で使用) */
+  /** Return all worlds (used for fullSync, etc.) */
   getAllWorlds(): Map<string, WorldState> {
     return this.worlds;
   }

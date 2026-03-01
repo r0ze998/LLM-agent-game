@@ -4,35 +4,35 @@ import type { AgentState, Village, ReligionState, CultureState } from '@murasato
 import { callLLM, extractJSON, LLMBudgetExceeded } from '../agent/llmClient.ts';
 import type { DiplomacyManager } from './diplomacy.ts';
 
-// --- Template fallback religion names ---
+// --- Template fallback religion data ---
 
 const FALLBACK_RELIGIONS: ReligionState[] = [
   {
-    name: '月光の道',
-    deities: ['月神ツキヨミ'],
-    beliefs: ['月の光が真実を照らす', '夜は内省の時'],
-    rituals: ['満月の祈り', '新月の断食'],
+    name: 'Path of Moonlight',
+    deities: ['Moon God Tsukiyomi'],
+    beliefs: ['The moonlight reveals the truth', 'Night is a time for introspection'],
+    rituals: ['Full moon prayer', 'New moon fasting'],
     orthodoxy: 80,
   },
   {
-    name: '大地の約束',
-    deities: ['地母神テラ'],
-    beliefs: ['大地は全ての母', '収穫は感謝で返す'],
-    rituals: ['播種の舞', '収穫祭'],
+    name: 'Covenant of Earth',
+    deities: ['Earth Mother Terra'],
+    beliefs: ['The earth is the mother of all', 'The harvest must be repaid with gratitude'],
+    rituals: ['Dance of the sowing', 'Harvest festival'],
     orthodoxy: 75,
   },
   {
-    name: '炎の教え',
-    deities: ['火神カグツチ'],
-    beliefs: ['炎は浄化の力', '勇気こそ最高の美徳'],
-    rituals: ['焚火を囲む瞑想', '武術奉納'],
+    name: 'Doctrine of Flame',
+    deities: ['Fire God Kagutsuchi'],
+    beliefs: ['Fire is the power of purification', 'Courage is the highest virtue'],
+    rituals: ['Meditation around the bonfire', 'Martial arts offering'],
     orthodoxy: 85,
   },
   {
-    name: '水面の悟り',
-    deities: ['水神ミズハ'],
-    beliefs: ['流れに逆らわず生きる', '万物は変化する'],
-    rituals: ['川辺の祈り', '雨乞いの歌'],
+    name: 'Reflection of Still Waters',
+    deities: ['Water God Mizuha'],
+    beliefs: ['Live without resisting the flow', 'All things change'],
+    rituals: ['Riverside prayer', 'Song for rain'],
     orthodoxy: 70,
   },
 ];
@@ -61,14 +61,14 @@ export function canReligionEmerge(village: Village, members: AgentState[]): bool
 export async function generateReligion(village: Village): Promise<ReligionState> {
   try {
     const raw = await callLLM({
-      system: `JRPGの村に生まれる宗教を1つ考えてください。以下のJSON形式のみで返してください:
+      system: `Create one religion that emerges in a JRPG village. Return only the following JSON format:
 {
-  "name": "宗教名（4文字以内）",
-  "deities": ["神の名前"],
-  "beliefs": ["信仰の教え1", "信仰の教え2"],
-  "rituals": ["儀式1", "儀式2"]
+  "name": "religion name (short)",
+  "deities": ["deity name"],
+  "beliefs": ["tenet 1", "tenet 2"],
+  "rituals": ["ritual 1", "ritual 2"]
 }`,
-      userMessage: `村名: ${village.name}\n統治: ${village.governance.type}\n伝統: ${village.culture.traditions.join('、') || 'なし'}\n挨拶: ${village.culture.greetingStyle}`,
+      userMessage: `Village name: ${village.name}\nGovernance: ${village.governance.type}\nTraditions: ${village.culture.traditions.join(', ') || 'none'}\nGreeting style: ${village.culture.greetingStyle}`,
       importance: 'social',
       maxTokens: 256,
     });

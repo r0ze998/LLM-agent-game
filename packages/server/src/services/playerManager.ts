@@ -1,8 +1,8 @@
 /**
- * playerManager.ts — マルチプレイヤー管理 (F7)
+ * playerManager.ts — Multiplayer management (F7)
  *
- * Starknetアドレスと村UUIDのマッピングを管理。
- * MULTIPLAYER_ENABLED=true で有効化。
+ * Manages mapping between Starknet addresses and village UUIDs.
+ * Enabled with MULTIPLAYER_ENABLED=true.
  */
 
 const LOG_PREFIX = "[PlayerManager]";

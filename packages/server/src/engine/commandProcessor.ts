@@ -1,4 +1,4 @@
-// === Command Processor — コマンド検証 + 実行 ===
+// === Command Processor — Command validation + execution ===
 
 import {
   BUILDING_DEFS,
@@ -31,7 +31,7 @@ import { aggregateEffects } from './ruleEngine.ts';
 import { resolveCombat, conquerVillage } from './combatEngine.ts';
 import type { Position, DiplomaticRelation } from '@murasato/shared';
 
-// --- 4X世界への参照インターフェース ---
+// --- Reference interface to the 4X world ---
 
 export interface World4XRef {
   villageStates: Map<string, VillageState4X>;
@@ -43,7 +43,7 @@ export interface World4XRef {
   getVillageCenter?: (villageId: string) => Position | null;  // F6: Spatial trade
 }
 
-// --- コマンド処理 ---
+// --- Command processing ---
 
 export function processCommand(
   command: PlayerCommand,
@@ -76,21 +76,21 @@ export function processCommand(
   }
 }
 
-// --- 村クレーム ---
+// --- Village claim ---
 
 function processClaim(
   cmd: ClaimVillageCommand,
   playerId: string,
   world: World4XRef,
 ): CommandResult {
-  // プレイヤーが既に村を所有しているか確認
+  // Check if player already owns a village
   for (const vs of world.villageStates.values()) {
     if (vs.ownerId === playerId) {
       return { success: false, command: cmd, message: 'Player already owns a village' };
     }
   }
 
-  // 新しい村を作成
+  // Create new village
   const villageId = world.generateId();
   const territory = generateTerritory(cmd.position, 5);
   const vs = createDefaultVillageState4X(villageId, playerId, territory, world.tick);
@@ -104,7 +104,7 @@ function processClaim(
   };
 }
 
-// --- 建設 ---
+// --- Build ---
 
 function processBuild(
   cmd: BuildCommand,
@@ -117,7 +117,7 @@ function processBuild(
   const def = BUILDING_DEFS[cmd.buildingDefId];
   if (!def) return { success: false, command: cmd, message: `Unknown building: ${cmd.buildingDefId}` };
 
-  // 前提条件チェック
+  // Prerequisite check
   if (def.requires.tech && !village.researchedTechs.has(def.requires.tech)) {
     return { success: false, command: cmd, message: `Requires tech: ${def.requires.tech}` };
   }
@@ -128,7 +128,7 @@ function processBuild(
     return { success: false, command: cmd, message: `Requires population: ${def.requires.population}` };
   }
 
-  // 最大数チェック
+  // Max count check
   if (def.maxPerVillage > 0) {
     const count = village.buildings.filter(b => b.defId === cmd.buildingDefId).length
       + village.buildQueue.filter(q => q.defId === cmd.buildingDefId).length;
@@ -137,12 +137,12 @@ function processBuild(
     }
   }
 
-  // 資源チェック + 消費
+  // Resource check + consumption
   if (!payResources(village, def.cost)) {
     return { success: false, command: cmd, message: 'Not enough resources' };
   }
 
-  // キューに追加
+  // Add to queue
   const queueId = world.generateId();
   village.buildQueue.push({
     id: queueId,
@@ -161,7 +161,7 @@ function processBuild(
   };
 }
 
-// --- 研究 ---
+// --- Research ---
 
 function processResearch(
   cmd: ResearchCommand,
@@ -174,28 +174,28 @@ function processResearch(
   const def = TECH_DEFS[cmd.techDefId];
   if (!def) return { success: false, command: cmd, message: `Unknown tech: ${cmd.techDefId}` };
 
-  // 既に研究済み
+  // Already researched
   if (village.researchedTechs.has(cmd.techDefId)) {
     return { success: false, command: cmd, message: 'Already researched' };
   }
 
-  // 前提技術チェック
+  // Prerequisite tech check
   if (def.requires.tech && !village.researchedTechs.has(def.requires.tech)) {
     return { success: false, command: cmd, message: `Requires tech: ${def.requires.tech}` };
   }
 
-  // 既にキューに入っているか
+  // Already in queue
   if (village.researchQueue.some(q => q.defId === cmd.techDefId)) {
     return { success: false, command: cmd, message: 'Already in research queue' };
   }
 
-  // 研究キューに追加（コストは完了時にresearchPointsから差し引く）
+  // Add to research queue (cost deducted from researchPoints upon completion)
   const queueId = world.generateId();
   village.researchQueue.push({
     id: queueId,
     queueType: 'research',
     defId: cmd.techDefId,
-    remainingTicks: def.researchCost,  // researchPointsが溜まるまで待つ
+    remainingTicks: def.researchCost,  // waits until researchPoints accumulate
     totalTicks: def.researchCost,
   });
 
@@ -207,7 +207,7 @@ function processResearch(
   };
 }
 
-// --- 訓練 ---
+// --- Training ---
 
 function processTrain(
   cmd: TrainCommand,
@@ -220,7 +220,7 @@ function processTrain(
   const def = UNIT_DEFS[cmd.unitDefId];
   if (!def) return { success: false, command: cmd, message: `Unknown unit: ${cmd.unitDefId}` };
 
-  // 前提チェック
+  // Prerequisite check
   if (def.requires.tech && !village.researchedTechs.has(def.requires.tech)) {
     return { success: false, command: cmd, message: `Requires tech: ${def.requires.tech}` };
   }
@@ -228,7 +228,7 @@ function processTrain(
     return { success: false, command: cmd, message: `Requires building: ${def.requires.building}` };
   }
 
-  // 各ユニット分の資源を支払い
+  // Pay resources for each unit
   const totalCost: Partial<Record<ResourceType4X, number>> = {};
   for (const res of RESOURCE_TYPES_4X) {
     const unitCost = def.trainCost[res] || 0;
@@ -239,7 +239,7 @@ function processTrain(
     return { success: false, command: cmd, message: 'Not enough resources' };
   }
 
-  // 各ユニットをキューに追加
+  // Add each unit to queue
   for (let i = 0; i < cmd.count; i++) {
     const queueId = world.generateId();
     village.trainQueue.push({
@@ -258,7 +258,7 @@ function processTrain(
   };
 }
 
-// --- 攻撃 ---
+// --- Attack ---
 
 function processAttack(
   cmd: AttackCommand,
@@ -271,7 +271,7 @@ function processAttack(
   const target = world.villageStates.get(cmd.targetVillageId);
   if (!target) return { success: false, command: cmd, message: 'Target village not found' };
 
-  // 攻撃部隊を取得
+  // Get attacking units
   const army = village.armies.find(a => a.id === cmd.armyId);
   const attackingUnits = army ? army.units : [...village.garrison];
 
@@ -279,26 +279,26 @@ function processAttack(
     return { success: false, command: cmd, message: 'No units to attack with' };
   }
 
-  // ガリソンから攻撃する場合、ガリソンをクリア
+  // If attacking from garrison, clear garrison
   if (!army) {
     village.garrison = [];
   }
 
-  // 戦闘解決
+  // Resolve combat
   const terrain = (world.getTerrain(target.territory[0] || { x: 0, y: 0 }) || 'plains') as any;
   const result = resolveCombat(village, target, attackingUnits, [...target.garrison], terrain);
 
-  // 勝利した場合、征服
+  // If victorious, conquer
   if (result.attackerWon && target.garrison.length === 0) {
     conquerVillage(village, target);
   }
 
-  // ガリソンから攻撃した場合、残存部隊をガリソンに戻す
+  // If attacked from garrison, return surviving units to garrison
   if (!army) {
     village.garrison = attackingUnits.filter(u => u.count > 0);
   }
 
-  // 防御側のガリソンを更新
+  // Update defender's garrison
   target.garrison = target.garrison.filter(u => u.count > 0);
 
   return {
@@ -309,7 +309,7 @@ function processAttack(
   };
 }
 
-// --- 外交 ---
+// --- Diplomacy ---
 
 function processDiplomacy(
   cmd: DiplomacyCommand,
@@ -340,7 +340,7 @@ function processDiplomacy(
   }
 }
 
-// --- 交易 ---
+// --- Trade ---
 
 function processTrade(
   cmd: TradeCommand,
@@ -353,7 +353,7 @@ function processTrade(
   const target = world.villageStates.get(cmd.targetVillageId);
   if (!target) return { success: false, command: cmd, message: 'Target village not found' };
 
-  // 資源チェック
+  // Resource check
   if (!hasResources(village, cmd.offer)) {
     return { success: false, command: cmd, message: 'Not enough resources to offer' };
   }
@@ -376,7 +376,7 @@ function processTrade(
     }
   }
 
-  // 交易実行 (sender pays full, receiver gets scaled by efficiency)
+  // Execute trade (sender pays full, receiver gets scaled by efficiency)
   for (const res of RESOURCE_TYPES_4X) {
     const offered = cmd.offer[res] || 0;
     const requested = cmd.request[res] || 0;
@@ -387,7 +387,7 @@ function processTrade(
     const receivedByVillage = Math.floor(requested * efficiency);
     village.resources[res] += receivedByVillage;
 
-    // ゴールド累計追跡
+    // Gold cumulative tracking
     if (res === 'gold') {
       if (receivedByTarget > 0) target.totalGoldEarned = (target.totalGoldEarned ?? 0) + receivedByTarget;
       if (receivedByVillage > 0) village.totalGoldEarned = (village.totalGoldEarned ?? 0) + receivedByVillage;
@@ -397,7 +397,7 @@ function processTrade(
   return { success: true, command: cmd, message: `Trade completed (efficiency: ${Math.round(efficiency * 100)}%)` };
 }
 
-// --- 取り壊し ---
+// --- Demolish ---
 
 function processDemolish(
   cmd: DemolishCommand,
@@ -411,7 +411,7 @@ function processDemolish(
   if (idx === -1) return { success: false, command: cmd, message: 'Building not found' };
 
   const removed = village.buildings.splice(idx, 1)[0];
-  // 資源の一部を返却 (25%)
+  // Refund a portion of resources (25%)
   const def = BUILDING_DEFS[removed.defId];
   if (def) {
     for (const res of RESOURCE_TYPES_4X) {
@@ -423,7 +423,7 @@ function processDemolish(
   return { success: true, command: cmd, message: `Demolished ${removed.defId}` };
 }
 
-// --- 軍隊移動 ---
+// --- Army movement ---
 
 function processMoveArmy(
   cmd: { type: 'move_army'; villageId: string; armyId: string; targetPosition: Position },
@@ -442,7 +442,7 @@ function processMoveArmy(
   return { success: true, command: cmd, message: 'Army moving' };
 }
 
-// --- 防衛集結 ---
+// --- Rally defense ---
 
 function processRallyDefense(
   cmd: { type: 'rally_defense'; villageId: string },
@@ -452,7 +452,7 @@ function processRallyDefense(
   const village = getOwnedVillage(cmd.villageId, playerId, world);
   if (!village) return { success: false, command: cmd, message: 'Not your village' };
 
-  // 全軍をガリソンに集結
+  // Rally all armies to garrison
   for (const army of village.armies) {
     for (const unit of army.units) {
       const existing = village.garrison.find(g => g.defId === unit.defId);
@@ -468,7 +468,7 @@ function processRallyDefense(
   return { success: true, command: cmd, message: 'All armies rallied to defense' };
 }
 
-// --- ヘルパー ---
+// --- Helpers ---
 
 function getOwnedVillage(
   villageId: string,

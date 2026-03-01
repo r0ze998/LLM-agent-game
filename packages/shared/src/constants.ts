@@ -97,33 +97,33 @@ export const ELEVATION_MOUNTAIN = 0.8;
 // === 4X Strategy Constants ===
 
 // Population
-export const FOOD_PER_POP_PER_TICK = 0.5;    // 1人口あたりの食料消費/tick
-export const POP_GROWTH_BASE_RATE = 0.02;     // 基本人口増加率/tick (食料余剰時)
-export const POP_STARVATION_RATE = 0.05;      // 飢餓時の人口減少率/tick
-export const BASE_HOUSING_CAPACITY = 10;       // 建物なしの基本住居数
-export const POP_RESEARCH_CONTRIBUTION = 0.1;  // 1人口あたりの研究ポイント/tick
+export const FOOD_PER_POP_PER_TICK = 0.5;    // Food consumption per population per tick
+export const POP_GROWTH_BASE_RATE = 0.02;     // Base population growth rate per tick (when food surplus)
+export const POP_STARVATION_RATE = 0.05;      // Population decline rate per tick during famine
+export const BASE_HOUSING_CAPACITY = 10;       // Base housing capacity without buildings
+export const POP_RESEARCH_CONTRIBUTION = 0.1;  // Research points per population per tick
 
 // Resources
-export const DEFAULT_RESOURCE_STORAGE = 200;   // デフォルト資源上限
-export const TERRITORY_RADIUS = 5;             // 村中心からの領土半径
+export const DEFAULT_RESOURCE_STORAGE = 200;   // Default resource storage cap
+export const TERRITORY_RADIUS = 5;             // Territory radius from village center
 
 // Combat
-export const COMBAT_RANDOM_MIN = 0.8;          // 戦闘ランダム係数の下限
-export const COMBAT_RANDOM_MAX = 1.2;          // 戦闘ランダム係数の上限
-export const ATTACKER_LOSS_RATE = 0.40;        // 敗北時の攻撃側損害率
-export const DEFENDER_LOSS_RATE = 0.30;        // 敗北時の防御側損害率
-export const VETERANCY_GAIN_PER_BATTLE = 10;   // 戦闘ごとの練度上昇
+export const COMBAT_RANDOM_MIN = 0.8;          // Combat random factor lower bound
+export const COMBAT_RANDOM_MAX = 1.2;          // Combat random factor upper bound
+export const ATTACKER_LOSS_RATE = 0.40;        // Attacker casualty rate on defeat
+export const DEFENDER_LOSS_RATE = 0.30;        // Defender casualty rate on defeat
+export const VETERANCY_GAIN_PER_BATTLE = 10;   // Veterancy gained per battle
 
 // Victory
-export const SCORE_VICTORY_TICK = 12000;       // スコア勝利の判定ターン (500日)
+export const SCORE_VICTORY_TICK = 12000;       // Score victory evaluation tick (500 days)
 export const CULTURE_VICTORY_THRESHOLD = 1000;
 export const DOMINATION_RATIO = 0.75;
 export const DIPLOMACY_ALLIANCE_RATIO = 0.60;
-export const ECONOMIC_VICTORY_GOLD_THRESHOLD = 10000; // 経済勝利に必要な累計ゴールド獲得量
+export const ECONOMIC_VICTORY_GOLD_THRESHOLD = 10000; // Cumulative gold required for economic victory
 
 // AI Strategy
-export const AI_TICK_INTERVAL = 5;             // AI村のコマンド発行間隔
-export const AI_MILITARY_THREAT_THRESHOLD = 0.6; // 軍事優先に切り替える脅威閾値
+export const AI_TICK_INTERVAL = 5;             // AI village command issue interval
+export const AI_MILITARY_THREAT_THRESHOLD = 0.6; // Threat threshold to switch to military priority
 
 // === Resource Degradation (F3a) ===
 export const DEGRADATION_PER_GATHER = 0.02;

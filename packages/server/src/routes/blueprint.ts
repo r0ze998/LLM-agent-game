@@ -19,12 +19,12 @@ blueprintRouter.post('/:gameId/deploy', async (c) => {
 
   // Validate soul
   if (!body.soul || body.soul.trim().length < 10) {
-    return c.json<ApiResponse<never>>({ ok: false, error: 'soul は10文字以上必要です' }, 400);
+    return c.json<ApiResponse<never>>({ ok: false, error: 'Soul must be at least 10 characters' }, 400);
   }
 
   // Population cap check
   if (world.livingAgents.length >= MAX_AGENTS) {
-    return c.json<ApiResponse<never>>({ ok: false, error: `人口上限（${MAX_AGENTS}）に達しています` }, 400);
+    return c.json<ApiResponse<never>>({ ok: false, error: `Population cap (${MAX_AGENTS}) reached` }, 400);
   }
 
   // Determine spawn position
@@ -41,7 +41,7 @@ blueprintRouter.post('/:gameId/deploy', async (c) => {
     });
   } catch (err) {
     console.error('Blueprint deploy error:', err);
-    return c.json<ApiResponse<never>>({ ok: false, error: 'ブループリントのデプロイに失敗しました' }, 500);
+    return c.json<ApiResponse<never>>({ ok: false, error: 'Failed to deploy blueprint' }, 500);
   }
 });
 
@@ -117,6 +117,6 @@ blueprintRouter.delete('/:gameId/:blueprintId', (c) => {
 
   return c.json<ApiResponse<{ recalled: true; agentName: string }>>({
     ok: true,
-    data: { recalled: true, agentName: agent?.identity.name ?? '不明' },
+    data: { recalled: true, agentName: agent?.identity.name ?? 'Unknown' },
   });
 });

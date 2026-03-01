@@ -1,7 +1,7 @@
 /**
- * dojoTickAdvancer.ts — ティック自動進行
+ * dojoTickAdvancer.ts — Automatic tick advancement
  *
- * setInterval で advance_tick + 全村の village_tick を multicall で実行。
+ * Uses setInterval to execute advance_tick + all village ticks via multicall.
  */
 
 import { DojoTxService } from './dojoTxService.ts';
@@ -20,7 +20,7 @@ export class DojoTickAdvancer {
     this.villageMapper = villageMapper;
   }
 
-  /** ティック自動進行を開始 */
+  /** Start automatic tick advancement */
   start(intervalMs = 3000): void {
     if (this.intervalId !== null) return;
     console.log(`${LOG_PREFIX} Auto-tick started (${intervalMs}ms)`);
@@ -32,7 +32,7 @@ export class DojoTickAdvancer {
     }, intervalMs);
   }
 
-  /** ティック自動進行を停止 */
+  /** Stop automatic tick advancement */
   stop(): void {
     if (this.intervalId !== null) {
       clearInterval(this.intervalId);
@@ -41,7 +41,7 @@ export class DojoTickAdvancer {
     }
   }
 
-  /** 1ティック実行 */
+  /** Execute a single tick */
   private async tick(): Promise<void> {
     if (this.running) return; // Skip if previous tick still in progress
     this.running = true;

@@ -1,8 +1,8 @@
 /**
- * dojoSyncChecker.ts — オフチェーン ↔ オンチェーン整合性チェック (F5)
+ * dojoSyncChecker.ts — Off-chain <-> on-chain integrity check (F5)
  *
- * 定期的に全村の状態を比較し、ドリフトを検出する。
- * autoRepair モード時はオンチェーンを正としてオフチェーンを上書き。
+ * Periodically compares state for all villages and detects drift.
+ * In autoRepair mode, treats on-chain as source of truth and overwrites off-chain.
  */
 
 import type { VillageState4X } from "@murasato/shared";

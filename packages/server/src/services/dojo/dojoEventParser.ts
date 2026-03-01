@@ -1,8 +1,8 @@
 /**
- * dojoEventParser.ts — Starknet レシートイベントを型付きユニオンにパース
+ * dojoEventParser.ts — Parse Starknet receipt events into typed unions
  *
- * Starknet トランザクションレシートの events 配列を読み取り、
- * Cairo 側で emit された 10 種のイベントを判別・デコードする。
+ * Reads the events array from Starknet transaction receipts and
+ * identifies/decodes the 10 event types emitted by the Cairo contracts.
  */
 
 import { hash } from "starknet";

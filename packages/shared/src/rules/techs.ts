@@ -1,13 +1,12 @@
-// === 技術ツリー定義（3ブランチ×10段階 = 30技術） ===
+// === Tech Tree Definitions (3 branches x 10 tiers = 30 techs) ===
 
 import type { TechDef } from './types.ts';
 
 export const TECH_DEFS: Record<string, TechDef> = {
-  // ========== 農業系ブランチ (agriculture) ==========
+  // ========== Agriculture Branch ==========
   agriculture: {
     id: 'agriculture',
     name: 'Agriculture',
-    nameJa: '農業',
     branch: 'agriculture',
     tier: 1,
     researchCost: 20,
@@ -19,7 +18,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   irrigation: {
     id: 'irrigation',
     name: 'Irrigation',
-    nameJa: '灌漑',
     branch: 'agriculture',
     tier: 2,
     researchCost: 40,
@@ -32,7 +30,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   animal_husbandry: {
     id: 'animal_husbandry',
     name: 'Animal Husbandry',
-    nameJa: '牧畜',
     branch: 'agriculture',
     tier: 3,
     researchCost: 60,
@@ -45,7 +42,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   crop_rotation: {
     id: 'crop_rotation',
     name: 'Crop Rotation',
-    nameJa: '輪作',
     branch: 'agriculture',
     tier: 4,
     researchCost: 90,
@@ -58,7 +54,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   watermill: {
     id: 'watermill',
     name: 'Watermill',
-    nameJa: '水車',
     branch: 'agriculture',
     tier: 5,
     researchCost: 130,
@@ -72,7 +67,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   guilds: {
     id: 'guilds',
     name: 'Guilds',
-    nameJa: 'ギルド',
     branch: 'agriculture',
     tier: 6,
     researchCost: 180,
@@ -85,7 +79,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   banking: {
     id: 'banking',
     name: 'Banking',
-    nameJa: '銀行制度',
     branch: 'agriculture',
     tier: 7,
     researchCost: 240,
@@ -97,7 +90,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   economics: {
     id: 'economics',
     name: 'Economics',
-    nameJa: '経済学',
     branch: 'agriculture',
     tier: 8,
     researchCost: 320,
@@ -110,7 +102,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   industrialization: {
     id: 'industrialization',
     name: 'Industrialization',
-    nameJa: '産業革命',
     branch: 'agriculture',
     tier: 9,
     researchCost: 420,
@@ -124,7 +115,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   agriculture_mastery: {
     id: 'agriculture_mastery',
     name: 'Agriculture Mastery',
-    nameJa: '農業の極み',
     branch: 'agriculture',
     tier: 10,
     researchCost: 550,
@@ -136,11 +126,10 @@ export const TECH_DEFS: Record<string, TechDef> = {
     requires: { tech: 'industrialization' },
   },
 
-  // ========== 軍事系ブランチ (military) ==========
+  // ========== Military Branch ==========
   bronze_working: {
     id: 'bronze_working',
     name: 'Bronze Working',
-    nameJa: '青銅器',
     branch: 'military',
     tier: 1,
     researchCost: 20,
@@ -152,7 +141,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   archery: {
     id: 'archery',
     name: 'Archery',
-    nameJa: '弓術',
     branch: 'military',
     tier: 2,
     researchCost: 40,
@@ -164,7 +152,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   horseback_riding: {
     id: 'horseback_riding',
     name: 'Horseback Riding',
-    nameJa: '騎乗',
     branch: 'military',
     tier: 3,
     researchCost: 60,
@@ -176,7 +163,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   iron_working: {
     id: 'iron_working',
     name: 'Iron Working',
-    nameJa: '鉄器',
     branch: 'military',
     tier: 4,
     researchCost: 90,
@@ -189,7 +175,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   fortification: {
     id: 'fortification',
     name: 'Fortification',
-    nameJa: '築城術',
     branch: 'military',
     tier: 5,
     researchCost: 130,
@@ -202,7 +187,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   siege_warfare: {
     id: 'siege_warfare',
     name: 'Siege Warfare',
-    nameJa: '攻城戦',
     branch: 'military',
     tier: 6,
     researchCost: 180,
@@ -215,7 +199,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   steel: {
     id: 'steel',
     name: 'Steel',
-    nameJa: '鋼鉄',
     branch: 'military',
     tier: 7,
     researchCost: 240,
@@ -229,7 +212,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   gunpowder: {
     id: 'gunpowder',
     name: 'Gunpowder',
-    nameJa: '火薬',
     branch: 'military',
     tier: 8,
     researchCost: 320,
@@ -242,7 +224,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   tactics: {
     id: 'tactics',
     name: 'Tactics',
-    nameJa: '戦術',
     branch: 'military',
     tier: 9,
     researchCost: 420,
@@ -256,7 +237,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   military_mastery: {
     id: 'military_mastery',
     name: 'Military Mastery',
-    nameJa: '軍事の極み',
     branch: 'military',
     tier: 10,
     researchCost: 550,
@@ -268,11 +248,10 @@ export const TECH_DEFS: Record<string, TechDef> = {
     requires: { tech: 'tactics' },
   },
 
-  // ========== 文化系ブランチ (culture) ==========
+  // ========== Culture Branch ==========
   writing: {
     id: 'writing',
     name: 'Writing',
-    nameJa: '文字',
     branch: 'culture',
     tier: 1,
     researchCost: 20,
@@ -284,7 +263,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   philosophy: {
     id: 'philosophy',
     name: 'Philosophy',
-    nameJa: '哲学',
     branch: 'culture',
     tier: 2,
     researchCost: 40,
@@ -297,7 +275,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   mysticism: {
     id: 'mysticism',
     name: 'Mysticism',
-    nameJa: '神秘主義',
     branch: 'culture',
     tier: 3,
     researchCost: 60,
@@ -310,7 +287,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   education: {
     id: 'education',
     name: 'Education',
-    nameJa: '教育',
     branch: 'culture',
     tier: 4,
     researchCost: 90,
@@ -322,7 +298,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   arts: {
     id: 'arts',
     name: 'Arts',
-    nameJa: '芸術',
     branch: 'culture',
     tier: 5,
     researchCost: 130,
@@ -334,7 +309,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   theology: {
     id: 'theology',
     name: 'Theology',
-    nameJa: '神学',
     branch: 'culture',
     tier: 6,
     researchCost: 180,
@@ -347,7 +321,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   printing: {
     id: 'printing',
     name: 'Printing',
-    nameJa: '印刷術',
     branch: 'culture',
     tier: 7,
     researchCost: 240,
@@ -360,7 +333,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   enlightenment: {
     id: 'enlightenment',
     name: 'Enlightenment',
-    nameJa: '啓蒙思想',
     branch: 'culture',
     tier: 8,
     researchCost: 320,
@@ -373,7 +345,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   ideology: {
     id: 'ideology',
     name: 'Ideology',
-    nameJa: 'イデオロギー',
     branch: 'culture',
     tier: 9,
     researchCost: 420,
@@ -386,7 +357,6 @@ export const TECH_DEFS: Record<string, TechDef> = {
   culture_mastery: {
     id: 'culture_mastery',
     name: 'Culture Mastery',
-    nameJa: '文化の極み',
     branch: 'culture',
     tier: 10,
     researchCost: 550,
@@ -400,12 +370,12 @@ export const TECH_DEFS: Record<string, TechDef> = {
 
 export const TECH_LIST = Object.values(TECH_DEFS);
 
-/** 指定ブランチの技術一覧を tier 順で返す */
+/** Returns techs for the given branch sorted by tier */
 export function getTechsByBranch(branch: string): TechDef[] {
   return TECH_LIST.filter(t => t.branch === branch).sort((a, b) => a.tier - b.tier);
 }
 
-/** 指定ブランチの最大 tier (= mastery) を返す */
+/** Returns the max tier (= mastery) for the given branch */
 export function getMaxTier(branch: string): number {
   return Math.max(...getTechsByBranch(branch).map(t => t.tier));
 }

@@ -1,4 +1,4 @@
-// === 4X Engine — 初期化 + 再エクスポート ===
+// === 4X Engine — Initialization + re-exports ===
 
 export { aggregateEffects, processVillageTick } from './ruleEngine.ts';
 export type { AggregatedEffects, TickResult } from './ruleEngine.ts';

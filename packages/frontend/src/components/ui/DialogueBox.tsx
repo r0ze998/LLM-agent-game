@@ -121,7 +121,7 @@ export function DialogueBox() {
           color: '#7a9ec7',
           animation: 'bounce 1s infinite',
         }}>
-          {currentLine < dialogue.lines.length - 1 ? '▼' : '■ 閉じる'}
+          {currentLine < dialogue.lines.length - 1 ? '▼' : '■ Close'}
         </div>
       )}
     </div>

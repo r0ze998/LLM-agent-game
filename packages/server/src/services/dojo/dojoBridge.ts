@@ -1,10 +1,10 @@
 /**
- * dojoBridge.ts — Dojo オンチェーン統合オーケストレーター
+ * dojoBridge.ts — Dojo on-chain integration orchestrator
  *
- * 全てのオンチェーン操作を try/catch + fallback でラップ。
- * チェーンが落ちている場合は TS エンジンにフォールバックする。
+ * All on-chain operations are wrapped with try/catch + fallback.
+ * Falls back to the TS engine when the chain is down.
  *
- * レシートベースのイベント解析により、オンチェーンイベントを検出・消費。
+ * Detects and consumes on-chain events via receipt-based event parsing.
  */
 
 import type { DojoConfig } from "./dojoConfig.ts";
@@ -74,7 +74,7 @@ export class DojoBridge {
     return this.config.enabled;
   }
 
-  /** TX送信 + waitForTx をリトライ付きで実行 */
+  /** Submit TX + waitForTx with retry */
   private async submitWithRetry(
     submit: () => Promise<string>,
     label: string,
@@ -91,11 +91,11 @@ export class DojoBridge {
 
   // ── Initialization ──
 
-  /** physics init + setup registerAll + mapper復元 */
+  /** physics init + setup registerAll + mapper restoration */
   async initialize(): Promise<void> {
     if (this._initialized) return;
 
-    // VillageIdMapper を永続化ファイルから復元
+    // Restore VillageIdMapper from persistence file
     const restored = await restoreMapper(this.villageMapper);
     if (restored) {
       console.log(`${LOG_PREFIX} VillageIdMapper restored (${this.villageMapper.size} villages)`);
@@ -151,14 +151,14 @@ export class DojoBridge {
 
   // ── Village Creation ──
 
-  /** 村創設 → オンチェーンにも作成 + 永続化 */
+  /** Village creation -> also create on-chain + persist */
   async createVillage(
     uuid: string,
     ownerAddress?: string,
   ): Promise<void> {
     const u32Id = this.villageMapper.register(uuid);
 
-    // 永続化に保存
+    // Save to persistence
     saveMapper(this.villageMapper).catch((err) =>
       console.warn(`${LOG_PREFIX} Failed to persist mapper after createVillage:`, err),
     );
@@ -182,7 +182,7 @@ export class DojoBridge {
 
   // ── Village Tick ──
 
-  /** オンチェーン tick → sync。失敗時は TS エンジンにフォールバック */
+  /** On-chain tick -> sync. Falls back to TS engine on failure */
   async executeVillageTick(
     uuid: string,
     vs: VillageState4X,
@@ -192,20 +192,20 @@ export class DojoBridge {
   ): Promise<VillageTickResultWithEvents> {
     const u32Id = this.villageMapper.toU32(uuid);
     if (u32Id === undefined) {
-      // 未登録村 → TSフォールバック
+      // Unregistered village -> TS fallback
       const result = processVillageTick(vs, territoryTiles, awState, currentTick);
       return { ...result, onChainEvents: [] };
     }
 
     try {
-      // Step 1: Tick前にキュー状態スナップショット取得
+      // Step 1: Take queue state snapshot before tick
       const [buildQueueBefore, researchQueueBefore, trainQueueBefore] = await Promise.all([
         this.stateReader.readBuildQueue(u32Id),
         this.stateReader.readResearchQueue(u32Id),
         this.stateReader.readTrainQueue(u32Id),
       ]);
 
-      // Step 2: TX送信 → レシート取得 (with latency tracking + retry)
+      // Step 2: Submit TX -> get receipt (with latency tracking + retry)
       const txStart = performance.now();
       const { txHash, receipt } = await this.submitWithRetry(
         () => this.txService.submitVillageTick(u32Id),
@@ -214,17 +214,17 @@ export class DojoBridge {
       if (this.toriiClient) this.toriiClient.markOwnTx(txHash);
       this.latencyTracker.record(performance.now() - txStart);
 
-      // Step 3: レシートからイベント解析
+      // Step 3: Parse events from receipt
       const receiptEvents = receipt?.events ?? [];
       const dojoEvents = parseReceiptEvents(receiptEvents);
       if (dojoEvents.length > 0) {
         console.log(`${LOG_PREFIX} Parsed ${dojoEvents.length} events from tick receipt for ${uuid}`);
       }
 
-      // Step 4: オンチェーン状態を読み取ってオフチェーンに同期
+      // Step 4: Read on-chain state and sync to off-chain
       const onChain = await this.stateReader.readVillage(u32Id);
       if (onChain) {
-        // Step 5: Tick後にキュー状態を取得して差分でqueueCompleted検出
+        // Step 5: Get queue state after tick and detect queueCompleted by diff
         const [buildQueueAfter, researchQueueAfter, trainQueueAfter] = await Promise.all([
           this.stateReader.readBuildQueue(u32Id),
           this.stateReader.readResearchQueue(u32Id),
@@ -249,7 +249,7 @@ export class DojoBridge {
         return { ...result, onChainEvents };
       }
 
-      // 読み取り失敗 → TSフォールバック
+      // Read failed -> TS fallback
       const result = processVillageTick(vs, territoryTiles, awState, currentTick);
       return { ...result, onChainEvents: [] };
     } catch (err) {
@@ -264,7 +264,7 @@ export class DojoBridge {
 
   // ── Command Execution ──
 
-  /** オンチェーンコマンド → sync。失敗時は TS エンジンにフォールバック */
+  /** On-chain command -> sync. Falls back to TS engine on failure */
   async executeCommand(
     cmd: PlayerCommand,
     villageUuid: string,
@@ -297,7 +297,7 @@ export class DojoBridge {
           `${LOG_PREFIX} Command ${cmd.type} on-chain: ${villageUuid}`,
         );
 
-        // 状態同期
+        // State sync
         const vs = worldRef.villageStates.get(villageUuid);
         if (vs) {
           const onChain = await this.stateReader.readVillage(u32Id);
@@ -328,7 +328,7 @@ export class DojoBridge {
 
         return { success: true, command: cmd, message: "Executed on-chain" };
       }
-      // コマンドタイプ未対応 → TSフォールバック
+      // Unsupported command type -> TS fallback
       return processCommand(cmd, villageUuid, worldRef);
     } catch (err) {
       console.warn(
@@ -501,8 +501,8 @@ export class DojoBridge {
   // ── Full Sync ──
 
   /**
-   * 起動時・再接続時のフル状態同期。
-   * 全登録済み村のオンチェーン状態を読み取ってオフチェーンに反映する。
+   * Full state sync at startup or reconnection.
+   * Reads on-chain state for all registered villages and applies to off-chain.
    */
   async fullSync(
     villageStates: Map<string, VillageState4X>,
@@ -686,19 +686,19 @@ export class DojoBridge {
     return completed;
   }
 
-  /** デバッグ: 村マッピング状態 */
+  /** Debug: village mapping state */
   getVillageMapperEntries(): [string, number][] {
     return this.villageMapper.entries();
   }
 
-  /** VillageIdMapper への直接アクセス (イベントブリッジ用) */
+  /** Direct access to VillageIdMapper (for event bridge) */
   getVillageMapper(): VillageIdMapper {
     return this.villageMapper;
   }
 
   // ── Trade (F8) ──
 
-  /** 貿易提案: from村 → to村 */
+  /** Trade proposal: from village -> to village */
   async proposeTrade(
     fromUuid: string,
     toUuid: string,
@@ -730,7 +730,7 @@ export class DojoBridge {
     }
   }
 
-  /** 交易路tick実行 */
+  /** Execute trade route tick */
   async executeTradeTick(routeIds: number[]): Promise<void> {
     if (routeIds.length === 0) return;
     try {
@@ -750,7 +750,7 @@ export class DojoBridge {
 
   // ── Batch Tick (F9) ──
 
-  /** 全村tickをバッチ化して1 TXで実行 */
+  /** Batch all village ticks into a single TX */
   async executeBatchTick(
     villageIds: number[],
     tradeRouteIds: number[],
@@ -792,26 +792,26 @@ export class DojoBridge {
 
   // ── Latency Metrics (F9) ──
 
-  /** レイテンシメトリクスを取得 */
+  /** Get latency metrics */
   getLatencyMetrics() {
     return this.latencyTracker.getMetrics();
   }
 
-  /** 推奨tick間隔を取得 */
+  /** Get recommended tick interval */
   getRecommendedInterval(baseIntervalMs: number): number {
     return this.latencyTracker.getRecommendedInterval(baseIntervalMs);
   }
 
   // ── Torii (F4) ──
 
-  /** Toriiクライアントで外部イベントを受信 */
+  /** Receive external events via Torii client */
   onExternalEvents(handler: (events: GameEvent[]) => void): void {
     this.externalEventHandlers.push(handler);
   }
 
   // ── Sync Checker (F5) ──
 
-  /** tick間隔に応じてsyncチェックを自動実行 */
+  /** Auto-run sync check based on tick interval */
   async maybeRunSyncCheck(
     villageStates: Map<string, VillageState4X>,
     tick: number,
@@ -822,7 +822,7 @@ export class DojoBridge {
     return this.syncChecker.runCheck(villageStates, tick);
   }
 
-  /** ブリッジの現在の状態サマリ */
+  /** Current bridge status summary */
   getBridgeStatus(): {
     initialized: boolean;
     enabled: boolean;
@@ -843,7 +843,7 @@ export class DojoBridge {
     };
   }
 
-  /** 整合性チェックを実行 */
+  /** Run integrity check */
   async runIntegrityCheck(
     villageStates: Map<string, VillageState4X>,
     tick: number,
@@ -852,7 +852,7 @@ export class DojoBridge {
     return this.syncChecker.runCheck(villageStates, tick);
   }
 
-  /** ドリフトレポートを取得 */
+  /** Get drift reports */
   getSyncReports(): DriftReport[] {
     return this.syncChecker?.getReports() ?? [];
   }

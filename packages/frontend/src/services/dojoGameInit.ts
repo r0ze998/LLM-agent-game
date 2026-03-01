@@ -1,10 +1,10 @@
 /**
- * dojoGameInit.ts — オンチェーンゲーム初期化シーケンス
+ * dojoGameInit.ts — On-chain game initialization sequence
  *
- * 1. readGameConfig() でチェーン初期化済みか確認
- * 2. 未初期化なら initializePhysics() + submitSetupRegisterAll()
- * 3. createVillage(ownerAddress) → villageMapper に登録
- * 4. 初回 advanceTick() + submitVillageTick(villageId)
+ * 1. Check if chain is already initialized via readGameConfig()
+ * 2. If not initialized, run initializePhysics() + submitSetupRegisterAll()
+ * 3. createVillage(ownerAddress) -> register in villageMapper
+ * 4. Initial advanceTick() + submitVillageTick(villageId)
  */
 
 import type { Account, RpcProvider } from 'starknet';

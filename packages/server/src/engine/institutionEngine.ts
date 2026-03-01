@@ -1,7 +1,7 @@
-// === Layer 3: 制度エンジン — エージェントが創設する超村組織 ===
+// === Layer 3: Institution Engine — Supra-village organizations created by agents ===
 //
-// 交易ギルド、宗教団体、軍事同盟、学術院など。
-// memberEffects は EFFECT_BOUNDS に制約される。
+// Trade guilds, religious orders, military alliances, academies, etc.
+// memberEffects are constrained by EFFECT_BOUNDS.
 
 import type { Effect } from '@murasato/shared';
 import type {
@@ -18,7 +18,7 @@ import {
   RELEVANCE_DECAY_RATE,
 } from '@murasato/shared';
 
-// --- 制度のバリデーション ---
+// --- Institution validation ---
 
 export function validateInstitution(institution: Omit<Institution, 'id' | 'foundedAtTick' | 'relevance'>): {
   valid: boolean;
@@ -26,12 +26,12 @@ export function validateInstitution(institution: Omit<Institution, 'id' | 'found
 } {
   const violations: string[] = [];
 
-  // memberEffects 数チェック
+  // memberEffects count check
   if (institution.memberEffects.length > INSTITUTION_LIMITS.maxMemberEffects) {
     violations.push(`memberEffects count ${institution.memberEffects.length} exceeds max ${INSTITUTION_LIMITS.maxMemberEffects}`);
   }
 
-  // 全 Effect が EFFECT_BOUNDS 内か
+  // Check all Effects are within EFFECT_BOUNDS
   for (const eff of institution.memberEffects) {
     const result = validateEffect(eff);
     if (!result.valid) {
@@ -39,7 +39,7 @@ export function validateInstitution(institution: Omit<Institution, 'id' | 'found
     }
   }
 
-  // 名前が空でないか
+  // Check name is not empty
   if (!institution.name || institution.name.trim().length === 0) {
     violations.push('Institution must have a name');
   }
@@ -47,7 +47,7 @@ export function validateInstitution(institution: Omit<Institution, 'id' | 'found
   return { valid: violations.length === 0, violations };
 }
 
-// --- 制度の創設 ---
+// --- Found institution ---
 
 export function foundInstitution(
   institution: Institution,
@@ -67,7 +67,7 @@ export function foundInstitution(
   return { success: true, violations: [] };
 }
 
-// --- 制度への加入 ---
+// --- Join institution ---
 
 export function joinInstitution(
   villageId: string,
@@ -80,18 +80,18 @@ export function joinInstitution(
     return { success: false, reason: 'Institution not found' };
   }
 
-  // 既に加入済みか
+  // Already a member
   if (institution.memberVillageIds.includes(villageId)) {
     return { success: false, reason: 'Already a member' };
   }
 
-  // 村の制度数上限チェック
+  // Check village institution limit
   const membershipCount = countMemberships(villageId, awState);
   if (membershipCount >= INSTITUTION_LIMITS.maxInstitutionsPerVillage) {
     return { success: false, reason: `Village already in ${membershipCount} institutions (max ${INSTITUTION_LIMITS.maxInstitutionsPerVillage})` };
   }
 
-  // 加入条件チェック
+  // Join requirement check
   for (const req of institution.joinRequirements) {
     if (!checkJoinRequirement(req, village)) {
       return { success: false, reason: `Join requirement not met: ${req.type}` };
@@ -102,7 +102,7 @@ export function joinInstitution(
   return { success: true };
 }
 
-// --- 制度からの脱退 ---
+// --- Leave institution ---
 
 export function leaveInstitution(
   villageId: string,
@@ -123,7 +123,7 @@ export function leaveInstitution(
   return { success: true };
 }
 
-// --- 加入条件チェック ---
+// --- Join requirement check ---
 
 function checkJoinRequirement(req: JoinRequirement, village: VillageState4X): boolean {
   switch (req.type) {
@@ -136,14 +136,14 @@ function checkJoinRequirement(req: JoinRequirement, village: VillageState4X): bo
     case 'min_culture':
       return village.totalCulturePoints >= (req.params.value as number);
     case 'approval':
-      // 既存メンバーの承認が必要（簡略化: 常にtrue）
+      // Requires approval from existing members (simplified: always true)
       return true;
     default:
       return true;
   }
 }
 
-// --- 制度の Effect 取得 ---
+// --- Get institution Effects ---
 
 export function getInstitutionEffects(
   villageId: string,
@@ -163,21 +163,21 @@ export function getInstitutionEffects(
   return effects;
 }
 
-// --- 制度の relevance 減衰 + 衰退処理 ---
+// --- Institution relevance decay + decline processing ---
 
 export function processInstitutionLifecycle(awState: AutonomousWorldState): string[] {
   const dissolved: string[] = [];
 
   for (const [id, institution] of awState.institutions) {
-    // メンバーがいなければ急速に衰退
+    // Rapid decline if no members
     if (institution.memberVillageIds.length < INSTITUTION_LIMITS.minMembersToSurvive) {
       institution.relevance = Math.max(0, institution.relevance - RELEVANCE_DECAY_RATE * 5);
     } else {
-      // 通常の減衰（メンバーがいれば緩やか）
+      // Normal decay (slower with members)
       institution.relevance = Math.max(0, institution.relevance - RELEVANCE_DECAY_RATE * 0.1);
     }
 
-    // relevance が 0 になったら解散
+    // Dissolve when relevance reaches 0
     if (institution.relevance <= 0) {
       dissolved.push(institution.name);
       awState.institutions.delete(id);
@@ -187,7 +187,7 @@ export function processInstitutionLifecycle(awState: AutonomousWorldState): stri
   return dissolved;
 }
 
-// --- ヘルパー ---
+// --- Helpers ---
 
 function countMemberships(villageId: string, awState: AutonomousWorldState): number {
   let count = 0;
@@ -197,7 +197,7 @@ function countMemberships(villageId: string, awState: AutonomousWorldState): num
   return count;
 }
 
-/** 村が所属する全制度を取得 */
+/** Get all institutions a village belongs to */
 export function getVillageInstitutions(villageId: string, awState: AutonomousWorldState): Institution[] {
   const result: Institution[] = [];
   for (const inst of awState.institutions.values()) {

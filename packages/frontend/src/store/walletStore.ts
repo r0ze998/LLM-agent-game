@@ -1,8 +1,8 @@
 /**
  * walletStore.ts — Zustand wallet state
  *
- * Starknet ウォレット接続状態を管理。
- * Katana devnet 直接接続 + ブラウザウォレット両対応。
+ * Manages Starknet wallet connection state.
+ * Supports both Katana devnet direct connection and browser wallets.
  */
 
 import { create } from 'zustand';

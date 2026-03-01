@@ -1,4 +1,4 @@
-// F15: Army Visualization — 軍隊表示
+// F15: Army Visualization — army display
 import type { Army } from '@murasato/shared';
 import { TILE_SIZE } from '@murasato/shared';
 

@@ -147,16 +147,16 @@ export async function foundVillage(
   // LLM generates village name
   let villageName: string;
   try {
-    const memberNames = members.map(a => a.identity.name).join('、');
+    const memberNames = members.map(a => a.identity.name).join(', ');
     const raw = await callLLM({
-      system: 'あなたはJRPGの村の命名者です。メンバーの名前や性格から村の名前を1つだけ返してください。和風・ファンタジー風の名前で、2-4文字がベスト。名前のみ返してください。',
-      userMessage: `メンバー: ${memberNames}\n統治: ${governanceType}\nこの村にふさわしい名前を1つだけ。`,
+      system: 'You are a village namer for a JRPG world. Based on the members\' names and personalities, return exactly one village name. Use a fantasy-style name, ideally short (2-4 syllables). Return only the name.',
+      userMessage: `Members: ${memberNames}\nGovernance: ${governanceType}\nGive exactly one fitting name for this village.`,
       importance: 'routine',
       maxTokens: 32,
     });
-    villageName = raw.trim().replace(/["""「」]/g, '').slice(0, 10);
+    villageName = raw.trim().replace(/["""]/g, '').slice(0, 10);
   } catch {
-    villageName = `里${Math.floor(Math.random() * 100)}`;
+    villageName = `Settlement ${Math.floor(Math.random() * 100)}`;
   }
 
   // Calculate territory (tiles around center)
@@ -199,7 +199,7 @@ export async function foundVillage(
     type: 'founding',
     tick,
     actorIds: members.map(a => a.identity.id),
-    description: `${villageName}が建村された。初代村長: ${members.find(a => a.identity.id === leaderId)?.identity.name}。統治形態: ${governanceType}`,
+    description: `${villageName} has been founded. First village chief: ${members.find(a => a.identity.id === leaderId)?.identity.name}. Governance: ${governanceType}`,
     data: { villageId: village.id, governanceType, population: members.length },
   };
 
@@ -290,7 +290,7 @@ export async function runElection(
     type: 'election',
     tick,
     actorIds: [winnerId],
-    description: `${village.name}で選挙が行われ、${winner?.identity.name ?? '不明'}が新村長に選ばれた（${maxVotes}票）`,
+    description: `An election was held in ${village.name}, and ${winner?.identity.name ?? 'unknown'} was chosen as the new village chief (${maxVotes} votes)`,
     data: { villageId: village.id, winnerId, votes: Object.fromEntries(votes) },
   };
 
@@ -306,12 +306,12 @@ export async function proposeLaw(
 ): Promise<string | null> {
   try {
     const raw = await callLLM({
-      system: `あなたは${village.name}の住民${proposer.identity.name}です。村の状況を踏まえて、新しい法律を1つ提案してください。短い1文で表現してください。法律の文面のみ返してください。`,
-      userMessage: `村の状況: ${situation}\n現在の法律: ${village.laws.join('、') || 'なし'}\n統治形態: ${village.governance.type}\n\n新しい法律を1つ提案:`,
+      system: `You are ${proposer.identity.name}, a resident of ${village.name}. Considering the village's situation, propose one new law. Express it in a single short sentence. Return only the text of the law.`,
+      userMessage: `Village situation: ${situation}\nCurrent laws: ${village.laws.join(', ') || 'none'}\nGovernance: ${village.governance.type}\n\nPropose one new law:`,
       importance: 'social',
       maxTokens: 100,
     });
-    return raw.trim().replace(/["""「」]/g, '').slice(0, 100);
+    return raw.trim().replace(/["""]/g, '').slice(0, 100);
   } catch {
     return null;
   }
@@ -357,9 +357,9 @@ function createInitialCulture(members: AgentState[]): CultureState {
     traditions: [],
     stories: [],
     taboos: [],
-    namingStyle: avgOpenness > 60 ? '自由命名' : '和風',
-    greetingStyle: avgOpenness > 60 ? 'カジュアル' : '丁寧',
-    architectureStyle: avgOpenness > 60 ? 'モダン' : '伝統的',
+    namingStyle: avgOpenness > 60 ? 'freeform' : 'traditional',
+    greetingStyle: avgOpenness > 60 ? 'casual' : 'polite',
+    architectureStyle: avgOpenness > 60 ? 'modern' : 'traditional',
   };
 }
 
@@ -385,7 +385,7 @@ export function leaveVillage(agent: AgentState, village: Village): void {
   // Remove from council if applicable
   village.governance.councilIds = village.governance.councilIds.filter(id => id !== agent.identity.id);
   if (village.governance.leaderId === agent.identity.id) {
-    // Leader left — trigger new election or pick from council
+    // Leader left -- trigger new election or pick from council
     village.governance.leaderId = village.governance.councilIds[0] ?? village.population[0] ?? null;
   }
 }

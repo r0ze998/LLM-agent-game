@@ -1,8 +1,8 @@
 /**
- * dojoEventBridge.ts — DojoGameEvent[] → GameEvent[] 変換
+ * dojoEventBridge.ts — DojoGameEvent[] -> GameEvent[] conversion
  *
- * オンチェーンイベントをオフチェーンの GameEvent 形式に変換し、
- * VillageIdMapper で u32 → UUID 逆引きを行う。
+ * Converts on-chain events to off-chain GameEvent format,
+ * using VillageIdMapper for u32 -> UUID reverse lookup.
  */
 
 import type { GameEvent, GameEventType } from "@murasato/shared";
@@ -72,7 +72,7 @@ function convertOne(
       const isStarvation = ev.foodDelta < -0.5 && ev.populationDelta < 0;
       if (!isStarvation) return null; // Only emit event for starvation; normal ticks are state-synced
       return makeEvent(gameId, "death", tick, [],
-        `村${uuid}で飢餓が発生 (人口${ev.populationDelta})`,
+        `Starvation occurred in village ${uuid} (population ${ev.populationDelta})`,
         { villageId: uuid, populationLost: -ev.populationDelta, _origin: "onchain" },
       );
     }
@@ -82,7 +82,7 @@ function convertOne(
       const defUuid = mapper.toUuid(ev.defenderVillage);
       if (!atkUuid || !defUuid) return null;
       return makeEvent(gameId, "war", tick, [],
-        `${atkUuid} が ${defUuid} に攻撃 (${ev.attackerWon ? "勝利" : "敗北"})`,
+        `${atkUuid} attacked ${defUuid} (${ev.attackerWon ? "victory" : "defeat"})`,
         {
           _origin: "onchain",
           combatResult: {
@@ -101,7 +101,7 @@ function convertOne(
       if (!uuid) return null;
       const label = VICTORY_TYPE_LABELS[ev.victoryType] ?? `type_${ev.victoryType}`;
       return makeEvent(gameId, "discovery", tick, [],
-        `勝利条件達成: ${label} by ${uuid}`,
+        `Victory achieved: ${label} by ${uuid}`,
         {
           _origin: "onchain",
           victory: {
@@ -119,7 +119,7 @@ function convertOne(
       const uuid = mapper.toUuid(ev.villageId);
       if (!uuid) return null;
       return makeEvent(gameId, "election", tick, [],
-        `村${uuid}で契約が制定された (ID=${ev.covenantId})`,
+        `Covenant enacted in village ${uuid} (ID=${ev.covenantId})`,
         { _origin: "onchain", type: "covenant_enacted", covenantOnChainId: ev.covenantId },
       );
     }
@@ -128,7 +128,7 @@ function convertOne(
       const uuid = mapper.toUuid(ev.originVillageId);
       if (!uuid) return null;
       return makeEvent(gameId, "discovery", tick, [],
-        `村${uuid}で発明が登録された (ID=${ev.inventionId})`,
+        `Invention registered in village ${uuid} (ID=${ev.inventionId})`,
         { _origin: "onchain", type: "invention_registered", inventionOnChainId: ev.inventionId },
       );
     }
@@ -137,7 +137,7 @@ function convertOne(
       const uuid = mapper.toUuid(ev.targetVillageId);
       if (!uuid) return null;
       return makeEvent(gameId, "discovery", tick, [],
-        `知識が村${uuid}に伝播 (発明ID=${ev.inventionId})`,
+        `Knowledge spread to village ${uuid} (invention ID=${ev.inventionId})`,
         { _origin: "onchain", type: "knowledge_spread", inventionOnChainId: ev.inventionId },
       );
     }
@@ -146,7 +146,7 @@ function convertOne(
       const uuid = mapper.toUuid(ev.founderVillageId);
       if (!uuid) return null;
       return makeEvent(gameId, "discovery", tick, [],
-        `村${uuid}が制度を創設 (ID=${ev.institutionId})`,
+        `Village ${uuid} founded an institution (ID=${ev.institutionId})`,
         { _origin: "onchain", type: "institution_founded", institutionOnChainId: ev.institutionId },
       );
     }
@@ -155,14 +155,14 @@ function convertOne(
       const uuid = mapper.toUuid(ev.villageId);
       if (!uuid) return null;
       return makeEvent(gameId, "diplomacy", tick, [],
-        `村${uuid}が制度に加入 (ID=${ev.institutionId})`,
+        `Village ${uuid} joined an institution (ID=${ev.institutionId})`,
         { _origin: "onchain", type: "institution_joined", institutionOnChainId: ev.institutionId },
       );
     }
 
     case "InstitutionDissolved": {
       return makeEvent(gameId, "discovery", tick, [],
-        `制度が解散 (ID=${ev.institutionId})`,
+        `Institution dissolved (ID=${ev.institutionId})`,
         { _origin: "onchain", type: "institution_dissolved", institutionOnChainId: ev.institutionId },
       );
     }
@@ -172,7 +172,7 @@ function convertOne(
       const toUuid = mapper.toUuid(ev.toVillage);
       if (!fromUuid || !toUuid) return null;
       return makeEvent(gameId, "trade", tick, [],
-        `${fromUuid}が${toUuid}に貿易を提案 (ID=${ev.tradeId})`,
+        `${fromUuid} proposed trade to ${toUuid} (ID=${ev.tradeId})`,
         { _origin: "onchain", type: "trade_proposed", tradeId: ev.tradeId, fromVillage: fromUuid, toVillage: toUuid },
       );
     }
@@ -182,7 +182,7 @@ function convertOne(
       const toUuid = mapper.toUuid(ev.toVillage);
       if (!fromUuid || !toUuid) return null;
       return makeEvent(gameId, "trade", tick, [],
-        `${fromUuid}と${toUuid}の貿易が成立 (ID=${ev.tradeId})`,
+        `Trade accepted between ${fromUuid} and ${toUuid} (ID=${ev.tradeId})`,
         { _origin: "onchain", type: "trade_accepted", tradeId: ev.tradeId, fromVillage: fromUuid, toVillage: toUuid },
       );
     }
@@ -192,7 +192,7 @@ function convertOne(
       const toUuid = mapper.toUuid(ev.toVillage);
       if (!fromUuid || !toUuid) return null;
       return makeEvent(gameId, "trade", tick, [],
-        `交易路${ev.routeId}が実行: ${fromUuid}↔${toUuid}`,
+        `Trade route ${ev.routeId} executed: ${fromUuid} <-> ${toUuid}`,
         { _origin: "onchain", type: "trade_executed", routeId: ev.routeId, fromVillage: fromUuid, toVillage: toUuid },
       );
     }

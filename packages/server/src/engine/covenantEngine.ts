@@ -1,8 +1,8 @@
-// === Layer 1: 契約エンジン — Covenant → Effect[] 変換 + バリデーション ===
+// === Layer 1: Covenant Engine — Covenant -> Effect[] conversion + validation ===
 //
-// ClauseType → Effect[] の変換ルールは Layer 0 的に不変。
-// エージェントは ClauseType の組み合わせとパラメータを選択するが、
-// 変換ロジック自体は変更できない。
+// ClauseType -> Effect[] conversion rules are immutable (Layer 0 invariant).
+// Agents choose the combination of ClauseTypes and parameters,
+// but the conversion logic itself cannot be modified.
 
 import type { Effect } from '@murasato/shared';
 import type {
@@ -19,7 +19,7 @@ import {
   RELEVANCE_DECAY_RATE,
 } from '@murasato/shared';
 
-// --- ClauseType → Effect[] 変換 ---
+// --- ClauseType -> Effect[] conversion ---
 
 export function clauseToEffects(clause: CovenantClause): Effect[] {
   const p = clause.params;
@@ -59,8 +59,8 @@ export function clauseToEffects(clause: CovenantClause): Effect[] {
     }
 
     case 'building_ban': {
-      // 建物禁止は Effect では表現しにくいが、後でコマンド処理時にチェックする
-      // ここではペナルティとして build_speed に影響
+      // Building ban is hard to express as an Effect, checked during command processing
+      // Here we apply a penalty to build_speed
       return [
         { type: 'build_speed', target: { scope: 'village' }, value: -0.1 },
       ];
@@ -89,8 +89,8 @@ export function clauseToEffects(clause: CovenantClause): Effect[] {
     }
 
     case 'non_aggression': {
-      // 非侵略条約はEffect不要。外交ステータスで管理。
-      // 平和ボーナスとして trade_income を付与
+      // Non-aggression pact needs no Effect; managed via diplomatic status.
+      // Grants trade_income as a peace bonus
       return [
         { type: 'trade_income', target: { scope: 'village', resource: 'gold' }, value: 1 },
       ];
@@ -99,7 +99,7 @@ export function clauseToEffects(clause: CovenantClause): Effect[] {
     case 'tribute': {
       const amount = p.amount as number;
       const resource = (p.resource as ResourceType4X) || 'gold';
-      // 貢ぐ側にはマイナス、受ける側にはプラス（bilateral scopeで処理）
+      // Negative for payer, positive for receiver (handled via bilateral scope)
       return [
         { type: 'resource_production', target: { scope: 'village', resource }, value: -(amount * 0.2) },
       ];
@@ -134,7 +134,7 @@ export function clauseToEffects(clause: CovenantClause): Effect[] {
   }
 }
 
-// --- バリデーション ---
+// --- Validation ---
 
 export function validateCovenant(covenant: Omit<Covenant, 'id' | 'enactedAtTick' | 'repealedAtTick' | 'relevance'>): {
   valid: boolean;
@@ -142,7 +142,7 @@ export function validateCovenant(covenant: Omit<Covenant, 'id' | 'enactedAtTick'
 } {
   const violations: string[] = [];
 
-  // 条項数チェック
+  // Clause count check
   if (covenant.clauses.length === 0) {
     violations.push('Covenant must have at least one clause');
   }
@@ -150,7 +150,7 @@ export function validateCovenant(covenant: Omit<Covenant, 'id' | 'enactedAtTick'
     violations.push(`Clause count ${covenant.clauses.length} exceeds max ${COVENANT_LIMITS.maxClausesPerCovenant}`);
   }
 
-  // 各条項のパラメータ範囲チェック
+  // Parameter range check for each clause
   for (const clause of covenant.clauses) {
     const bounds = CLAUSE_PARAM_BOUNDS[clause.type];
     if (bounds) {
@@ -164,18 +164,18 @@ export function validateCovenant(covenant: Omit<Covenant, 'id' | 'enactedAtTick'
       }
     }
 
-    // 全Effect を EFFECT_BOUNDS で検証
+    // Validate all Effects against EFFECT_BOUNDS
     const effects = clauseToEffects(clause);
     for (const eff of effects) {
       const clamped = clampEffect(eff);
       if (clamped.value !== eff.value) {
-        // Effect が clamp されるが、これは警告であって致命的ではない
-        // 実行時に clamp されるので OK
+        // Effect gets clamped, but this is a warning, not fatal
+        // It will be clamped at runtime so it's OK
       }
     }
   }
 
-  // bilateral scope には targetVillageId が必要
+  // bilateral scope requires targetVillageId
   if (covenant.scope === 'bilateral' && !covenant.targetVillageId) {
     violations.push('Bilateral covenant requires targetVillageId');
   }
@@ -183,7 +183,7 @@ export function validateCovenant(covenant: Omit<Covenant, 'id' | 'enactedAtTick'
   return { valid: violations.length === 0, violations };
 }
 
-// --- アクティブ Covenant の Effect 取得 ---
+// --- Get active Covenant Effects ---
 
 export function getActiveCovenantEffects(
   villageId: string,
@@ -193,12 +193,12 @@ export function getActiveCovenantEffects(
   const effects: Effect[] = [];
 
   for (const covenant of awState.covenants.values()) {
-    // アクティブかチェック
+    // Check if active
     if (covenant.repealedAtTick !== null) continue;
     if (covenant.expiresAtTick !== null && currentTick >= covenant.expiresAtTick) continue;
     if (covenant.relevance <= 0) continue;
 
-    // この村に適用されるか
+    // Check if applies to this village
     const applies =
       (covenant.scope === 'village' && covenant.villageId === villageId) ||
       (covenant.scope === 'bilateral' && (covenant.villageId === villageId || covenant.targetVillageId === villageId)) ||
@@ -206,17 +206,17 @@ export function getActiveCovenantEffects(
 
     if (!applies) continue;
 
-    // 全条項の Effect を集める
+    // Gather Effects from all clauses
     for (const clause of covenant.clauses) {
       const clauseEffects = clauseToEffects(clause);
 
-      // bilateral の tribute は方向性がある
+      // bilateral tribute is directional
       if (clause.type === 'tribute' && covenant.scope === 'bilateral') {
         if (covenant.villageId === villageId) {
-          // 制定村はコスト側
+          // Enacting village bears the cost
           effects.push(...clauseEffects.map(e => clampEffect(e)));
         } else if (covenant.targetVillageId === villageId) {
-          // 対象村は受益側（符号反転）
+          // Target village receives benefit (sign inverted)
           effects.push(...clauseEffects.map(e => clampEffect({ ...e, value: -e.value })));
         }
       } else {
@@ -228,7 +228,7 @@ export function getActiveCovenantEffects(
   return effects;
 }
 
-// --- 契約の relevance 減衰 (忘却法則) ---
+// --- Covenant relevance decay (law of forgetting) ---
 
 export function decayCovenantRelevance(awState: AutonomousWorldState): void {
   for (const covenant of awState.covenants.values()) {
@@ -237,7 +237,7 @@ export function decayCovenantRelevance(awState: AutonomousWorldState): void {
   }
 }
 
-// --- アクティブ契約数を取得 ---
+// --- Get active covenant count ---
 
 export function getActiveCovenantCount(villageId: string, awState: AutonomousWorldState, currentTick: number): number {
   let count = 0;
@@ -249,7 +249,7 @@ export function getActiveCovenantCount(villageId: string, awState: AutonomousWor
   return count;
 }
 
-// --- 建物禁止チェック ---
+// --- Building ban check ---
 
 export function isBuildingBanned(
   villageId: string,

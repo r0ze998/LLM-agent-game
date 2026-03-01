@@ -1,8 +1,8 @@
 /**
- * dojoTxService.ts — フロントエンド直接 TX 送信 (starknet.js v9)
+ * dojoTxService.ts — Frontend direct TX submission (starknet.js v9)
  *
- * サーバーの dojoTxService.ts からポート。
- * Account インスタンスは外部 (walletStore) から受け取る。
+ * Ported from the server's dojoTxService.ts.
+ * The Account instance is received from external source (walletStore).
  */
 
 import type { Account, RpcProvider, Call } from 'starknet';

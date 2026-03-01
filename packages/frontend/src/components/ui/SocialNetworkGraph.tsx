@@ -285,9 +285,9 @@ export function SocialNetworkGraph() {
     <div style={overlayStyle} onClick={toggleSocialGraph}>
       <div style={containerStyle} onClick={(e) => e.stopPropagation()}>
         <div style={titleBarStyle}>
-          <span style={{ color: '#bb77dd', fontWeight: 'bold', fontSize: 16 }}>社会ネットワーク</span>
+          <span style={{ color: '#bb77dd', fontWeight: 'bold', fontSize: 16 }}>Social Network</span>
           <span style={{ color: '#888', fontSize: 11, marginLeft: 12 }}>
-            {nodesRef.current.size}人 / {edgesRef.current.length}関係
+            {nodesRef.current.size} agents / {edgesRef.current.length} relations
           </span>
           <button onClick={toggleSocialGraph} style={closeBtnStyle}>✕</button>
         </div>

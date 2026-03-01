@@ -53,7 +53,7 @@ export function AgentDeployer() {
 
   const handleDeploy = async () => {
     if (soul.trim().length < 10) {
-      setError('魂の描写は10文字以上必要です');
+      setError('Soul description requires at least 10 characters');
       return;
     }
     setDeploying(true);
@@ -78,19 +78,19 @@ export function AgentDeployer() {
       setSkills({});
       await loadBlueprints();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'デプロイに失敗しました');
+      setError(err instanceof Error ? err.message : 'Deploy failed');
     }
     setDeploying(false);
   };
 
   const personalityAxes: (keyof PersonalityAxes)[] = ['openness', 'agreeableness', 'conscientiousness', 'courage', 'ambition'];
   const personalityLabels: Record<string, string> = {
-    openness: '開放性', agreeableness: '協調性', conscientiousness: '勤勉性', courage: '勇気', ambition: '野心',
+    openness: 'Openness', agreeableness: 'Agreeableness', conscientiousness: 'Conscientiousness', courage: 'Courage', ambition: 'Ambition',
   };
   const skillTypes: SkillType[] = ['farming', 'building', 'crafting', 'leadership', 'combat', 'diplomacy', 'teaching', 'healing'];
   const skillLabels: Record<string, string> = {
-    farming: '農業', building: '建築', crafting: '工芸', leadership: '指導',
-    combat: '戦闘', diplomacy: '外交', teaching: '教育', healing: '医療',
+    farming: 'Farming', building: 'Building', crafting: 'Crafting', leadership: 'Leadership',
+    combat: 'Combat', diplomacy: 'Diplomacy', teaching: 'Teaching', healing: 'Healing',
   };
 
   return (
@@ -113,18 +113,18 @@ export function AgentDeployer() {
     }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <span style={{ fontWeight: 'bold', color: '#c9a5e5' }}>AI エージェント召喚</span>
+        <span style={{ fontWeight: 'bold', color: '#c9a5e5' }}>Summon AI Agent</span>
         <button onClick={toggle} style={{ background: 'transparent', border: 'none', color: '#999', cursor: 'pointer', fontSize: 16 }}>
           x
         </button>
       </div>
 
       {/* Soul textarea */}
-      <label style={{ color: '#a88fc4', fontSize: 11 }}>魂の描写 (必須)</label>
+      <label style={{ color: '#a88fc4', fontSize: 11 }}>Soul Description (required)</label>
       <textarea
         value={soul}
         onChange={(e) => setSoul(e.target.value)}
-        placeholder="穏やかな農夫で、土地と季節のリズムを深く敬う。争いを嫌い、常に対話で解決しようとする。"
+        placeholder="A gentle farmer who deeply respects the land and the rhythm of the seasons. Avoids conflict and always tries to resolve things through dialogue."
         rows={6}
         style={{
           width: '100%',
@@ -142,11 +142,11 @@ export function AgentDeployer() {
       />
 
       {/* Name */}
-      <label style={{ color: '#a88fc4', fontSize: 11 }}>名前 (省略時はAIが生成)</label>
+      <label style={{ color: '#a88fc4', fontSize: 11 }}>Name (AI generates if omitted)</label>
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="例: タロウ"
+        placeholder="e.g. Taro"
         style={{
           width: '100%',
           background: '#111',
@@ -162,7 +162,7 @@ export function AgentDeployer() {
       />
 
       {/* Behavior rules */}
-      <label style={{ color: '#a88fc4', fontSize: 11 }}>行動規則</label>
+      <label style={{ color: '#a88fc4', fontSize: 11 }}>Behavior Rules</label>
       <div style={{ marginBottom: 8 }}>
         {rules.map((rule, i) => (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
@@ -182,7 +182,7 @@ export function AgentDeployer() {
             value={ruleInput}
             onChange={(e) => setRuleInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addRule(); } }}
-            placeholder="例: 農業を最優先する"
+            placeholder="e.g. Prioritize farming above all"
             style={{
               flex: 1,
               background: '#111',
@@ -212,11 +212,11 @@ export function AgentDeployer() {
       </div>
 
       {/* Backstory */}
-      <label style={{ color: '#a88fc4', fontSize: 11 }}>前世の記憶 (省略可)</label>
+      <label style={{ color: '#a88fc4', fontSize: 11 }}>Past Life Memories (optional)</label>
       <textarea
         value={backstory}
         onChange={(e) => setBackstory(e.target.value)}
-        placeholder="遠い異国で薬師をしていた記憶がある..."
+        placeholder="Remembers being a healer in a distant land..."
         rows={3}
         style={{
           width: '100%',
@@ -246,12 +246,12 @@ export function AgentDeployer() {
           marginBottom: 8,
         }}
       >
-        {showAdvanced ? '- 詳細設定を閉じる' : '+ 詳細設定'}
+        {showAdvanced ? '- Hide Advanced' : '+ Advanced Settings'}
       </button>
 
       {showAdvanced && (
         <div style={{ background: '#1a1a2e', borderRadius: 4, padding: 8, marginBottom: 8 }}>
-          <div style={{ fontSize: 11, color: '#a88fc4', marginBottom: 4 }}>性格 (0-100)</div>
+          <div style={{ fontSize: 11, color: '#a88fc4', marginBottom: 4 }}>Personality (0-100)</div>
           {personalityAxes.map((axis) => (
             <div key={axis} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
               <span style={{ width: 50, fontSize: 11 }}>{personalityLabels[axis]}</span>
@@ -267,7 +267,7 @@ export function AgentDeployer() {
             </div>
           ))}
 
-          <div style={{ fontSize: 11, color: '#a88fc4', marginTop: 8, marginBottom: 4 }}>スキル (1-30)</div>
+          <div style={{ fontSize: 11, color: '#a88fc4', marginTop: 8, marginBottom: 4 }}>Skills (1-30)</div>
           {skillTypes.map((skill) => (
             <div key={skill} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
               <span style={{ width: 50, fontSize: 11 }}>{skillLabels[skill]}</span>
@@ -310,13 +310,13 @@ export function AgentDeployer() {
           marginBottom: 12,
         }}
       >
-        {deploying ? '魂を解析中...' : '召喚する'}
+        {deploying ? 'Analyzing soul...' : 'Summon'}
       </button>
 
       {/* Deployed list */}
       {blueprints.length > 0 && (
         <div>
-          <div style={{ color: '#a88fc4', fontSize: 11, marginBottom: 4 }}>召喚済みエージェント</div>
+          <div style={{ color: '#a88fc4', fontSize: 11, marginBottom: 4 }}>Deployed Agents</div>
           {blueprints.map((bp) => {
             const agent = [...(useGameStore.getState().agents.values())].find(a => a.identity.id === bp.agentId);
             const handleRecall = async (e: React.MouseEvent) => {
@@ -344,7 +344,7 @@ export function AgentDeployer() {
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <span style={{ color: '#c9a5e5', fontWeight: 'bold', fontSize: 12 }}>
-                    {agent?.identity.name ?? '(名前未定)'}
+                    {agent?.identity.name ?? '(Unnamed)'}
                   </span>
                   <span style={{ color: '#666', fontSize: 11, marginLeft: 8 }}>
                     {bp.soul.slice(0, 25)}{bp.soul.length > 25 ? '...' : ''}
@@ -358,11 +358,11 @@ export function AgentDeployer() {
                     background: agent?.identity.status === 'dead' ? '#4a2020' : '#204a20',
                     color: agent?.identity.status === 'dead' ? '#f88' : '#8f8',
                   }}>
-                    {agent?.identity.status ?? '不明'}
+                    {agent?.identity.status ?? 'unknown'}
                   </span>
                   <button
                     onClick={handleRecall}
-                    title="リコール（削除）"
+                    title="Recall (remove)"
                     style={{
                       background: 'transparent',
                       border: '1px solid #633',

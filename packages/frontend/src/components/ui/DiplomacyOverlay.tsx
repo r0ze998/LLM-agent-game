@@ -14,11 +14,11 @@ const STATUS_COLORS: Record<DiplomaticStatus, string> = {
 };
 
 const STATUS_NAMES: Record<DiplomaticStatus, string> = {
-  allied: '同盟',
-  friendly: '友好',
-  neutral: '中立',
-  hostile: '敵対',
-  war: '戦争',
+  allied: 'Allied',
+  friendly: 'Friendly',
+  neutral: 'Neutral',
+  hostile: 'Hostile',
+  war: 'War',
 };
 
 function getTerritoryCenterPixel(territory: { x: number; y: number }[]): { x: number; y: number } {
@@ -98,7 +98,7 @@ export function DiplomacyOverlay() {
     <div style={overlayStyle}>
       {/* Close button */}
       <button onClick={toggleDiplomacy} style={closeOverlayBtnStyle}>
-        ✕ 外交を閉じる
+        ✕ Close Diplomacy
       </button>
 
       <svg width={w} height={h} style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}>
@@ -206,21 +206,21 @@ export function DiplomacyOverlay() {
               <span style={{ color: STATUS_COLORS[status] }}>
                 {STATUS_NAMES[status]}
               </span>
-              {rel && <span style={{ color: '#888', marginLeft: 8 }}>緊張: {rel.tension}</span>}
+              {rel && <span style={{ color: '#888', marginLeft: 8 }}>Tension: {rel.tension}</span>}
             </div>
             {selectedVillageId && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {status !== 'allied' && status !== 'war' && (
-                  <DipBtn label="同盟提案" color="#5add5a" onClick={() => handleDiplomacy('propose_alliance')} />
+                  <DipBtn label="Propose Alliance" color="#5add5a" onClick={() => handleDiplomacy('propose_alliance')} />
                 )}
                 {status !== 'war' && (
-                  <DipBtn label="宣戦布告" color="#dd5555" onClick={() => handleDiplomacy('declare_war')} />
+                  <DipBtn label="Declare War" color="#dd5555" onClick={() => handleDiplomacy('declare_war')} />
                 )}
                 {status === 'war' && (
-                  <DipBtn label="和平提案" color="#ffd700" onClick={() => handleDiplomacy('propose_peace')} />
+                  <DipBtn label="Propose Peace" color="#ffd700" onClick={() => handleDiplomacy('propose_peace')} />
                 )}
                 {status === 'allied' && (
-                  <DipBtn label="同盟破棄" color="#ff8844" onClick={() => handleDiplomacy('break_alliance')} />
+                  <DipBtn label="Break Alliance" color="#ff8844" onClick={() => handleDiplomacy('break_alliance')} />
                 )}
               </div>
             )}
